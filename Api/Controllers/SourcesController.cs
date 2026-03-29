@@ -1,0 +1,73 @@
+﻿using Api.Models;
+using Core.DomainModels;
+using Core.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Api.Controllers;
+
+[ApiController]
+[Route("sources")]
+[Authorize(Roles = nameof(UserRole.Admin))]
+public class SourcesController(ISourceService sourceService) : BaseController
+{
+	[HttpGet]
+	public async Task<ActionResult<List<SourceDto>>> GetAll(CancellationToken cancellationToken = default)
+	{
+		var sources = await sourceService.GetAllAsync(cancellationToken);
+		return Ok(sources.Select(ToDto).ToList());
+	}
+
+	[HttpGet("{id:guid}")]
+	public async Task<ActionResult<SourceDto>> GetById(Guid id, CancellationToken cancellationToken = default)
+	{
+		var source = await sourceService.GetByIdAsync(id, cancellationToken);
+		return Ok(ToDto(source));
+	}
+
+	[HttpPost]
+	public async Task<ActionResult<SourceDto>> Create(
+		[FromBody] CreateSourceRequest request,
+		CancellationToken cancellationToken = default)
+	{
+		if (string.IsNullOrWhiteSpace(request.Name))
+			return BadRequest("Name is required");
+
+		if (string.IsNullOrWhiteSpace(request.Url))
+			return BadRequest("URL is required");
+
+		if (!Enum.TryParse<SourceType>(request.Type, ignoreCase: true, out var sourceType))
+			return BadRequest($"Invalid source type. Valid values: {string.Join(", ", Enum.GetNames<SourceType>())}");
+
+		var source = await sourceService.CreateAsync(request.Name, request.Url, sourceType, cancellationToken);
+		return CreatedAtAction(nameof(GetById), new { id = source.Id }, ToDto(source));
+	}
+
+	[HttpPut("{id:guid}")]
+	public async Task<ActionResult<SourceDto>> Update(
+		Guid id,
+		[FromBody] UpdateSourceRequest request,
+		CancellationToken cancellationToken = default)
+	{
+		if (string.IsNullOrWhiteSpace(request.Name))
+			return BadRequest("Name is required");
+
+		if (string.IsNullOrWhiteSpace(request.Url))
+			return BadRequest("URL is required");
+
+		var source = await sourceService.UpdateAsync(id, request.Name, request.Url, request.IsActive, cancellationToken);
+		return Ok(ToDto(source));
+	}
+
+	[HttpDelete("{id:guid}")]
+	public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
+	{
+		await sourceService.DeleteAsync(id, cancellationToken);
+		return NoContent();
+	}
+
+	private static SourceDto ToDto(Source source) => new(
+		source.Id, source.Name, source.Url,
+		source.Type.ToString(), source.IsActive, source.LastFetchedAt
+	);
+}

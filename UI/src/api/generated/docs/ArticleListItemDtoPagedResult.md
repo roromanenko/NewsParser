@@ -1,0 +1,32 @@
+# ArticleListItemDtoPagedResult
+
+
+## Properties
+
+Name | Type | Description | Notes
+------------ | ------------- | ------------- | -------------
+**items** | [**Array&lt;ArticleListItemDto&gt;**](ArticleListItemDto.md) |  | [optional] [default to undefined]
+**page** | **number** |  | [optional] [default to undefined]
+**pageSize** | **number** |  | [optional] [default to undefined]
+**totalCount** | **number** |  | [optional] [default to undefined]
+**totalPages** | **number** |  | [optional] [readonly] [default to undefined]
+**hasNextPage** | **boolean** |  | [optional] [readonly] [default to undefined]
+**hasPreviousPage** | **boolean** |  | [optional] [readonly] [default to undefined]
+
+## Example
+
+```typescript
+import { ArticleListItemDtoPagedResult } from './api';
+
+const instance: ArticleListItemDtoPagedResult = {
+    items,
+    page,
+    pageSize,
+    totalCount,
+    totalPages,
+    hasNextPage,
+    hasPreviousPage,
+};
+```
+
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

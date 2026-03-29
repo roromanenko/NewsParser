@@ -1,0 +1,54 @@
+﻿namespace Api.Models;
+
+public record EventListItemDto(
+	Guid Id,
+	string Title,
+	string Summary,
+	string Status,
+	DateTimeOffset FirstSeenAt,
+	DateTimeOffset LastUpdatedAt,
+	int ArticleCount,
+	int UnresolvedContradictions
+);
+
+public record EventDetailDto(
+	Guid Id,
+	string Title,
+	string Summary,
+	string Status,
+	DateTimeOffset FirstSeenAt,
+	DateTimeOffset LastUpdatedAt,
+	List<EventArticleDto> Articles,
+	List<EventUpdateDto> Updates,
+	List<ContradictionDto> Contradictions,
+	int ReclassifiedCount
+);
+
+public record EventArticleDto(
+	Guid ArticleId,
+	string Title,
+	string? Summary,
+	string Role,
+	DateTimeOffset AddedAt
+);
+
+public record EventUpdateDto(
+	Guid Id,
+	string FactSummary,
+	bool IsPublished,
+	DateTimeOffset CreatedAt
+);
+
+public record ContradictionDto(
+	Guid Id,
+	string Description,
+	bool IsResolved,
+	DateTimeOffset CreatedAt,
+	List<Guid> ArticleIds
+);
+
+public record MergeEventsRequest(Guid SourceEventId, Guid TargetEventId);
+
+public record ResolveContradictionRequest(Guid ContradictionId);
+
+public record ReclassifyArticleRequest(Guid ArticleId, Guid TargetEventId, string Role);
