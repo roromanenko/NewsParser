@@ -1,4 +1,7 @@
-﻿using Core.Options;
+﻿using Api.Validators;
+using Core.Options;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -13,6 +16,8 @@ public static class ApiServiceExtensions
 		IConfiguration configuration)
 	{
 		services.AddControllers();
+		services.AddFluentValidationAutoValidation();
+		services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 		services.AddSwagger();
 		services.AddJwt(configuration);
 

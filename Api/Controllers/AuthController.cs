@@ -1,6 +1,6 @@
 ﻿using Api.Models;
+using Core.DomainModels;
 using Core.Interfaces.Services;
-using Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
@@ -24,5 +24,30 @@ public class AuthController(
 		var token = jwtService.GenerateToken(user);
 
 		return Ok(new LoginResponse(user.Id, user.Email, user.Role.ToString(), token));
+	}
+
+	[HttpPost("register")]
+	public async Task<ActionResult<LoginResponse>> Register(
+		[FromBody] RegisterRequest request,
+		CancellationToken cancellationToken = default)
+	{
+		try
+		{
+			var user = await userService.CreateUserAsync(
+				request.Email,
+				request.FirstName,
+				request.LastName,
+				request.Password,
+				UserRole.Editor,
+				cancellationToken);
+
+			var token = jwtService.GenerateToken(user);
+
+			return CreatedAtAction(nameof(Login), new LoginResponse(user.Id, user.Email, user.Role.ToString(), token));
+		}
+		catch (InvalidOperationException)
+		{
+			return Conflict("Email is already registered");
+		}
 	}
 }
