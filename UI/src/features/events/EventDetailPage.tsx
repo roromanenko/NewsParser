@@ -3,9 +3,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useEventDetail } from './useEventDetail'
 import { useEventMutations } from './useEventMutations'
-import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
-import { Spinner } from '@/components/ui/Spinner'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { ContradictionDto, EventArticleDto } from '@/api/generated'
@@ -19,14 +16,14 @@ function formatDate(iso?: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function statusVariant(status?: string | null): 'info' | 'neutral' {
-  return status === 'Active' ? 'info' : 'neutral'
+function statusColor(status?: string | null): string {
+  return status === 'Active' ? 'var(--crimson)' : '#4b5563'
 }
 
-function roleVariant(role?: string | null): 'info' | 'neutral' | 'warning' {
-  if (role === 'Initiator') return 'info'
-  if (role === 'Contradiction') return 'warning'
-  return 'neutral'
+function roleColor(role?: string | null): string {
+  if (role === 'Initiator') return 'var(--caramel)'
+  if (role === 'Contradiction') return 'var(--rust)'
+  return '#6b7280'
 }
 
 // ---- Timeline tab ----
@@ -55,21 +52,34 @@ function TimelineTab({
   }
 
   if (articles.length === 0) {
-    return <p className="text-gray-400 text-sm py-8 text-center">No articles in this event.</p>
+    return (
+      <p className="font-mono text-sm text-center py-8" style={{ color: '#9ca3af' }}>
+        No articles in this event.
+      </p>
+    )
   }
 
   return (
-    <ul className="divide-y divide-gray-100">
+    <ul className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
       {articles.map(article => (
-        <li key={article.articleId} className="py-4 flex items-start justify-between gap-4">
+        <li
+          key={article.articleId}
+          className="py-4 flex items-start justify-between gap-4"
+          style={{ borderColor: 'rgba(255,255,255,0.1)' }}
+        >
           <div className="flex-1 min-w-0">
             <Link
               to={`/articles/${article.articleId}`}
-              className="text-sm font-medium text-gray-900 hover:text-indigo-600 transition-colors line-clamp-2"
+              className="font-display text-lg transition-colors line-clamp-2"
+              style={{ color: '#E8E8E8' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--caramel)')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#E8E8E8')}
             >
               {article.title}
             </Link>
-            <p className="text-xs text-gray-400 mt-1">{formatDate(article.addedAt)}</p>
+            <p className="font-mono text-xs mt-1" style={{ color: '#6b7280' }}>
+              {formatDate(article.addedAt)}
+            </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {editingId === article.articleId ? (
@@ -77,26 +87,51 @@ function TimelineTab({
                 <select
                   value={roleValue}
                   onChange={e => setRoleValue(e.target.value)}
-                  className="text-xs rounded border border-gray-300 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="font-mono text-xs px-2 py-1 focus:outline-none"
+                  style={{
+                    background: 'var(--burgundy)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    color: '#E8E8E8',
+                  }}
                 >
                   {ROLES.map(r => (
                     <option key={r} value={r}>{r}</option>
                   ))}
                 </select>
-                <Button size="sm" onClick={() => confirmEdit(article.articleId!)} isLoading={isPending}>
-                  Save
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
-                  Cancel
-                </Button>
+                <button
+                  onClick={() => confirmEdit(article.articleId!)}
+                  disabled={isPending}
+                  className="px-3 py-1.5 font-caps text-xs tracking-wider text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={{ background: 'var(--crimson)' }}
+                >
+                  SAVE
+                </button>
+                <button
+                  onClick={() => setEditingId(null)}
+                  className="px-3 py-1.5 font-caps text-xs tracking-wider border transition-colors"
+                  style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
+                >
+                  CANCEL
+                </button>
               </>
             ) : (
               <>
-                <Badge variant={roleVariant(article.role)}>{article.role}</Badge>
+                <span
+                  className="font-caps text-xs tracking-widest"
+                  style={{ color: roleColor(article.role) }}
+                >
+                  {article.role?.toUpperCase() ?? '—'}
+                </span>
                 {isAdmin && (
-                  <Button size="sm" variant="ghost" onClick={() => startEdit(article)}>
-                    Change Role
-                  </Button>
+                  <button
+                    onClick={() => startEdit(article)}
+                    className="font-mono text-xs transition-colors"
+                    style={{ color: '#6b7280' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--caramel)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = '#6b7280')}
+                  >
+                    CHANGE
+                  </button>
                 )}
               </>
             )}
@@ -108,22 +143,37 @@ function TimelineTab({
 }
 
 // ---- Updates tab ----
-function UpdatesTab({ updates }: { updates: { id?: string; factSummary?: string | null; isPublished?: boolean; createdAt?: string }[] }) {
+function UpdatesTab({
+  updates,
+}: {
+  updates: { id?: string; factSummary?: string | null; isPublished?: boolean; createdAt?: string }[]
+}) {
   if (updates.length === 0) {
-    return <p className="text-gray-400 text-sm py-8 text-center">No updates recorded yet.</p>
+    return (
+      <p className="font-mono text-sm text-center py-8" style={{ color: '#9ca3af' }}>
+        No updates recorded yet.
+      </p>
+    )
   }
 
   return (
-    <ul className="divide-y divide-gray-100">
+    <ul className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
       {updates.map(u => (
         <li key={u.id} className="py-4 flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-gray-800">{u.factSummary}</p>
-            <p className="text-xs text-gray-400 mt-1">{formatDate(u.createdAt)}</p>
+            <p className="font-mono text-sm" style={{ color: '#E8E8E8' }}>
+              {u.factSummary}
+            </p>
+            <p className="font-mono text-xs mt-1" style={{ color: '#6b7280' }}>
+              {formatDate(u.createdAt)}
+            </p>
           </div>
-          <Badge variant={u.isPublished ? 'positive' : 'neutral'}>
-            {u.isPublished ? 'Published' : 'Unpublished'}
-          </Badge>
+          <span
+            className="font-caps text-xs tracking-widest shrink-0"
+            style={{ color: u.isPublished ? 'var(--caramel)' : '#6b7280' }}
+          >
+            {u.isPublished ? 'PUBLISHED' : 'UNPUBLISHED'}
+          </span>
         </li>
       ))}
     </ul>
@@ -145,25 +195,36 @@ function ContradictionsTab({
   const [resolvingId, setResolvingId] = useState<string | null>(null)
 
   if (contradictions.length === 0) {
-    return <p className="text-gray-400 text-sm py-8 text-center">No contradictions detected.</p>
+    return (
+      <p className="font-mono text-sm text-center py-8" style={{ color: '#9ca3af' }}>
+        No contradictions detected.
+      </p>
+    )
   }
 
   return (
     <>
-      <ul className="divide-y divide-gray-100">
+      <ul className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
         {contradictions.map(c => (
           <li key={c.id} className="py-4 space-y-2">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-800">{c.description}</p>
-                <p className="text-xs text-gray-400 mt-1">{formatDate(c.createdAt)}</p>
+                <p className="font-mono text-sm" style={{ color: '#E8E8E8' }}>
+                  {c.description}
+                </p>
+                <p className="font-mono text-xs mt-1" style={{ color: '#6b7280' }}>
+                  {formatDate(c.createdAt)}
+                </p>
                 {c.articleIds && c.articleIds.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {c.articleIds.map(aid => (
                       <Link
                         key={aid}
                         to={`/articles/${aid}`}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 font-mono"
+                        className="font-mono text-xs transition-colors"
+                        style={{ color: 'var(--caramel)' }}
+                        onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
+                        onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                       >
                         Article {aid.slice(0, 8)}…
                       </Link>
@@ -171,14 +232,29 @@ function ContradictionsTab({
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge variant={c.isResolved ? 'positive' : 'warning'}>
-                  {c.isResolved ? 'Resolved' : 'Unresolved'}
-                </Badge>
+              <div className="flex items-center gap-3 shrink-0">
+                <span
+                  className="font-caps text-xs tracking-widest"
+                  style={{ color: c.isResolved ? 'var(--caramel)' : 'var(--rust)' }}
+                >
+                  {c.isResolved ? 'RESOLVED' : 'UNRESOLVED'}
+                </span>
                 {!c.isResolved && canResolve && (
-                  <Button size="sm" variant="secondary" onClick={() => setResolvingId(c.id!)}>
-                    Resolve
-                  </Button>
+                  <button
+                    onClick={() => setResolvingId(c.id!)}
+                    className="px-3 py-1.5 font-caps text-xs tracking-wider border transition-colors"
+                    style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = 'var(--caramel)'
+                      e.currentTarget.style.color = 'var(--caramel)'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+                      e.currentTarget.style.color = '#9ca3af'
+                    }}
+                  >
+                    RESOLVE
+                  </button>
                 )}
               </div>
             </div>
@@ -218,24 +294,31 @@ export function EventDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" className="text-indigo-600" />
+        <div className="font-mono text-sm animate-pulse" style={{ color: '#9ca3af' }}>
+          Loading…
+        </div>
       </div>
     )
   }
 
   if (!event) {
-    return <div className="text-center py-16 text-gray-500">Event not found.</div>
+    return (
+      <div className="font-mono text-sm text-center py-16" style={{ color: '#9ca3af' }}>
+        Event not found.
+      </div>
+    )
   }
 
   const articles = event.articles ?? []
   const updates = event.updates ?? []
   const contradictions = event.contradictions ?? []
   const unresolvedCount = contradictions.filter(c => !c.isResolved).length
+  const color = statusColor(event.status)
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
-    { key: 'timeline', label: 'Timeline', count: articles.length },
-    { key: 'updates', label: 'Updates', count: updates.length },
-    { key: 'contradictions', label: 'Contradictions', count: unresolvedCount || undefined },
+    { key: 'timeline', label: 'TIMELINE', count: articles.length },
+    { key: 'updates', label: 'UPDATES', count: updates.length },
+    { key: 'contradictions', label: 'CONTRADICTIONS', count: unresolvedCount || undefined },
   ]
 
   return (
@@ -243,78 +326,150 @@ export function EventDetailPage() {
       {/* Back */}
       <button
         onClick={() => navigate('/events')}
-        className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
+        className="flex items-center gap-2 font-mono text-xs mb-6 transition-colors"
+        style={{ color: '#6b7280' }}
+        onMouseEnter={e => (e.currentTarget.style.color = 'var(--caramel)')}
+        onMouseLeave={e => (e.currentTarget.style.color = '#6b7280')}
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Events
+        BACK TO EVENTS
       </button>
 
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+      {/* Header card */}
+      <div
+        className="relative border p-6 mb-6"
+        style={{
+          background: 'rgba(61,15,15,0.4)',
+          borderColor: 'rgba(255,255,255,0.1)',
+        }}
+      >
+        <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: color }} />
+
+        <div className="flex items-start justify-between gap-4 flex-wrap mb-3">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
-            <Badge variant={statusVariant(event.status)}>{event.status}</Badge>
+            <span className="font-caps text-xs tracking-widest" style={{ color }}>
+              {event.status?.toUpperCase() ?? 'UNKNOWN'}
+            </span>
           </div>
           {isAdmin && event.status !== 'Archived' && (
-            <Button variant="secondary" size="sm" onClick={() => setArchiveOpen(true)}>
-              Archive Event
-            </Button>
+            <button
+              onClick={() => setArchiveOpen(true)}
+              className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors"
+              style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--rust)'
+                e.currentTarget.style.color = 'var(--rust)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+                e.currentTarget.style.color = '#9ca3af'
+              }}
+            >
+              ARCHIVE EVENT
+            </button>
           )}
         </div>
 
+        <h1 className="font-display text-4xl mb-3" style={{ color: '#E8E8E8' }}>
+          {event.title}
+        </h1>
+
         {event.summary && (
-          <p className="mt-3 text-sm text-gray-600 leading-relaxed">{event.summary}</p>
+          <p className="font-mono text-sm leading-relaxed mb-4" style={{ color: '#9ca3af' }}>
+            {event.summary}
+          </p>
         )}
 
-        {/* Stat pills */}
-        <div className="flex gap-4 mt-4 flex-wrap">
-          <div className="bg-gray-50 rounded-md px-3 py-1.5 text-sm">
-            <span className="text-gray-500">Articles</span>{' '}
-            <span className="font-semibold text-gray-900">{articles.length}</span>
+        {/* Stats */}
+        <div
+          className="flex gap-4 pt-4 border-t flex-wrap"
+          style={{ borderColor: 'rgba(255,255,255,0.1)' }}
+        >
+          <div
+            className="px-3 py-1.5"
+            style={{ background: 'var(--near-black)' }}
+          >
+            <span className="font-caps text-[10px] tracking-widest" style={{ color: '#6b7280' }}>
+              ARTICLES{' '}
+            </span>
+            <span className="font-mono text-sm" style={{ color: '#E8E8E8' }}>
+              {articles.length}
+            </span>
           </div>
           {unresolvedCount > 0 && (
-            <div className="bg-yellow-50 rounded-md px-3 py-1.5 text-sm">
-              <span className="text-yellow-700">Unresolved Contradictions</span>{' '}
-              <span className="font-semibold text-yellow-900">{unresolvedCount}</span>
+            <div
+              className="px-3 py-1.5"
+              style={{ background: 'var(--near-black)' }}
+            >
+              <span className="font-caps text-[10px] tracking-widest" style={{ color: 'var(--rust)' }}>
+                CONTRADICTIONS{' '}
+              </span>
+              <span className="font-mono text-sm" style={{ color: 'var(--rust)' }}>
+                {unresolvedCount}
+              </span>
             </div>
           )}
           {(event.reclassifiedCount ?? 0) > 0 && (
-            <div className="bg-gray-50 rounded-md px-3 py-1.5 text-sm">
-              <span className="text-gray-500">Reclassified</span>{' '}
-              <span className="font-semibold text-gray-900">{event.reclassifiedCount}</span>
+            <div
+              className="px-3 py-1.5"
+              style={{ background: 'var(--near-black)' }}
+            >
+              <span className="font-caps text-[10px] tracking-widest" style={{ color: '#6b7280' }}>
+                RECLASSIFIED{' '}
+              </span>
+              <span className="font-mono text-sm" style={{ color: '#E8E8E8' }}>
+                {event.reclassifiedCount}
+              </span>
             </div>
           )}
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="flex gap-0 -mb-px">
-          {tabs.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={[
-                'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors',
-                activeTab === tab.key
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-              ].join(' ')}
-            >
-              {tab.label}
-              {tab.count !== undefined && (
-                <span className="ml-1.5 bg-gray-100 text-gray-600 rounded-full px-1.5 py-0.5 text-xs">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
+      <div
+        className="flex border-b mb-0"
+        style={{ borderColor: 'rgba(255,255,255,0.1)' }}
+      >
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className="px-5 py-3 font-caps text-xs tracking-widest transition-colors relative"
+            style={{
+              color: activeTab === tab.key ? 'var(--caramel)' : '#6b7280',
+              borderBottom: activeTab === tab.key ? '2px solid var(--caramel)' : '2px solid transparent',
+              marginBottom: '-1px',
+            }}
+            onMouseEnter={e => {
+              if (activeTab !== tab.key)
+                (e.currentTarget as HTMLElement).style.color = '#9ca3af'
+            }}
+            onMouseLeave={e => {
+              if (activeTab !== tab.key)
+                (e.currentTarget as HTMLElement).style.color = '#6b7280'
+            }}
+          >
+            {tab.label}
+            {tab.count !== undefined && (
+              <span
+                className="ml-2 font-mono text-[10px] px-1.5 py-0.5"
+                style={{ background: 'var(--near-black)', color: '#9ca3af' }}
+              >
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
       {/* Tab content */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div
+        className="border border-t-0 p-6"
+        style={{
+          background: 'rgba(61,15,15,0.4)',
+          borderColor: 'rgba(255,255,255,0.1)',
+        }}
+      >
         {activeTab === 'timeline' && (
           <TimelineTab
             articles={articles}

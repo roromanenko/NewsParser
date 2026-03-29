@@ -16,7 +16,7 @@ npm run generate-api
 
 ## Architecture Overview
 
-This is a React 19 + TypeScript SPA for managing news article curation and publishing. It communicates with a .NET backend on `http://localhost:5172`.
+This is a React 19 + TypeScript SPA for managing news article curation and publishing. It communicates with a .NET backend on `/`.
 
 ### Feature-Based Structure
 

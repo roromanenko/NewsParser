@@ -4,11 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import type { PublishTargetDto } from '@/api/generated'
 import { SlideOver } from '@/components/shared/SlideOver'
-import { Input } from '@/components/ui/Input'
-import { Textarea } from '@/components/ui/Textarea'
-import { Button } from '@/components/ui/Button'
-import { Toggle } from '@/components/ui/Toggle'
 import { usePublishTargetMutations } from './usePublishTargetMutations'
+
+const inputClass =
+  'w-full px-4 py-3 font-mono text-sm text-gray-200 placeholder-gray-600 focus:outline-none transition-colors'
+const inputStyle = {
+  background: 'var(--near-black)',
+  border: '1px solid rgba(255,255,255,0.1)',
+}
 
 interface Props {
   isOpen: boolean
@@ -32,6 +35,19 @@ const editSchema = z.object({
 
 type CreateData = z.infer<typeof createSchema>
 type EditData = z.infer<typeof editSchema>
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="block font-caps text-xs tracking-widest mb-2" style={{ color: 'var(--caramel)' }}>
+      {children}
+    </label>
+  )
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return <p className="mt-1 font-mono text-xs" style={{ color: 'var(--crimson)' }}>{message}</p>
+}
 
 export function PublishTargetFormSlideOver({ isOpen, onClose, target }: Props) {
   const { createTarget, updateTarget } = usePublishTargetMutations()
@@ -75,61 +91,169 @@ export function PublishTargetFormSlideOver({ isOpen, onClose, target }: Props) {
   const isPending = createTarget.isPending || updateTarget.isPending
 
   return (
-    <SlideOver isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Publish Target' : 'Add Publish Target'}>
+    <SlideOver isOpen={isOpen} onClose={onClose} title={isEdit ? 'EDIT TARGET' : 'ADD TARGET'}>
       {isEdit ? (
         <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="flex flex-col h-full">
-          <div className="flex-1 px-6 py-5 space-y-4">
-            <Input label="Name" error={editForm.formState.errors.name?.message} {...editForm.register('name')} />
-            <Input label="Identifier" error={editForm.formState.errors.identifier?.message} {...editForm.register('identifier')} />
-            <Textarea
-              label="System Prompt"
-              rows={6}
-              error={editForm.formState.errors.systemPrompt?.message}
-              {...editForm.register('systemPrompt')}
-            />
+          <div className="flex-1 px-6 py-6 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-              <Toggle
-                checked={editForm.watch('isActive')}
-                onChange={v => editForm.setValue('isActive', v)}
-                label="Active"
+              <FieldLabel>NAME</FieldLabel>
+              <input
+                className={inputClass}
+                style={inputStyle}
+                placeholder="Target name"
+                onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+                {...editForm.register('name')}
               />
+              <FieldError message={editForm.formState.errors.name?.message} />
+            </div>
+            <div>
+              <FieldLabel>IDENTIFIER</FieldLabel>
+              <input
+                className={inputClass}
+                style={inputStyle}
+                placeholder="e.g. @channel"
+                onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+                {...editForm.register('identifier')}
+              />
+              <FieldError message={editForm.formState.errors.identifier?.message} />
+            </div>
+            <div>
+              <FieldLabel>SYSTEM PROMPT</FieldLabel>
+              <textarea
+                rows={6}
+                className={`${inputClass} resize-none`}
+                style={inputStyle}
+                placeholder="Enter system prompt…"
+                onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+                {...editForm.register('systemPrompt')}
+              />
+              <FieldError message={editForm.formState.errors.systemPrompt?.message} />
+            </div>
+            <div>
+              <FieldLabel>STATUS</FieldLabel>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 accent-[var(--caramel)]"
+                  {...editForm.register('isActive')}
+                />
+                <span className="font-mono text-sm text-gray-300">Active</span>
+              </label>
             </div>
           </div>
-          <div className="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-            <Button variant="secondary" type="button" onClick={onClose} disabled={isPending}>Cancel</Button>
-            <Button type="submit" isLoading={isPending}>Save Changes</Button>
+          <div className="px-6 py-4 flex flex-col gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <button
+              type="submit"
+              disabled={isPending}
+              className="w-full py-3 font-caps text-sm tracking-wider text-white transition-colors disabled:opacity-50"
+              style={{ background: 'var(--crimson)' }}
+            >
+              {isPending ? 'SAVING…' : 'SAVE CHANGES'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isPending}
+              className="w-full py-3 font-caps text-sm tracking-wider text-gray-400 transition-colors disabled:opacity-50"
+              style={{ border: '1px solid rgba(255,255,255,0.2)' }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--caramel)'
+                e.currentTarget.style.color = 'var(--caramel)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+                e.currentTarget.style.color = '#9ca3af'
+              }}
+            >
+              CANCEL
+            </button>
           </div>
         </form>
       ) : (
         <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="flex flex-col h-full">
-          <div className="flex-1 px-6 py-5 space-y-4">
-            <Input label="Name" error={createForm.formState.errors.name?.message} {...createForm.register('name')} />
+          <div className="flex-1 px-6 py-6 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Platform</label>
+              <FieldLabel>NAME</FieldLabel>
+              <input
+                className={inputClass}
+                style={inputStyle}
+                placeholder="Target name"
+                onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+                {...createForm.register('name')}
+              />
+              <FieldError message={createForm.formState.errors.name?.message} />
+            </div>
+            <div>
+              <FieldLabel>PLATFORM</FieldLabel>
               <select
-                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:border-indigo-500 focus:ring-indigo-500"
+                className={inputClass}
+                style={inputStyle}
+                onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...createForm.register('platform')}
               >
-                <option value="">Select platform...</option>
+                <option value="">Select platform…</option>
                 <option value="Telegram">Telegram</option>
                 <option value="Website">Website</option>
               </select>
-              {createForm.formState.errors.platform && (
-                <p className="mt-1 text-xs text-red-600">{createForm.formState.errors.platform.message}</p>
-              )}
+              <FieldError message={createForm.formState.errors.platform?.message} />
             </div>
-            <Input label="Identifier (e.g. @channel)" error={createForm.formState.errors.identifier?.message} {...createForm.register('identifier')} />
-            <Textarea
-              label="System Prompt"
-              rows={6}
-              error={createForm.formState.errors.systemPrompt?.message}
-              {...createForm.register('systemPrompt')}
-            />
+            <div>
+              <FieldLabel>IDENTIFIER</FieldLabel>
+              <input
+                className={inputClass}
+                style={inputStyle}
+                placeholder="e.g. @channel"
+                onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+                {...createForm.register('identifier')}
+              />
+              <FieldError message={createForm.formState.errors.identifier?.message} />
+            </div>
+            <div>
+              <FieldLabel>SYSTEM PROMPT</FieldLabel>
+              <textarea
+                rows={6}
+                className={`${inputClass} resize-none`}
+                style={inputStyle}
+                placeholder="Enter system prompt…"
+                onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+                {...createForm.register('systemPrompt')}
+              />
+              <FieldError message={createForm.formState.errors.systemPrompt?.message} />
+            </div>
           </div>
-          <div className="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-            <Button variant="secondary" type="button" onClick={onClose} disabled={isPending}>Cancel</Button>
-            <Button type="submit" isLoading={isPending}>Add Target</Button>
+          <div className="px-6 py-4 flex flex-col gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <button
+              type="submit"
+              disabled={isPending}
+              className="w-full py-3 font-caps text-sm tracking-wider text-white transition-colors disabled:opacity-50"
+              style={{ background: 'var(--crimson)' }}
+            >
+              {isPending ? 'ADDING…' : 'ADD TARGET'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isPending}
+              className="w-full py-3 font-caps text-sm tracking-wider text-gray-400 transition-colors disabled:opacity-50"
+              style={{ border: '1px solid rgba(255,255,255,0.2)' }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--caramel)'
+                e.currentTarget.style.color = 'var(--caramel)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+                e.currentTarget.style.color = '#9ca3af'
+              }}
+            >
+              CANCEL
+            </button>
           </div>
         </form>
       )}

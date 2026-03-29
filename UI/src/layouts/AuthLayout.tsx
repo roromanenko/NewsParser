@@ -6,7 +6,10 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: 'var(--near-black)' }}
+    >
       {children}
     </div>
   )

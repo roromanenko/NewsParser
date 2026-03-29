@@ -7,7 +7,14 @@
       "Bash(python:*)",
       "Bash(npm run:*)",
       "mcp__figma__get_design_context",
-      "Bash(find D:ProjectsNewsParserUI/src -maxdepth 2 -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.jsx -o -name *.js \\\\\\))"
+      "Bash(find D:ProjectsNewsParserUI/src -maxdepth 2 -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.jsx -o -name *.js \\\\\\))",
+      "mcp__figma__use_figma",
+      "mcp__figma__get_metadata",
+      "mcp__figma__get_screenshot",
+      "mcp__figma__whoami",
+      "Read(//d/Projects/NewsParser/UI/$APPDATA/Claude/**)",
+      "Read(//d/Projects/NewsParser/UI/$USERPROFILE/**)",
+      "Read(//d/Projects/NewsParser/UI/$APPDATA/Claude/claude-code/**)"
     ]
   },
   "enabledMcpjsonServers": [

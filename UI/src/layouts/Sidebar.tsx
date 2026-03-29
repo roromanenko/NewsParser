@@ -44,12 +44,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       >
         {!collapsed && (
           <span className="font-caps text-lg tracking-wide truncate" style={{ color: 'var(--crimson)' }}>
-            NewsParser
+            Panoptis
           </span>
         )}
         {collapsed && (
           <span className="font-caps text-lg mx-auto" style={{ color: 'var(--crimson)' }}>
-            N
+            P
           </span>
         )}
         {!collapsed && (
