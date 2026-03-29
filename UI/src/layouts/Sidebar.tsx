@@ -33,17 +33,43 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin)
 
   return (
-    <div className={cn('flex flex-col bg-slate-900 text-white transition-all duration-200 shrink-0', collapsed ? 'w-16' : 'w-60')}>
+    <div
+      className={cn('flex flex-col text-white transition-all duration-200 shrink-0', collapsed ? 'w-16' : 'w-60')}
+      style={{ backgroundColor: 'var(--burgundy)' }}
+    >
       {/* Logo */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-slate-700">
-        {!collapsed && <span className="font-bold text-sm tracking-wide truncate">NewsParser CMS</span>}
-        <button
-          onClick={onToggle}
-          className="text-slate-400 hover:text-white transition-colors ml-auto"
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-        </button>
+      <div
+        className="flex items-center justify-between h-16 px-4 border-b"
+        style={{ borderColor: 'rgba(255,255,255,0.1)' }}
+      >
+        {!collapsed && (
+          <span className="font-caps text-lg tracking-wide truncate" style={{ color: 'var(--crimson)' }}>
+            Panoptis
+          </span>
+        )}
+        {collapsed && (
+          <span className="font-caps text-lg mx-auto" style={{ color: 'var(--crimson)' }}>
+            P
+          </span>
+        )}
+        {!collapsed && (
+          <button
+            onClick={onToggle}
+            className="text-gray-400 hover:text-white transition-colors ml-auto"
+            title="Collapse sidebar"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        )}
+        {collapsed && (
+          <button
+            onClick={onToggle}
+            className="text-gray-400 hover:text-white transition-colors"
+            title="Expand sidebar"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* Nav */}
@@ -55,24 +81,42 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             title={label}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors',
+                'relative flex items-center gap-3 px-3 py-2.5 transition-colors',
                 isActive
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  ? 'text-white border-l-2'
+                  : 'text-gray-400 hover:text-white border-l-2 border-transparent'
               )
             }
+            style={({ isActive }) => ({
+              borderLeftColor: isActive ? 'var(--crimson)' : 'transparent',
+              backgroundColor: isActive ? 'rgba(255,255,255,0.05)' : undefined,
+            })}
           >
-            <Icon className="w-5 h-5 shrink-0" />
-            {!collapsed && <span className="text-sm font-medium truncate">{label}</span>}
+            {({ isActive }) => (
+              <>
+                <Icon className="w-5 h-5 shrink-0" />
+                {!collapsed && (
+                  <span
+                    className="text-sm font-mono truncate"
+                    style={{ color: isActive ? '#fff' : undefined }}
+                  >
+                    {label}
+                  </span>
+                )}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
       {/* User footer */}
-      <div className="mt-auto border-t border-slate-700 p-3">
+      <div
+        className="mt-auto border-t p-3"
+        style={{ borderColor: 'rgba(255,255,255,0.1)' }}
+      >
         {!collapsed && user && (
           <div className="mb-2 px-1">
-            <p className="text-xs text-slate-400 truncate">{user.email}</p>
+            <p className="text-xs text-gray-400 truncate font-mono">{user.email}</p>
             <Badge variant={user.role === 'Admin' ? 'admin' : 'info'} className="mt-1">
               {user.role}
             </Badge>
@@ -81,10 +125,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <button
           onClick={handleLogout}
           title="Logout"
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+          className="flex items-center gap-3 w-full px-3 py-2 text-gray-400 hover:text-white transition-colors"
         >
           <LogOut className="w-5 h-5 shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">Logout</span>}
+          {!collapsed && <span className="text-sm font-mono">Logout</span>}
         </button>
       </div>
     </div>

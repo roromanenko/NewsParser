@@ -1,1 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap');
 @import "tailwindcss";
+
+:root {
+  --crimson: #8B1A1A;
+  --caramel: #C4843A;
+  --rust: #7A2E2E;
+  --burgundy: #3D0F0F;
+  --near-black: #1A1A1A;
+}
+
+body {
+  background-color: var(--near-black);
+  color: #E8E8E8;
+  font-family: 'DM Mono', monospace;
+}
+
+.font-display {
+  font-family: 'Playfair Display', serif;
+}
+
+.font-mono {
+  font-family: 'DM Mono', monospace;
+}
+
+.font-caps {
+  font-family: 'Bebas Neue', sans-serif;
+}

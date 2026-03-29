@@ -2,11 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useEvents } from './useEvents'
 import { MergeEventsSlideOver } from './MergeEventsSlideOver'
-import { PageHeader } from '@/components/shared/PageHeader'
-import { DataTable, type ColumnDef } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
-import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { EventListItemDto } from '@/api/generated'
 
@@ -17,10 +13,10 @@ function formatDate(iso?: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function statusVariant(status?: string | null): 'info' | 'neutral' | 'warning' {
-  if (status === 'Active') return 'info'
-  if (status === 'Archived') return 'neutral'
-  return 'neutral'
+function statusColor(status?: string | null): string {
+  if (status === 'Active') return 'var(--crimson)'
+  if (status === 'Archived') return '#4b5563'
+  return 'var(--rust)'
 }
 
 export function EventsPage() {
@@ -32,75 +28,72 @@ export function EventsPage() {
   const { data, isLoading } = useEvents(page, PAGE_SIZE)
   const events = data?.items ?? []
 
-  const columns: ColumnDef<EventListItemDto>[] = [
-    {
-      key: 'title',
-      header: 'Title',
-      render: row => <span className="font-medium text-gray-900">{row.title}</span>,
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      render: row => <Badge variant={statusVariant(row.status)}>{row.status ?? '—'}</Badge>,
-      className: 'w-28',
-    },
-    {
-      key: 'articleCount',
-      header: 'Articles',
-      render: row => <span className="text-gray-700">{row.articleCount ?? 0}</span>,
-      className: 'w-24 text-center',
-    },
-    {
-      key: 'unresolvedContradictions',
-      header: 'Contradictions',
-      render: row =>
-        (row.unresolvedContradictions ?? 0) > 0 ? (
-          <Badge variant="warning">{row.unresolvedContradictions} unresolved</Badge>
-        ) : (
-          <span className="text-gray-400 text-xs">None</span>
-        ),
-      className: 'w-36',
-    },
-    {
-      key: 'lastUpdatedAt',
-      header: 'Last Updated',
-      render: row => <span className="text-gray-500 text-sm">{formatDate(row.lastUpdatedAt)}</span>,
-      className: 'w-36',
-    },
-  ]
-
   return (
-    <div>
-      <PageHeader
-        title="Events"
-        description={`${data?.totalCount ?? 0} events total`}
-        action={
-          isAdmin ? (
-            <Button onClick={() => setMergeOpen(true)}>Merge Events</Button>
-          ) : undefined
-        }
-      />
+    <div className="flex -m-6" style={{ minHeight: 'calc(100vh - 5rem)' }}>
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-8">
+          {/* Header */}
+          <div
+            className="mb-6 flex items-center justify-between border-b pb-4"
+            style={{ borderColor: 'rgba(255,255,255,0.1)' }}
+          >
+            <div>
+              <h1 className="font-display text-4xl mb-1">Events</h1>
+              <p className="font-mono text-sm" style={{ color: '#9ca3af' }}>
+                {data?.totalCount ?? 0} events total
+              </p>
+            </div>
+            {isAdmin && (
+              <button
+                onClick={() => setMergeOpen(true)}
+                className="px-4 py-2 font-caps text-xs tracking-wider text-white transition-opacity hover:opacity-90"
+                style={{ background: 'var(--crimson)' }}
+              >
+                MERGE EVENTS
+              </button>
+            )}
+          </div>
 
-      <DataTable
-        columns={columns}
-        data={events}
-        isLoading={isLoading}
-        keyExtractor={row => row.id ?? ''}
-        onRowClick={row => navigate(`/events/${row.id}`)}
-        emptyMessage="No events found."
-      />
+          {/* Events list */}
+          {isLoading ? (
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-32 animate-pulse"
+                  style={{ background: 'rgba(61,15,15,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
+                />
+              ))}
+            </div>
+          ) : events.length === 0 ? (
+            <div className="font-mono text-sm text-center py-16" style={{ color: '#9ca3af' }}>
+              No events found.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {events.map(event => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  onClick={() => event.id && navigate(`/events/${event.id}`)}
+                />
+              ))}
+            </div>
+          )}
 
-      {(data?.totalPages ?? 1) > 1 && (
-        <div className="mt-4">
-          <Pagination
-            page={page}
-            totalPages={data?.totalPages ?? 1}
-            hasNextPage={data?.hasNextPage ?? false}
-            hasPreviousPage={data?.hasPreviousPage ?? false}
-            onPageChange={setPage}
-          />
+          {(data?.totalPages ?? 1) > 1 && (
+            <div className="mt-8">
+              <Pagination
+                page={page}
+                totalPages={data?.totalPages ?? 1}
+                hasNextPage={data?.hasNextPage ?? false}
+                hasPreviousPage={data?.hasPreviousPage ?? false}
+                onPageChange={setPage}
+              />
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {isAdmin && (
         <MergeEventsSlideOver
@@ -110,5 +103,87 @@ export function EventsPage() {
         />
       )}
     </div>
+  )
+}
+
+interface EventCardProps {
+  event: EventListItemDto
+  onClick: () => void
+}
+
+function EventCard({ event, onClick }: EventCardProps) {
+  const color = statusColor(event.status)
+
+  return (
+    <article
+      onClick={onClick}
+      className="relative border p-6 cursor-pointer transition-all"
+      style={{
+        background: 'rgba(61,15,15,0.4)',
+        borderColor: 'rgba(255,255,255,0.1)',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+    >
+      {/* Status bar */}
+      <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: color }} />
+
+      {/* Top row */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <span className="font-caps text-xs tracking-widest" style={{ color }}>
+            {event.status?.toUpperCase() ?? 'UNKNOWN'}
+          </span>
+          <span
+            className="px-2 py-0.5 font-mono text-[10px]"
+            style={{ background: 'var(--near-black)', color: '#9ca3af' }}
+          >
+            {event.articleCount ?? 0} ARTICLES
+          </span>
+        </div>
+        <span className="font-mono text-xs" style={{ color: '#6b7280' }}>
+          {formatDate(event.lastUpdatedAt)}
+        </span>
+      </div>
+
+      {/* Title */}
+      <h2
+        className="font-display text-2xl mb-3 transition-colors"
+        style={{ color: '#E8E8E8' }}
+        onMouseEnter={e => (e.currentTarget.style.color = 'var(--caramel)')}
+        onMouseLeave={e => (e.currentTarget.style.color = '#E8E8E8')}
+      >
+        {event.title || '—'}
+      </h2>
+
+      {/* Footer */}
+      <div
+        className="flex items-center justify-between pt-4 border-t"
+        style={{ borderColor: 'rgba(255,255,255,0.1)' }}
+      >
+        <div>
+          {(event.unresolvedContradictions ?? 0) > 0 && (
+            <span className="font-mono text-xs" style={{ color: 'var(--rust)' }}>
+              {event.unresolvedContradictions} UNRESOLVED CONTRADICTIONS
+            </span>
+          )}
+        </div>
+        <button
+          onClick={e => { e.stopPropagation(); onClick() }}
+          className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors"
+          style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
+          onMouseEnter={e => {
+            e.currentTarget.style.borderColor = 'var(--caramel)'
+            e.currentTarget.style.color = 'var(--caramel)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+            e.currentTarget.style.color = '#9ca3af'
+          }}
+        >
+          VIEW EVENT
+        </button>
+      </div>
+    </article>
   )
 }
