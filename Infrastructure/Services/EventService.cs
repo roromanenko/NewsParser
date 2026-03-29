@@ -49,25 +49,25 @@ public class EventService(
 	}
 
 	public async Task ReclassifyArticleAsync(
-	Guid eventId,
+	Guid currentEventId,
 	Guid articleId,
+	Guid targetEventId,
 	EventArticleRole role,
 	CancellationToken cancellationToken = default)
 	{
-		var evt = await eventRepository.GetByIdAsync(eventId, cancellationToken)
-			?? throw new KeyNotFoundException($"Event {eventId} not found");
+		var evt = await eventRepository.GetByIdAsync(currentEventId, cancellationToken)
+			?? throw new KeyNotFoundException($"Event {currentEventId} not found");
 
-		var eventArticle = evt.EventArticles.FirstOrDefault(ea => ea.ArticleId == articleId)
+		var article = evt.Articles.FirstOrDefault(a => a.Id == articleId)
 			?? throw new KeyNotFoundException(
-				$"Article {articleId} is not associated with event {eventId}");
+				$"Article {articleId} is not associated with event {currentEventId}");
 
-		if (eventArticle.Role == role)
+		if (currentEventId == targetEventId && article.Role == role)
 			return;
 
-		await eventRepository.UpdateArticleRoleAsync(
-			eventId, articleId, role, cancellationToken);
+		await eventRepository.AssignArticleToEventAsync(
+			articleId, targetEventId, role, cancellationToken);
 
-		await eventRepository.MarkAsReclassifiedAsync(
-			eventId, articleId, cancellationToken);
+		await eventRepository.MarkAsReclassifiedAsync(articleId, cancellationToken);
 	}
 }

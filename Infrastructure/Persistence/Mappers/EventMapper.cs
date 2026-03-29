@@ -15,7 +15,7 @@ public static class EventMapper
 		FirstSeenAt = entity.FirstSeenAt,
 		LastUpdatedAt = entity.LastUpdatedAt,
 		Embedding = entity.Embedding?.ToArray(),
-		EventArticles = entity.EventArticles?.Select(ea => ea.ToDomain()).ToList() ?? [],
+		Articles = entity.Articles?.Select(a => a.ToDomain()).ToList() ?? [],
 		EventUpdates = entity.EventUpdates?.Select(eu => eu.ToDomain()).ToList() ?? [],
 		Contradictions = entity.Contradictions?.Select(c => c.ToDomain()).ToList() ?? [],
 	};
@@ -29,25 +29,6 @@ public static class EventMapper
 		FirstSeenAt = domain.FirstSeenAt,
 		LastUpdatedAt = domain.LastUpdatedAt,
 		Embedding = domain.Embedding != null ? new Vector(domain.Embedding) : null,
-	};
-
-	public static EventArticle ToDomain(this EventArticleEntity entity) => new()
-	{
-		EventId = entity.EventId,
-		ArticleId = entity.ArticleId,
-		AddedAt = entity.AddedAt,
-		Role = Enum.Parse<EventArticleRole>(entity.Role),
-		WasReclassified = entity.WasReclassified,
-		Article = entity.Article?.ToDomain()!,
-	};
-
-	public static EventArticleEntity ToEntity(this EventArticle domain) => new()
-	{
-		EventId = domain.EventId,
-		ArticleId = domain.ArticleId,
-		AddedAt = domain.AddedAt,
-		Role = domain.Role.ToString(),
-		WasReclassified = domain.WasReclassified,
 	};
 
 	public static EventUpdate ToDomain(this EventUpdateEntity entity) => new()

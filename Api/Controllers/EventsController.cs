@@ -34,7 +34,7 @@ public class EventsController(
 			e.Status.ToString(),
 			e.FirstSeenAt,
 			e.LastUpdatedAt,
-			e.EventArticles.Count,
+			e.Articles.Count,
 			e.Contradictions.Count(c => !c.IsResolved)
 		)).ToList();
 
@@ -57,12 +57,12 @@ public class EventsController(
 			evt.Status.ToString(),
 			evt.FirstSeenAt,
 			evt.LastUpdatedAt,
-			evt.EventArticles.Select(ea => new EventArticleDto(
-				ea.ArticleId,
-				ea.Article.Title,
-				ea.Article.Summary,
-				ea.Role.ToString(),
-				ea.AddedAt
+			evt.Articles.Select(a => new EventArticleDto(
+				a.Id,
+				a.Title,
+				a.Summary,
+				a.Role?.ToString() ?? string.Empty,
+				a.AddedToEventAt ?? a.ProcessedAt
 			)).ToList(),
 			evt.EventUpdates.Select(eu => new EventUpdateDto(
 				eu.Id,
@@ -77,7 +77,7 @@ public class EventsController(
 				c.CreatedAt,
 				c.ContradictionArticles.Select(ca => ca.ArticleId).ToList()
 			)).ToList(),
-			evt.EventArticles.Count(ea => ea.WasReclassified)
+			evt.Articles.Count(a => a.WasReclassified)
 		));
 	}
 
@@ -126,7 +126,7 @@ public class EventsController(
 				$"{string.Join(", ", Enum.GetNames<EventArticleRole>())}");
 
 		await eventService.ReclassifyArticleAsync(
-			id, request.ArticleId, role, cancellationToken);
+			id, request.ArticleId, request.TargetEventId, role, cancellationToken);
 
 		return NoContent();
 	}

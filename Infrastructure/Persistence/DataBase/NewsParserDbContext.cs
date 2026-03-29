@@ -19,7 +19,6 @@ public class NewsParserDbContext : DbContext
 	public DbSet<PublishLogEntity> PublishLogs { get; set; }
 	public DbSet<PublishTargetEntity> PublishTargets { get; set; }
 	public DbSet<EventEntity> Events { get; set; }
-	public DbSet<EventArticleEntity> EventArticles { get; set; }
 	public DbSet<EventUpdateEntity> EventUpdates { get; set; }
 	public DbSet<ContradictionEntity> Contradictions { get; set; }
 	public DbSet<ContradictionArticleEntity> ContradictionArticles { get; set; }

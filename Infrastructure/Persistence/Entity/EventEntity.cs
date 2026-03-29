@@ -12,7 +12,7 @@ public class EventEntity
 	public DateTimeOffset LastUpdatedAt { get; set; }
 	public Vector? Embedding { get; set; }
 
-	public List<EventArticleEntity> EventArticles { get; set; } = [];
+	public List<ArticleEntity> Articles { get; set; } = [];
 	public List<EventUpdateEntity> EventUpdates { get; set; } = [];
 	public List<ContradictionEntity> Contradictions { get; set; } = [];
 }

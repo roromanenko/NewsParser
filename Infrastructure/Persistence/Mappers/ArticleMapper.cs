@@ -23,6 +23,10 @@ public static class ArticleMapper
 		RejectedByEditorId = entity.RejectedByEditorId,
 		RejectionReason = entity.RejectionReason,
 		RetryCount = entity.RetryCount,
+		EventId = entity.EventId,
+		Role = entity.Role != null ? Enum.Parse<EventArticleRole>(entity.Role) : null,
+		WasReclassified = entity.WasReclassified,
+		AddedToEventAt = entity.AddedToEventAt,
 	};
 
 	public static ArticleEntity ToEntity(this Article domain) => new()
@@ -42,6 +46,10 @@ public static class ArticleMapper
 		RejectedByEditorId = domain.RejectedByEditorId,
 		RejectionReason = domain.RejectionReason,
 		RetryCount = domain.RetryCount,
+		EventId = domain.EventId,
+		Role = domain.Role?.ToString(),
+		WasReclassified = domain.WasReclassified,
+		AddedToEventAt = domain.AddedToEventAt,
 	};
 
 	public static Article FromAnalysisResult(

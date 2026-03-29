@@ -30,8 +30,12 @@ export function useEventMutations(eventId?: string) {
   })
 
   const reclassifyArticle = useMutation({
-    mutationFn: (data: { articleId: string; role: string }) =>
-      eventsApi.eventsIdReclassifyPost(eventId!, { articleId: data.articleId, role: data.role }),
+    mutationFn: (data: { articleId: string; role: string; targetEventId?: string }) =>
+      eventsApi.eventsIdReclassifyPost(eventId!, {
+        articleId: data.articleId,
+        targetEventId: data.targetEventId ?? eventId!,
+        role: data.role,
+      }),
     onSuccess: () => {
       toast('Article role updated', 'success')
       queryClient.invalidateQueries({ queryKey: ['event', eventId] })

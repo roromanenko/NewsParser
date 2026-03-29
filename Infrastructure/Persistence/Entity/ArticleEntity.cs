@@ -19,5 +19,9 @@ public class ArticleEntity
 	public Guid? RejectedByEditorId { get; set; }
 	public string? RejectionReason { get; set; }
 	public int RetryCount { get; set; }
-	public List<EventArticleEntity> EventArticles { get; set; } = [];
+	public Guid? EventId { get; set; }
+	public EventEntity? Event { get; set; }
+	public string? Role { get; set; }
+	public bool WasReclassified { get; set; }
+	public DateTimeOffset? AddedToEventAt { get; set; }
 }

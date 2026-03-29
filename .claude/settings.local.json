@@ -3,7 +3,10 @@
     "allow": [
       "Bash(xargs grep:*)",
       "Bash(dotnet add:*)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(find C:UserszeromsourcereposNewsParser -name *EventArticle* -type f)",
+      "Bash(dotnet ef:*)",
+      "Bash(dotnet tool:*)"
     ]
   }
 }

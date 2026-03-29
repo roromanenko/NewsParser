@@ -10,8 +10,9 @@ public interface IEventService
 		CancellationToken cancellationToken = default);
 
 	Task ReclassifyArticleAsync(
-		Guid eventId,
+		Guid currentEventId,
 		Guid articleId,
+		Guid targetEventId,
 		EventArticleRole role,
 		CancellationToken cancellationToken = default);
 }

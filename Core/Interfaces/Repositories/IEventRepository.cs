@@ -28,8 +28,10 @@ public interface IEventRepository
 		DateTimeOffset lastUpdatedAt,
 		CancellationToken cancellationToken = default);
 
-	Task AddArticleAsync(
-		EventArticle eventArticle,
+	Task AssignArticleToEventAsync(
+		Guid articleId,
+		Guid eventId,
+		EventArticleRole role,
 		CancellationToken cancellationToken = default);
 
 	Task AddEventUpdateAsync(
@@ -79,7 +81,6 @@ public interface IEventRepository
 		CancellationToken cancellationToken = default);
 
 	Task UpdateArticleRoleAsync(
-		Guid eventId,
 		Guid articleId,
 		EventArticleRole role,
 		CancellationToken cancellationToken = default);
@@ -90,7 +91,6 @@ public interface IEventRepository
 		CancellationToken cancellationToken = default);
 
 	Task MarkAsReclassifiedAsync(
-		Guid eventId,
 		Guid articleId,
 		CancellationToken cancellationToken = default);
 }

@@ -10,7 +10,7 @@ public class Event
 	public DateTimeOffset LastUpdatedAt { get; set; }
 	public float[]? Embedding { get; set; }
 
-	public List<EventArticle> EventArticles { get; set; } = [];
+	public List<Article> Articles { get; set; } = [];
 	public List<EventUpdate> EventUpdates { get; set; } = [];
 	public List<Contradiction> Contradictions { get; set; } = [];
 }

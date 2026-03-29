@@ -189,13 +189,8 @@ public class EventClassificationWorker : BackgroundService
 			}
 
 			// Привязываем статью к событию
-			await eventRepository.AddArticleAsync(new EventArticle
-			{
-				EventId = targetEvent.Id,
-				ArticleId = article.Id,
-				AddedAt = DateTimeOffset.UtcNow,
-				Role = role,
-			}, cancellationToken);
+			await eventRepository.AssignArticleToEventAsync(
+				article.Id, targetEvent.Id, role, cancellationToken);
 
 			// Переводим статью в следующий статус
 			await articleRepository.UpdateStatusAsync(

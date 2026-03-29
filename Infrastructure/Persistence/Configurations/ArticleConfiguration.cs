@@ -30,6 +30,19 @@ public class ArticleConfiguration : IEntityTypeConfiguration<ArticleEntity>
 			.Property(a => a.Sentiment)
 			.HasConversion<string>();
 
+		builder
+			.HasOne(a => a.Event)
+			.WithMany(e => e.Articles)
+			.HasForeignKey(a => a.EventId)
+			.IsRequired(false)
+			.OnDelete(DeleteBehavior.SetNull);
+
+		builder
+			.Property(a => a.Role)
+			.HasConversion<string>();
+
+		builder.HasIndex(a => a.EventId);
+
 		builder.ToTable("articles");
 	}
 }

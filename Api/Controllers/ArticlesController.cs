@@ -47,17 +47,16 @@ public class ArticlesController(
 
 		// Ищем связанное событие
 		ArticleEventDto? eventDto = null;
-		var eventArticle = article.EventArticles.FirstOrDefault();
-		if (eventArticle is not null)
+		if (article.EventId is not null)
 		{
-			var evt = await eventRepository.GetByIdAsync(eventArticle.EventId, cancellationToken);
+			var evt = await eventRepository.GetByIdAsync(article.EventId.Value, cancellationToken);
 			if (evt is not null)
 			{
 				eventDto = new ArticleEventDto(
 					evt.Id,
 					evt.Title,
 					evt.Status.ToString(),
-					eventArticle.Role.ToString()
+					article.Role?.ToString() ?? string.Empty
 				);
 			}
 		}

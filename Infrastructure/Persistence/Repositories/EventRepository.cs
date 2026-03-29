@@ -21,7 +21,7 @@ public class EventRepository : IEventRepository
 	public async Task<Event?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
 	{
 		var entity = await _context.Events
-			.Include(e => e.EventArticles)
+			.Include(e => e.Articles)
 			.Include(e => e.EventUpdates)
 			.Include(e => e.Contradictions)
 				.ThenInclude(c => c.ContradictionArticles)
@@ -34,7 +34,7 @@ public class EventRepository : IEventRepository
 	{
 		var entities = await _context.Events
 			.Where(e => e.Status == EventStatus.Active.ToString())
-			.Include(e => e.EventArticles)
+			.Include(e => e.Articles)
 			.OrderByDescending(e => e.LastUpdatedAt)
 			.ToListAsync(cancellationToken);
 
@@ -104,13 +104,19 @@ public class EventRepository : IEventRepository
 			cancellationToken);
 	}
 
-	public async Task AddArticleAsync(
-		EventArticle eventArticle,
+	public async Task AssignArticleToEventAsync(
+		Guid articleId,
+		Guid eventId,
+		EventArticleRole role,
 		CancellationToken cancellationToken = default)
 	{
-		var entity = eventArticle.ToEntity();
-		_context.EventArticles.Add(entity);
-		await _context.SaveChangesAsync(cancellationToken);
+		await _context.Articles
+			.Where(a => a.Id == articleId)
+			.ExecuteUpdateAsync(s => s
+				.SetProperty(a => a.EventId, eventId)
+				.SetProperty(a => a.Role, role.ToString())
+				.SetProperty(a => a.AddedToEventAt, DateTimeOffset.UtcNow),
+			cancellationToken);
 	}
 
 	public async Task AddEventUpdateAsync(
@@ -196,7 +202,7 @@ public class EventRepository : IEventRepository
 	CancellationToken cancellationToken = default)
 	{
 		var entities = await _context.Events
-			.Include(e => e.EventArticles)
+			.Include(e => e.Articles)
 			.Include(e => e.Contradictions)
 			.OrderByDescending(e => e.LastUpdatedAt)
 			.Skip((page - 1) * pageSize)
@@ -215,8 +221,7 @@ public class EventRepository : IEventRepository
 	public async Task<Event?> GetDetailAsync(Guid id, CancellationToken cancellationToken = default)
 	{
 		var entity = await _context.Events
-			.Include(e => e.EventArticles)
-				.ThenInclude(ea => ea.Article)
+			.Include(e => e.Articles)
 			.Include(e => e.EventUpdates)
 			.Include(e => e.Contradictions)
 				.ThenInclude(c => c.ContradictionArticles)
@@ -241,11 +246,11 @@ public class EventRepository : IEventRepository
 		Guid targetEventId,
 		CancellationToken cancellationToken = default)
 	{
-		// Переносим все EventArticle из source в target
-		await _context.EventArticles
-			.Where(ea => ea.EventId == sourceEventId)
+		// Переносим все Articles из source в target
+		await _context.Articles
+			.Where(a => a.EventId == sourceEventId)
 			.ExecuteUpdateAsync(s => s
-				.SetProperty(ea => ea.EventId, targetEventId),
+				.SetProperty(a => a.EventId, targetEventId),
 			cancellationToken);
 
 		// Переносим EventUpdate
@@ -278,15 +283,14 @@ public class EventRepository : IEventRepository
 	}
 
 	public async Task UpdateArticleRoleAsync(
-		Guid eventId,
 		Guid articleId,
 		EventArticleRole role,
 		CancellationToken cancellationToken = default)
 	{
-		await _context.EventArticles
-			.Where(ea => ea.EventId == eventId && ea.ArticleId == articleId)
+		await _context.Articles
+			.Where(a => a.Id == articleId)
 			.ExecuteUpdateAsync(s => s
-				.SetProperty(ea => ea.Role, role.ToString()),
+				.SetProperty(a => a.Role, role.ToString()),
 			cancellationToken);
 	}
 
@@ -303,14 +307,13 @@ public class EventRepository : IEventRepository
 	}
 
 	public async Task MarkAsReclassifiedAsync(
-	Guid eventId,
 	Guid articleId,
 	CancellationToken cancellationToken = default)
 	{
-		await _context.EventArticles
-			.Where(ea => ea.EventId == eventId && ea.ArticleId == articleId)
+		await _context.Articles
+			.Where(a => a.Id == articleId)
 			.ExecuteUpdateAsync(s => s
-				.SetProperty(ea => ea.WasReclassified, true),
+				.SetProperty(a => a.WasReclassified, true),
 			cancellationToken);
 	}
 }

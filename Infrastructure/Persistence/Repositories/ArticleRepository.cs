@@ -40,7 +40,7 @@ public class ArticleRepository : IArticleRepository
 		var entities = await _context.Articles
 			.Include(a => a.RawArticle)
 			.Where(a => a.Status == ArticleStatus.AnalysisDone.ToString())
-			.Where(a => _context.EventArticles.Any(ea => ea.ArticleId == a.Id))
+			.Where(a => a.EventId != null)
 			.OrderBy(a => a.ProcessedAt)
 			.Take(batchSize)
 			.ToListAsync(cancellationToken);
@@ -52,7 +52,6 @@ public class ArticleRepository : IArticleRepository
 	{
 		var entity = await _context.Articles
 			.Include(a => a.RawArticle)
-			.Include(a => a.EventArticles)
 			.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
 		return entity?.ToDomain();
@@ -78,7 +77,7 @@ public class ArticleRepository : IArticleRepository
 		var entities = await _context.Articles
 			.Include(a => a.RawArticle)
 			.Where(a => a.Status == ArticleStatus.AnalysisDone.ToString())
-			.Where(a => !_context.EventArticles.Any(ea => ea.ArticleId == a.Id))
+			.Where(a => a.EventId == null)
 			.OrderBy(a => a.ProcessedAt)
 			.Take(batchSize)
 			.ToListAsync(cancellationToken);

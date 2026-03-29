@@ -19,11 +19,6 @@ public class EventConfiguration : IEntityTypeConfiguration<EventEntity>
 			.HasConversion<string>();
 
 		builder
-			.HasMany(e => e.EventArticles)
-			.WithOne(ea => ea.Event)
-			.HasForeignKey(ea => ea.EventId);
-
-		builder
 			.HasMany(e => e.EventUpdates)
 			.WithOne(eu => eu.Event)
 			.HasForeignKey(eu => eu.EventId);

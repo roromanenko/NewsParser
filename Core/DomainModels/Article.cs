@@ -26,7 +26,17 @@ public class Article
 
 	public int RetryCount { get; set; }
 
-	public List<EventArticle> EventArticles { get; set; } = [];
+	public Guid? EventId { get; set; }
+	public EventArticleRole? Role { get; set; }
+	public bool WasReclassified { get; set; }
+	public DateTimeOffset? AddedToEventAt { get; set; }
+}
+
+public enum EventArticleRole
+{
+	Initiator,
+	Update,
+	Contradiction
 }
 
 public enum Sentiment
