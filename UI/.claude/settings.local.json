@@ -5,7 +5,13 @@
       "Bash(npx tsc:*)",
       "Bash(xargs grep:*)",
       "Bash(python:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "mcp__figma__get_design_context",
+      "Bash(find D:ProjectsNewsParserUI/src -maxdepth 2 -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.jsx -o -name *.js \\\\\\))"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "figma",
+    "context7"
+  ]
 }
