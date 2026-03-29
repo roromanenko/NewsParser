@@ -4,19 +4,25 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuthStore } from '@/store/authStore'
-import { useAuth } from './useAuth'
+import { useRegister } from './useRegister'
 
 const schema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  confirmPassword: z.string().min(1, 'Please confirm your password'),
+}).refine(data => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
 })
 
 type FormData = z.infer<typeof schema>
 
-export function LoginPage() {
+export function RegisterPage() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated)
   const navigate = useNavigate()
-  const { login, error, isLoading } = useAuth()
+  const { register: registerUser, error, isLoading } = useRegister()
 
   useEffect(() => {
     if (isAuthenticated()) navigate('/articles', { replace: true })
@@ -26,7 +32,22 @@ export function LoginPage() {
     resolver: zodResolver(schema),
   })
 
-  const onSubmit = (data: FormData) => login(data.email, data.password)
+  const onSubmit = (data: FormData) =>
+    registerUser(data.email, data.firstName, data.lastName, data.password)
+
+  const fieldStyle = (hasError: boolean) => ({
+    background: 'var(--burgundy)',
+    borderColor: hasError ? 'var(--crimson)' : 'rgba(255,255,255,0.1)',
+    color: '#E8E8E8',
+  })
+
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>, hasError: boolean) => {
+    if (!hasError) e.currentTarget.style.borderColor = 'var(--caramel)'
+  }
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>, hasError: boolean) => {
+    if (!hasError) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+  }
 
   return (
     <div className="w-full max-w-md">
@@ -64,14 +85,56 @@ export function LoginPage() {
         {/* Card header */}
         <div className="mb-6 pb-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
           <div className="font-caps text-xs tracking-widest mb-1" style={{ color: 'var(--caramel)' }}>
-            SECURE ACCESS
+            EDITOR REGISTRATION
           </div>
           <p className="font-mono text-sm" style={{ color: '#9ca3af' }}>
-            Sign in to your account
+            Create your editor account
           </p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          {/* Name row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block font-caps text-xs tracking-widest mb-2" style={{ color: 'var(--caramel)' }}>
+                FIRST NAME
+              </label>
+              <input
+                type="text"
+                placeholder="John"
+                className="w-full px-4 py-3 font-mono text-sm border focus:outline-none transition-colors"
+                style={fieldStyle(!!errors.firstName)}
+                onFocus={e => handleFocus(e, !!errors.firstName)}
+                onBlur={e => handleBlur(e, !!errors.firstName)}
+                {...register('firstName')}
+              />
+              {errors.firstName && (
+                <p className="mt-1 font-mono text-xs" style={{ color: 'var(--crimson)' }}>
+                  {errors.firstName.message}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block font-caps text-xs tracking-widest mb-2" style={{ color: 'var(--caramel)' }}>
+                LAST NAME
+              </label>
+              <input
+                type="text"
+                placeholder="Doe"
+                className="w-full px-4 py-3 font-mono text-sm border focus:outline-none transition-colors"
+                style={fieldStyle(!!errors.lastName)}
+                onFocus={e => handleFocus(e, !!errors.lastName)}
+                onBlur={e => handleBlur(e, !!errors.lastName)}
+                {...register('lastName')}
+              />
+              {errors.lastName && (
+                <p className="mt-1 font-mono text-xs" style={{ color: 'var(--crimson)' }}>
+                  {errors.lastName.message}
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* Email */}
           <div>
             <label className="block font-caps text-xs tracking-widest mb-2" style={{ color: 'var(--caramel)' }}>
@@ -81,17 +144,9 @@ export function LoginPage() {
               type="email"
               placeholder="you@example.com"
               className="w-full px-4 py-3 font-mono text-sm border focus:outline-none transition-colors"
-              style={{
-                background: 'var(--burgundy)',
-                borderColor: errors.email ? 'var(--crimson)' : 'rgba(255,255,255,0.1)',
-                color: '#E8E8E8',
-              }}
-              onFocus={e => {
-                if (!errors.email) e.currentTarget.style.borderColor = 'var(--caramel)'
-              }}
-              onBlur={e => {
-                if (!errors.email) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
-              }}
+              style={fieldStyle(!!errors.email)}
+              onFocus={e => handleFocus(e, !!errors.email)}
+              onBlur={e => handleBlur(e, !!errors.email)}
               {...register('email')}
             />
             {errors.email && (
@@ -110,22 +165,35 @@ export function LoginPage() {
               type="password"
               placeholder="••••••••"
               className="w-full px-4 py-3 font-mono text-sm border focus:outline-none transition-colors"
-              style={{
-                background: 'var(--burgundy)',
-                borderColor: errors.password ? 'var(--crimson)' : 'rgba(255,255,255,0.1)',
-                color: '#E8E8E8',
-              }}
-              onFocus={e => {
-                if (!errors.password) e.currentTarget.style.borderColor = 'var(--caramel)'
-              }}
-              onBlur={e => {
-                if (!errors.password) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
-              }}
+              style={fieldStyle(!!errors.password)}
+              onFocus={e => handleFocus(e, !!errors.password)}
+              onBlur={e => handleBlur(e, !!errors.password)}
               {...register('password')}
             />
             {errors.password && (
               <p className="mt-1 font-mono text-xs" style={{ color: 'var(--crimson)' }}>
                 {errors.password.message}
+              </p>
+            )}
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label className="block font-caps text-xs tracking-widest mb-2" style={{ color: 'var(--caramel)' }}>
+              CONFIRM PASSWORD
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              className="w-full px-4 py-3 font-mono text-sm border focus:outline-none transition-colors"
+              style={fieldStyle(!!errors.confirmPassword)}
+              onFocus={e => handleFocus(e, !!errors.confirmPassword)}
+              onBlur={e => handleBlur(e, !!errors.confirmPassword)}
+              {...register('confirmPassword')}
+            />
+            {errors.confirmPassword && (
+              <p className="mt-1 font-mono text-xs" style={{ color: 'var(--crimson)' }}>
+                {errors.confirmPassword.message}
               </p>
             )}
           </div>
@@ -154,23 +222,23 @@ export function LoginPage() {
               opacity: isLoading ? 0.7 : 1,
             }}
           >
-            {isLoading ? 'SIGNING IN...' : 'SIGN IN'}
+            {isLoading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
           </button>
         </form>
       </div>
 
-      {/* Register link */}
+      {/* Sign in link */}
       <div className="mt-6 text-center">
         <p className="font-mono text-xs" style={{ color: '#9ca3af' }}>
-          Don't have an account?{' '}
+          Already have an account?{' '}
           <Link
-            to="/register"
+            to="/login"
             className="transition-colors"
             style={{ color: 'var(--caramel)' }}
             onMouseEnter={e => (e.currentTarget.style.color = '#E8E8E8')}
             onMouseLeave={e => (e.currentTarget.style.color = 'var(--caramel)')}
           >
-            Register
+            Sign in
           </Link>
         </p>
       </div>

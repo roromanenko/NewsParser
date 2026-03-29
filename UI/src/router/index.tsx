@@ -4,6 +4,7 @@ import { ToastProvider } from '@/context/ToastContext'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { DashboardLayout } from '@/layouts/DashboardLayout'
 import { LoginPage } from '@/features/auth/LoginPage'
+import { RegisterPage } from '@/features/auth/RegisterPage'
 import { ArticlesPage } from '@/features/articles/ArticlesPage'
 import { ArticleDetailPage } from '@/features/articles/ArticleDetailPage'
 import { SourcesPage } from '@/features/sources/SourcesPage'
@@ -34,6 +35,14 @@ export function AppRouter() {
             element={
               <AuthLayout>
                 <LoginPage />
+              </AuthLayout>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <AuthLayout>
+                <RegisterPage />
               </AuthLayout>
             }
           />

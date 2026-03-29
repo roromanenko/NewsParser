@@ -28,6 +28,7 @@ docs/PublishTargetDto.md
 docs/PublishTargetsApi.md
 docs/RawArticleDto.md
 docs/ReclassifyArticleRequest.md
+docs/RegisterRequest.md
 docs/RejectArticleRequest.md
 docs/ResolveContradictionRequest.md
 docs/SourceDto.md
