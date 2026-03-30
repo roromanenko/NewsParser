@@ -17,7 +17,7 @@ public static class WorkerServiceExtensions
 		services.Configure<EventClassificationOptions>(
 			configuration.GetSection(EventClassificationOptions.SectionName));
 
-		services.AddHostedService<RssFetcherWorker>();
+		services.AddHostedService<SourceFetcherWorker>();
 		services.AddHostedService<ArticleAnalysisWorker>();
 		services.AddHostedService<ArticleGenerationWorker>();
 		services.AddHostedService<PublicationGenerationWorker>();

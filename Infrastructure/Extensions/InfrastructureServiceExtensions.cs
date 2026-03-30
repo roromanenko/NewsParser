@@ -12,6 +12,7 @@ using Infrastructure.Persistence.DataBase;
 using Infrastructure.Persistence.Repositories;
 using Infrastructure.Publishers;
 using Infrastructure.Services;
+using Microsoft.Extensions.Hosting;
 using Infrastructure.Validators;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -29,7 +30,7 @@ public static class InfrastructureServiceExtensions
 		services
 			.AddDatabase(configuration)
 			.AddRepositories()
-			.AddParsers()
+			.AddParsers(configuration)
 			.AddAiServices(configuration)
 			.AddPublishers(configuration)
 			.AddServices(configuration);
@@ -63,9 +64,13 @@ public static class InfrastructureServiceExtensions
 		return services;
 	}
 
-	private static IServiceCollection AddParsers(this IServiceCollection services)
+	private static IServiceCollection AddParsers(this IServiceCollection services, IConfiguration configuration)
 	{
+		services.Configure<TelegramOptions>(configuration.GetSection(TelegramOptions.SectionName));
+		services.AddSingleton<TelegramClientService>();
+		services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<TelegramClientService>());
 		services.AddScoped<ISourceParser, RssParser>();
+		services.AddScoped<ISourceParser, TelegramParser>();
 		return services;
 	}
 

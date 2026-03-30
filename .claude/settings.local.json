@@ -6,7 +6,8 @@
       "Bash(dotnet build:*)",
       "Bash(find C:UserszeromsourcereposNewsParser -name *EventArticle* -type f)",
       "Bash(dotnet ef:*)",
-      "Bash(dotnet tool:*)"
+      "Bash(dotnet tool:*)",
+      "Bash(ls:*)"
     ]
   }
 }

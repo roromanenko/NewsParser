@@ -1,4 +1,4 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Core.Interfaces.Parsers;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Validators;
@@ -7,15 +7,15 @@ using Worker.Configuration;
 
 namespace Worker.Workers;
 
-public class RssFetcherWorker : BackgroundService
+public class SourceFetcherWorker : BackgroundService
 {
 	private readonly IServiceScopeFactory _scopeFactory;
-	private readonly ILogger<RssFetcherWorker> _logger;
+	private readonly ILogger<SourceFetcherWorker> _logger;
 	private readonly RssFetcherOptions _options;
 
-	public RssFetcherWorker(
+	public SourceFetcherWorker(
 		IServiceScopeFactory scopeFactory,
-		ILogger<RssFetcherWorker> logger,
+		ILogger<SourceFetcherWorker> logger,
 		IOptions<RssFetcherOptions> options)
 	{
 		_scopeFactory = scopeFactory;
@@ -38,38 +38,35 @@ public class RssFetcherWorker : BackgroundService
 		var sourceRepository = scope.ServiceProvider.GetRequiredService<ISourceRepository>();
 		var rawArticleRepository = scope.ServiceProvider.GetRequiredService<IRawArticleRepository>();
 		var validator = scope.ServiceProvider.GetRequiredService<IRawArticleValidator>();
-		var parsers = scope.ServiceProvider.GetServices<ISourceParser>();
-		var parser = parsers.FirstOrDefault(p => p.SourceType == SourceType.Rss);
+		var parsers = scope.ServiceProvider.GetServices<ISourceParser>()
+		                   .ToDictionary(p => p.SourceType);
 
-		if (parser is null)
+		foreach (var (sourceType, parser) in parsers)
 		{
-			_logger.LogWarning("RSS parser not found");
-			return;
-		}
+			var sources = await sourceRepository.GetActiveAsync(sourceType, cancellationToken);
+			_logger.LogInformation("Found {Count} active {Type} sources", sources.Count, sourceType);
 
-		var sources = await sourceRepository.GetActiveAsync(SourceType.Rss, cancellationToken);
-		_logger.LogInformation("Found {Count} active RSS sources", sources.Count);
-
-		foreach (var source in sources)
-		{
-			try
+			foreach (var source in sources)
 			{
-				await ProcessSourceAsync(source, parser, rawArticleRepository, validator, cancellationToken);
-				await sourceRepository.UpdateLastFetchedAtAsync(source.Id, DateTimeOffset.UtcNow, cancellationToken);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to process source {SourceName}", source.Name);
+				try
+				{
+					await ProcessSourceAsync(source, parser, rawArticleRepository, validator, cancellationToken);
+					await sourceRepository.UpdateLastFetchedAtAsync(source.Id, DateTimeOffset.UtcNow, cancellationToken);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Failed to process source {SourceName}", source.Name);
+				}
 			}
 		}
 	}
 
 	private async Task ProcessSourceAsync(
-	Source source,
-	ISourceParser parser,
-	IRawArticleRepository rawArticleRepository,
-	IRawArticleValidator validator,
-	CancellationToken cancellationToken)
+		Source source,
+		ISourceParser parser,
+		IRawArticleRepository rawArticleRepository,
+		IRawArticleValidator validator,
+		CancellationToken cancellationToken)
 	{
 		var rawArticles = await parser.ParseAsync(source, cancellationToken);
 		_logger.LogInformation("Parsed {Count} articles from {SourceName}", rawArticles.Count, source.Name);

@@ -1,3 +1,6 @@
+# Telegram session files
+*.session
+
 # .NET Build results
 [Dd]ebug/
 [Dd]ebugPublic/
