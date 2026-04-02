@@ -2,6 +2,7 @@ using Core.DomainModels;
 using Core.Interfaces.Parsers;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Validators;
+using Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
 using Worker.Configuration;
 
@@ -12,15 +13,18 @@ public class SourceFetcherWorker : BackgroundService
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly ILogger<SourceFetcherWorker> _logger;
 	private readonly RssFetcherOptions _options;
+	private readonly ValidationOptions _validationOptions;
 
 	public SourceFetcherWorker(
 		IServiceScopeFactory scopeFactory,
 		ILogger<SourceFetcherWorker> logger,
-		IOptions<RssFetcherOptions> options)
+		IOptions<RssFetcherOptions> options,
+		IOptions<ValidationOptions> validationOptions)
 	{
 		_scopeFactory = scopeFactory;
 		_logger = logger;
 		_options = options.Value;
+		_validationOptions = validationOptions.Value;
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -71,6 +75,10 @@ public class SourceFetcherWorker : BackgroundService
 		var rawArticles = await parser.ParseAsync(source, cancellationToken);
 		_logger.LogInformation("Parsed {Count} articles from {SourceName}", rawArticles.Count, source.Name);
 
+		// Fetch once per source — reused for every article in the batch
+		var recentTitles = await rawArticleRepository.GetRecentTitlesForDeduplicationAsync(
+			_validationOptions.TitleDeduplicationWindowHours, cancellationToken);
+
 		var saved = 0;
 		var skipped = 0;
 
@@ -81,20 +89,45 @@ public class SourceFetcherWorker : BackgroundService
 			var (isValid, reason) = validator.Validate(rawArticle);
 			if (!isValid)
 			{
-				_logger.LogDebug("Skipping article '{Title}' from {SourceName}: {Reason}",
-					rawArticle.Title, source.Name, reason);
+				_logger.LogDebug("Skipping '{Title}' from {SourceName}: {Reason}", rawArticle.Title, source.Name, reason);
 				skipped++;
 				continue;
 			}
 
+			// ExternalId dedup (existing)
 			var exists = await rawArticleRepository.ExistsAsync(source.Id, rawArticle.ExternalId, cancellationToken);
 			if (exists) continue;
 
+			// URL deduplication (cross-source, new)
+			var urlExists = await rawArticleRepository.ExistsByUrlAsync(rawArticle.OriginalUrl, cancellationToken);
+			if (urlExists)
+			{
+				_logger.LogDebug("Skipping '{Title}' — URL already exists: {Url}", rawArticle.Title, rawArticle.OriginalUrl);
+				skipped++;
+				continue;
+			}
+
+			// Title fuzzy deduplication (new)
+			if (recentTitles.Count > 0)
+			{
+				var bestScore = recentTitles
+					.Select(t => FuzzySharp.Fuzz.TokenSetRatio(rawArticle.Title, t))
+					.Max();
+
+				if (bestScore >= _validationOptions.TitleSimilarityThreshold)
+				{
+					_logger.LogDebug("Skipping '{Title}' — title duplicate (score {Score})", rawArticle.Title, bestScore);
+					skipped++;
+					continue;
+				}
+			}
+
 			await rawArticleRepository.AddAsync(rawArticle, cancellationToken);
+			recentTitles.Add(rawArticle.Title); // intra-batch dedup
 			saved++;
 		}
 
-		_logger.LogInformation("Saved {Saved} new articles from {SourceName}, skipped {Skipped} invalid",
+		_logger.LogInformation("Saved {Saved} new articles from {SourceName}, skipped {Skipped}",
 			saved, source.Name, skipped);
 	}
 }

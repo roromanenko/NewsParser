@@ -14,20 +14,17 @@ public class ArticleAnalysisWorker : BackgroundService
 	private readonly ILogger<ArticleAnalysisWorker> _logger;
 	private readonly ArticleProcessingOptions _options;
 	private readonly AiOptions _aiOptions;
-	private readonly ValidationOptions _validationOptions;
 
 	public ArticleAnalysisWorker(
 		IServiceScopeFactory scopeFactory,
 		ILogger<ArticleAnalysisWorker> logger,
 		IOptions<ArticleProcessingOptions> options,
-		IOptions<AiOptions> aiOptions,
-		IOptions<ValidationOptions> validationOptions)
+		IOptions<AiOptions> aiOptions)
 	{
 		_scopeFactory = scopeFactory;
 		_logger = logger;
 		_options = options.Value;
 		_aiOptions = aiOptions.Value;
-		_validationOptions = validationOptions.Value;
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -82,29 +79,7 @@ public class ArticleAnalysisWorker : BackgroundService
 			_logger.LogInformation("Analyzing raw article {Id}: {Title}", rawArticle.Id, rawArticle.Title);
 			await articleRepository.UpdateRawArticleStatusAsync(rawArticle.Id, RawArticleStatus.Analyzing, cancellationToken);
 
-			// Шаг 1 — быстрая дедупликация по заголовку до отправки в Claude
-			var recentTitles = await rawArticleRepository.GetRecentTitlesAsync(
-				rawArticle.Id,
-				_validationOptions.TitleDeduplicationWindowHours,
-				cancellationToken);
-
-			if (recentTitles.Count > 0)
-			{
-				var bestScore = recentTitles
-					.Select(t => FuzzySharp.Fuzz.TokenSetRatio(rawArticle.Title, t))
-					.Max();
-
-				if (bestScore >= _validationOptions.TitleSimilarityThreshold)
-				{
-					_logger.LogInformation(
-						"Raw article {Id} is a title duplicate (score {Score}), rejecting. Title: {Title}",
-						rawArticle.Id, bestScore, rawArticle.Title);
-					await articleRepository.UpdateRawArticleStatusAsync(rawArticle.Id, RawArticleStatus.Rejected, cancellationToken);
-					return;
-				}
-			}
-
-			// Шаг 2 — анализ через Claude
+			// Шаг 1 — анализ через Claude
 			var result = await analyzer.AnalyzeAsync(rawArticle, cancellationToken);
 
 			// Шаг 3 — генерация embedding для summary

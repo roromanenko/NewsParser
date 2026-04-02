@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/Infrastructure.Tests/Infrastructure.Tests.csproj" />
+    <Project Path="Tests/Worker.Tests/Worker.Tests.csproj" />
+  </Folder>
   <Project Path="Api/Api.csproj" />
   <Project Path="Core/Core.csproj" />
   <Project Path="Infrastructure/Infrastructure.csproj" />

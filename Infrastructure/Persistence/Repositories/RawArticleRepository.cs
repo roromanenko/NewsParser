@@ -23,6 +23,14 @@ public class RawArticleRepository : IRawArticleRepository
 			.AnyAsync(r => r.SourceId == sourceId && r.ExternalId == externalId, cancellationToken);
 	}
 
+	public async Task<bool> ExistsByUrlAsync(string originalUrl, CancellationToken cancellationToken = default)
+	{
+		return await _context.RawArticles
+			.AnyAsync(r => r.OriginalUrl == originalUrl
+						&& r.Status != RawArticleStatus.Rejected.ToString(),
+					  cancellationToken);
+	}
+
 	public async Task AddAsync(RawArticle rawArticle, CancellationToken cancellationToken = default)
 	{
 		var entity = rawArticle.ToEntity();
@@ -56,14 +64,14 @@ public class RawArticleRepository : IRawArticleRepository
 			.ExecuteUpdateAsync(r => r.SetProperty(x => x.Embedding, vector), cancellationToken);
 	}
 
-	public async Task<List<string>> GetRecentTitlesAsync(Guid currentId, int windowHours, CancellationToken cancellationToken = default)
+	public async Task<List<string>> GetRecentTitlesForDeduplicationAsync(int windowHours, CancellationToken cancellationToken = default)
 	{
 		var since = DateTimeOffset.UtcNow.AddHours(-windowHours);
 		return await _context.RawArticles
-			.Where(r => r.Id != currentId
-				&& r.PublishedAt >= since
-				&& r.Status != RawArticleStatus.Rejected.ToString())
+			.Where(r => r.PublishedAt >= since
+					 && r.Status != RawArticleStatus.Rejected.ToString())
 			.Select(r => r.Title)
 			.ToListAsync(cancellationToken);
 	}
+
 }
