@@ -70,6 +70,16 @@ See `UI/CLAUDE.md`.
     <location>.claude/skills/agent-creator/SKILL.md</location>
   </skill>
   <skill>
+    <name>code-conventions</name>
+    <description>NewsParser project-specific conventions for structure and placement. Use when adding a new class to any layer, asking where something belongs, or checking naming patterns. Triggers on: "where does X go", "what layer", "naming convention", "how do workers work", "how do services work", "how should I structure", "is this the right pattern", "how do repositories work", "Options pattern", "how do mappers work".</description>
+    <location>.claude/skills/code-conventions/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>clean-code</name>
+    <description>Clean Code principles grounded in the NewsParser codebase — concrete violations and good examples named explicitly. Use when reviewing code quality, refactoring, or identifying smells. Triggers on: "code review", "refactor", "clean code", "SOLID", "is this good code", "too many parameters", "method too long", "magic number", "dead code", "naming", "comments", "guard clause".</description>
+    <location>.claude/skills/clean-code/SKILL.md</location>
+  </skill>
+  <skill>
     <name>ef-core-conventions</name>
     <description>NewsParser EF Core repository conventions for Infrastructure/Persistence/Repositories/. Use when adding a new repository class, adding a method to an existing repository, writing a query with Include/ThenInclude, using pgvector, or writing an update/delete operation. Triggers on: "add repository", "new repository", "add method to repository", "EF Core query", "pgvector query", "ExecuteUpdateAsync", "repository pattern", "GetPendingFor".</description>
     <location>.claude/skills/ef-core-conventions/SKILL.md</location>
@@ -88,5 +98,15 @@ See `UI/CLAUDE.md`.
     <name>feature-planner</name>
     <description>Given a feature description, explores the codebase and produces an atomic tasklist saved to docs/tasks/active/&lt;feature-name&gt;.md. Call before starting any implementation. Does NOT write code or modify source files.</description>
     <location>.claude/agents/feature-planner.md</location>
+  </agent>
+  <agent>
+    <name>architect</name>
+    <description>Two modes: (1) Design — given a task description, saves an ADR to docs/architecture/decisions/; (2) Review Tasklist — given a path to docs/tasks/active/X.md, verifies the tasklist against its ADR and outputs APPROVED or ISSUES FOUND. Does NOT write code or create tasklists.</description>
+    <location>.claude/agents/architect.md</location>
+  </agent>
+  <agent>
+    <name>reviewer</name>
+    <description>Reviews implemented code for quality and convention violations. Produces a BLOCKER / WARNING / SUGGESTION report and a "Ready to commit" / "Committable with warnings" / "Do not commit" verdict. Call after implementation, before committing. Does NOT write or modify code.</description>
+    <location>.claude/agents/reviewer.md</location>
   </agent>
 </available_agents>

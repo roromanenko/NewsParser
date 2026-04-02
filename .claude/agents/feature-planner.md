@@ -33,6 +33,8 @@ planning can proceed, you ask the user one focused question and wait for the ans
   - `Api/` — controllers, DTOs, validators, mappers
   - `Worker/` — background workers
   - `UI/src/` — React components, hooks, API clients
+- `docs/architecture/decisions/` — ADR for the current feature 
+  (read the relevant ADR if it exists before building the tasklist)
 
 ---
 
@@ -46,32 +48,41 @@ planning can proceed, you ask the user one focused question and wait for the ans
 
 1. Read `CLAUDE.md` to load project structure, layer responsibilities, and workflow rules.
 
-2. If `docs/tasks/done/` exists, read 1–2 recent files to calibrate task granularity
+2. If docs/architecture/decisions/ exists, find and read the ADR 
+   relevant to this feature — tasklist must implement exactly what 
+   the ADR decided, not invent its own approach.
+
+3. If `docs/tasks/done/` exists, read 1–2 recent files to calibrate task granularity
    and naming conventions.
 
-3. Identify the affected layers from the feature description:
+4. Identify the affected layers from the feature description:
    - Data model changes → `Core/Models/`, `Infrastructure/Persistence/`
    - New repository/service → `Core/Interfaces/`, `Infrastructure/`
    - New API endpoint → `Api/Controllers/`, DTOs, validators, mappers
    - Background worker changes → `Worker/`
    - UI changes → `UI/src/`
 
-4. For each affected layer, glob and read the most relevant files:
+5. For each affected layer, glob and read the most relevant files:
    - Find existing similar entities/controllers/workers to understand current patterns.
    - Identify exact file names that need to be created or modified.
 
-5. If anything in the feature description is ambiguous (e.g., scope unclear, conflicts
+6. If anything in the feature description is ambiguous (e.g., scope unclear, conflicts
    with existing design), ask the user **one** clarifying question before continuing.
 
-6. Draft the tasklist as atomic, verifiable steps:
+7. Draft the tasklist as atomic, verifiable steps:
    - Each task is a single file action: create, modify, or delete one file.
    - Each task has a clear acceptance criterion (what "done" looks like).
    - Order tasks by dependency: data model → interfaces → infrastructure → API → UI.
    - Group tasks under layer headings (e.g., `### Core`, `### Infrastructure`).
 
-7. Write the tasklist to `docs/tasks/active/<feature-name>.md` using the template below.
+8. Determine the next sequence number:
+   - Glob all files in `docs/tasks/active/` and `docs/tasks/done/`.
+   - Extract the highest existing numeric prefix (e.g. `0003` from `0003-some-feature.md`).
+   - Increment by 1, zero-padded to 4 digits.
+   - If no files exist, start at `0001`.
+   Write the tasklist to `docs/tasks/active/<NNNN>-<feature-name>.md`.
 
-8. Re-read the written file and verify:
+9. Re-read the written file and verify:
    - Every file mentioned exists in the codebase OR is explicitly a new file.
    - No task requires making a design decision — those belong to the user.
    - No task is "understand X" — replace with "Read X and list Y".
@@ -136,7 +147,8 @@ planning can proceed, you ask the user one focused question and wait for the ans
 - Never add tasks like "research X", "understand Y", or "decide Z" — those are not tasks.
 - Tasks must be ordered so each one can start only after the preceding ones are complete.
 - If a layer is not affected by the feature, omit its section entirely.
-- Use kebab-case for the output filename: `docs/tasks/active/add-source-filtering.md`.
+- Use zero-padded numeric prefix for the output filename: `docs/tasks/active/0001-add-source-filtering.md`.
+  The number is next in sequence — read existing files in `docs/tasks/active/` and `docs/tasks/done/` to determine it.
 - Create `docs/tasks/active/` directory path if it does not exist (use Write, which creates
   parent directories automatically).
 
@@ -153,6 +165,8 @@ Add `_Skill: <path>_` and `_Agent: <name>_` on the lines after `_Acceptance:_`.
 | Mappers (ToDto, ToDomain, ToEntity) | — | `.claude/skills/mappers/SKILL.md` |
 | API (controller, DTO, validator, endpoint) | — | `.claude/skills/api-conventions/SKILL.md` |
 | EF Core (repository, migration, DbContext) | — | `.claude/skills/ef-core-conventions/SKILL.md` |
+| New class / layer placement / structure | — | `.claude/skills/code-conventions/SKILL.md` |
+| Code review / refactoring / quality | — | `.claude/skills/clean-code/SKILL.md` |
 
 Example:
 ```markdown
