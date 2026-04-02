@@ -172,5 +172,3 @@ After the skill is in good shape, you can optimize the description field to impr
 - Evaluate the outputs with the user
 - Repeat until satisfied
 - Package the final skill
-
-Good luck!
