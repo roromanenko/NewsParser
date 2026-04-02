@@ -1,4 +1,5 @@
-﻿using Api.Models;
+﻿using Api.Mappers;
+using Api.Models;
 using Core.DomainModels;
 using Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -16,7 +17,7 @@ public class PublishTargetsController(IPublishTargetService publishTargetService
 		CancellationToken cancellationToken = default)
 	{
 		var targets = await publishTargetService.GetAllAsync(cancellationToken);
-		return Ok(targets.Select(ToDto).ToList());
+		return Ok(targets.Select(t => t.ToDto()).ToList());
 	}
 
 	[HttpGet("active")]
@@ -24,7 +25,7 @@ public class PublishTargetsController(IPublishTargetService publishTargetService
 		CancellationToken cancellationToken = default)
 	{
 		var targets = await publishTargetService.GetActiveAsync(cancellationToken);
-		return Ok(targets.Select(ToDto).ToList());
+		return Ok(targets.Select(t => t.ToDto()).ToList());
 	}
 
 	[HttpGet("{id:guid}")]
@@ -33,7 +34,7 @@ public class PublishTargetsController(IPublishTargetService publishTargetService
 		CancellationToken cancellationToken = default)
 	{
 		var target = await publishTargetService.GetByIdAsync(id, cancellationToken);
-		return Ok(ToDto(target));
+		return Ok(target.ToDto());
 	}
 
 	[HttpPost]
@@ -60,7 +61,7 @@ public class PublishTargetsController(IPublishTargetService publishTargetService
 			request.SystemPrompt,
 			cancellationToken);
 
-		return CreatedAtAction(nameof(GetById), new { id = target.Id }, ToDto(target));
+		return CreatedAtAction(nameof(GetById), new { id = target.Id }, target.ToDto());
 	}
 
 	[HttpPut("{id:guid}")]
@@ -86,7 +87,7 @@ public class PublishTargetsController(IPublishTargetService publishTargetService
 			request.IsActive,
 			cancellationToken);
 
-		return Ok(ToDto(target));
+		return Ok(target.ToDto());
 	}
 
 	[HttpDelete("{id:guid}")]
@@ -98,12 +99,4 @@ public class PublishTargetsController(IPublishTargetService publishTargetService
 		return NoContent();
 	}
 
-	private static PublishTargetDto ToDto(PublishTarget target) => new(
-		target.Id,
-		target.Name,
-		target.Platform.ToString(),
-		target.Identifier,
-		target.SystemPrompt,
-		target.IsActive
-	);
 }

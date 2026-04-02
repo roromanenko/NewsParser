@@ -1,4 +1,5 @@
 ﻿using Api.Controllers;
+using Api.Mappers;
 using Api.Models;
 using Core.DomainModels;
 using Core.Interfaces.Repositories;
@@ -27,16 +28,7 @@ public class EventsController(
 		var events = await eventRepository.GetPagedAsync(page, pageSize, cancellationToken);
 		var total = await eventRepository.CountActiveAsync(cancellationToken);
 
-		var items = events.Select(e => new EventListItemDto(
-			e.Id,
-			e.Title,
-			e.Summary,
-			e.Status.ToString(),
-			e.FirstSeenAt,
-			e.LastUpdatedAt,
-			e.Articles.Count,
-			e.Contradictions.Count(c => !c.IsResolved)
-		)).ToList();
+		var items = events.Select(e => e.ToListItemDto()).ToList();
 
 		return Ok(new PagedResult<EventListItemDto>(items, page, pageSize, total));
 	}
@@ -50,35 +42,7 @@ public class EventsController(
 		if (evt is null)
 			return NotFound();
 
-		return Ok(new EventDetailDto(
-			evt.Id,
-			evt.Title,
-			evt.Summary,
-			evt.Status.ToString(),
-			evt.FirstSeenAt,
-			evt.LastUpdatedAt,
-			evt.Articles.Select(a => new EventArticleDto(
-				a.Id,
-				a.Title,
-				a.Summary,
-				a.Role?.ToString() ?? string.Empty,
-				a.AddedToEventAt ?? a.ProcessedAt
-			)).ToList(),
-			evt.EventUpdates.Select(eu => new EventUpdateDto(
-				eu.Id,
-				eu.FactSummary,
-				eu.IsPublished,
-				eu.CreatedAt
-			)).OrderBy(u => u.CreatedAt).ToList(),
-			evt.Contradictions.Select(c => new ContradictionDto(
-				c.Id,
-				c.Description,
-				c.IsResolved,
-				c.CreatedAt,
-				c.ContradictionArticles.Select(ca => ca.ArticleId).ToList()
-			)).ToList(),
-			evt.Articles.Count(a => a.WasReclassified)
-		));
+		return Ok(evt.ToDetailDto());
 	}
 
 	[HttpPost("{id:guid}/resolve-contradiction")]

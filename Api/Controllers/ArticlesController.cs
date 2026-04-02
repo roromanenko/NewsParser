@@ -1,4 +1,5 @@
-﻿using Api.Models;
+﻿using Api.Mappers;
+using Api.Models;
 using Core.DomainModels;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
@@ -28,10 +29,7 @@ public class ArticlesController(
 		var articles = await articleRepository.GetPendingForApprovalAsync(page, pageSize, cancellationToken);
 		var total = await articleRepository.CountPendingForApprovalAsync(cancellationToken);
 
-		var items = articles.Select(a => new ArticleListItemDto(
-			a.Id, a.Title, a.Category, a.Tags,
-			a.Sentiment.ToString(), a.Language, a.Summary, a.ProcessedAt
-		)).ToList();
+		var items = articles.Select(a => a.ToListItemDto()).ToList();
 
 		return Ok(new PagedResult<ArticleListItemDto>(items, page, pageSize, total));
 	}
@@ -46,32 +44,11 @@ public class ArticlesController(
 			return NotFound();
 
 		// Ищем связанное событие
-		ArticleEventDto? eventDto = null;
+		Event? evt = null;
 		if (article.EventId is not null)
-		{
-			var evt = await eventRepository.GetByIdAsync(article.EventId.Value, cancellationToken);
-			if (evt is not null)
-			{
-				eventDto = new ArticleEventDto(
-					evt.Id,
-					evt.Title,
-					evt.Status.ToString(),
-					article.Role?.ToString() ?? string.Empty
-				);
-			}
-		}
+			evt = await eventRepository.GetByIdAsync(article.EventId.Value, cancellationToken);
 
-		return Ok(new ArticleDetailDto(
-			article.Id, article.Title, article.Content, article.Category,
-			article.Tags, article.Sentiment.ToString(), article.Language,
-			article.Summary, article.ProcessedAt, article.ModelVersion,
-			new RawArticleDto(
-				article.RawArticle.Id, article.RawArticle.Title,
-				article.RawArticle.OriginalUrl, article.RawArticle.PublishedAt,
-				article.RawArticle.Language
-			),
-			eventDto
-		));
+		return Ok(article.ToDetailDto(evt));
 	}
 
 	[HttpPost("{id:guid}/approve")]
@@ -92,10 +69,7 @@ public class ArticlesController(
 			request.PublishTargetIds,
 			cancellationToken);
 
-		return Ok(new ArticleListItemDto(
-			article.Id, article.Title, article.Category, article.Tags,
-			article.Sentiment.ToString(), article.Language, article.Summary, article.ProcessedAt
-		));
+		return Ok(article.ToListItemDto());
 	}
 
 	[HttpPost("{id:guid}/reject")]
@@ -112,9 +86,6 @@ public class ArticlesController(
 
 		var article = await approvalService.RejectAsync(id, UserId.Value, request.Reason, cancellationToken);
 
-		return Ok(new ArticleListItemDto(
-			article.Id, article.Title, article.Category, article.Tags,
-			article.Sentiment.ToString(), article.Language, article.Summary, article.ProcessedAt
-		));
+		return Ok(article.ToListItemDto());
 	}
 }

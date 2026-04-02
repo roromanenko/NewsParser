@@ -1,4 +1,5 @@
-﻿using Api.Models;
+﻿using Api.Mappers;
+using Api.Models;
 using Core.DomainModels;
 using Core.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -23,7 +24,7 @@ public class AuthController(
 
 		var token = jwtService.GenerateToken(user);
 
-		return Ok(new LoginResponse(user.Id, user.Email, user.Role.ToString(), token));
+		return Ok(user.ToLoginResponse(token));
 	}
 
 	[HttpPost("register")]
@@ -43,7 +44,7 @@ public class AuthController(
 
 			var token = jwtService.GenerateToken(user);
 
-			return CreatedAtAction(nameof(Login), new LoginResponse(user.Id, user.Email, user.Role.ToString(), token));
+			return CreatedAtAction(nameof(Login), user.ToLoginResponse(token));
 		}
 		catch (InvalidOperationException)
 		{

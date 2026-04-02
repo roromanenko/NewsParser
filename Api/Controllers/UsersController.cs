@@ -1,4 +1,5 @@
-﻿using Api.Models;
+﻿using Api.Mappers;
+using Api.Models;
 using Core.DomainModels;
 using Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -15,9 +16,7 @@ public class UsersController(IUserService userService) : BaseController
 	public async Task<ActionResult<List<UserDto>>> GetAllUsers(CancellationToken cancellationToken = default)
 	{
 		var users = await userService.GetAllUsers(cancellationToken);
-		return Ok(users.Select(user => new UserDto(
-			user!.Id, user.Email, user.FirstName, user.LastName, user.Role.ToString()
-		)).ToList());
+		return Ok(users.Select(u => u!.ToDto()).ToList());
 	}
 
 	[HttpPost("users")]
@@ -38,7 +37,7 @@ public class UsersController(IUserService userService) : BaseController
 			request.Email, request.FirstName, request.LastName,
 			request.Password, role, cancellationToken);
 
-		return Ok(new UserDto(user.Id, user.Email, user.FirstName, user.LastName, user.Role.ToString()));
+		return Ok(user.ToDto());
 	}
 
 	[HttpPut("editors/{id:guid}")]
@@ -53,7 +52,7 @@ public class UsersController(IUserService userService) : BaseController
 		var user = await userService.UpdateEditorAsync(
 			id, request.FirstName, request.LastName, request.Email, cancellationToken);
 
-		return Ok(new UserDto(user.Id, user.Email, user.FirstName, user.LastName, user.Role.ToString()));
+		return Ok(user.ToDto());
 	}
 
 	[HttpDelete("editors/{id:guid}")]

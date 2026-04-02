@@ -1,4 +1,5 @@
-﻿using Api.Models;
+﻿using Api.Mappers;
+using Api.Models;
 using Core.DomainModels;
 using Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -15,14 +16,14 @@ public class SourcesController(ISourceService sourceService) : BaseController
 	public async Task<ActionResult<List<SourceDto>>> GetAll(CancellationToken cancellationToken = default)
 	{
 		var sources = await sourceService.GetAllAsync(cancellationToken);
-		return Ok(sources.Select(ToDto).ToList());
+		return Ok(sources.Select(s => s.ToDto()).ToList());
 	}
 
 	[HttpGet("{id:guid}")]
 	public async Task<ActionResult<SourceDto>> GetById(Guid id, CancellationToken cancellationToken = default)
 	{
 		var source = await sourceService.GetByIdAsync(id, cancellationToken);
-		return Ok(ToDto(source));
+		return Ok(source.ToDto());
 	}
 
 	[HttpPost]
@@ -40,7 +41,7 @@ public class SourcesController(ISourceService sourceService) : BaseController
 			return BadRequest($"Invalid source type. Valid values: {string.Join(", ", Enum.GetNames<SourceType>())}");
 
 		var source = await sourceService.CreateAsync(request.Name, request.Url, sourceType, cancellationToken);
-		return CreatedAtAction(nameof(GetById), new { id = source.Id }, ToDto(source));
+		return CreatedAtAction(nameof(GetById), new { id = source.Id }, source.ToDto());
 	}
 
 	[HttpPut("{id:guid}")]
@@ -56,7 +57,7 @@ public class SourcesController(ISourceService sourceService) : BaseController
 			return BadRequest("URL is required");
 
 		var source = await sourceService.UpdateAsync(id, request.Name, request.Url, request.IsActive, cancellationToken);
-		return Ok(ToDto(source));
+		return Ok(source.ToDto());
 	}
 
 	[HttpDelete("{id:guid}")]
@@ -66,8 +67,4 @@ public class SourcesController(ISourceService sourceService) : BaseController
 		return NoContent();
 	}
 
-	private static SourceDto ToDto(Source source) => new(
-		source.Id, source.Name, source.Url,
-		source.Type.ToString(), source.IsActive, source.LastFetchedAt
-	);
 }
