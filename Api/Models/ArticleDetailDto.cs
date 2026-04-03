@@ -1,4 +1,4 @@
-﻿namespace Api.Models;
+namespace Api.Models;
 
 public record ArticleDetailDto(
 	Guid Id,
@@ -11,16 +11,9 @@ public record ArticleDetailDto(
 	string? Summary,
 	DateTimeOffset ProcessedAt,
 	string ModelVersion,
-	RawArticleDto Source,
+	string? OriginalUrl,
+	DateTimeOffset? PublishedAt,
 	ArticleEventDto? Event
-);
-
-public record RawArticleDto(
-	Guid Id,
-	string Title,
-	string OriginalUrl,
-	DateTimeOffset PublishedAt,
-	string Language
 );
 
 public record ArticleEventDto(

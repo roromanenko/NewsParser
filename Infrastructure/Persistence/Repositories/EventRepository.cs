@@ -88,6 +88,7 @@ public class EventRepository : IEventRepository
 			.ExecuteUpdateAsync(s => s
 				.SetProperty(e => e.Summary, summary)
 				.SetProperty(e => e.Embedding, new Vector(embedding))
+				.SetProperty(e => e.ArticleCount, e => e.ArticleCount + 1)
 				.SetProperty(e => e.LastUpdatedAt, DateTimeOffset.UtcNow),
 			cancellationToken);
 	}
@@ -107,7 +108,7 @@ public class EventRepository : IEventRepository
 	public async Task AssignArticleToEventAsync(
 		Guid articleId,
 		Guid eventId,
-		EventArticleRole role,
+		ArticleRole role,
 		CancellationToken cancellationToken = default)
 	{
 		await _context.Articles
@@ -284,7 +285,7 @@ public class EventRepository : IEventRepository
 
 	public async Task UpdateArticleRoleAsync(
 		Guid articleId,
-		EventArticleRole role,
+		ArticleRole role,
 		CancellationToken cancellationToken = default)
 	{
 		await _context.Articles

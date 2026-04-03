@@ -17,8 +17,8 @@ namespace Worker.Tests.Workers;
 public class SourceFetcherWorkerTests
 {
 	private Mock<ISourceRepository> _sourceRepoMock = null!;
-	private Mock<IRawArticleRepository> _rawArticleRepoMock = null!;
-	private Mock<IRawArticleValidator> _validatorMock = null!;
+	private Mock<IArticleRepository> _articleRepoMock = null!;
+	private Mock<IArticleValidator> _validatorMock = null!;
 	private Mock<ISourceParser> _parserMock = null!;
 	private Mock<IServiceScopeFactory> _scopeFactoryMock = null!;
 
@@ -30,8 +30,8 @@ public class SourceFetcherWorkerTests
 	public void SetUp()
 	{
 		_sourceRepoMock = new Mock<ISourceRepository>();
-		_rawArticleRepoMock = new Mock<IRawArticleRepository>();
-		_validatorMock = new Mock<IRawArticleValidator>();
+		_articleRepoMock = new Mock<IArticleRepository>();
+		_validatorMock = new Mock<IArticleValidator>();
 		_parserMock = new Mock<ISourceParser>();
 		_scopeFactoryMock = new Mock<IServiceScopeFactory>();
 
@@ -59,20 +59,20 @@ public class SourceFetcherWorkerTests
 			.ReturnsAsync([_testSource]);
 
 		// Default: no recent titles, no existing external-id, no existing URL
-		_rawArticleRepoMock
+		_articleRepoMock
 			.Setup(r => r.GetRecentTitlesForDeduplicationAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync([]);
 
-		_rawArticleRepoMock
+		_articleRepoMock
 			.Setup(r => r.ExistsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(false);
 
-		_rawArticleRepoMock
+		_articleRepoMock
 			.Setup(r => r.ExistsByUrlAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(false);
 
 		_validatorMock
-			.Setup(v => v.Validate(It.IsAny<RawArticle>()))
+			.Setup(v => v.Validate(It.IsAny<Article>()))
 			.Returns((true, (string?)null));
 
 		WireUpScopeFactory();
@@ -90,7 +90,7 @@ public class SourceFetcherWorkerTests
 			.Setup(p => p.ParseAsync(_testSource, It.IsAny<CancellationToken>()))
 			.ReturnsAsync([article]);
 
-		_rawArticleRepoMock
+		_articleRepoMock
 			.Setup(r => r.ExistsAsync(_testSource.Id, "existing-id-1", It.IsAny<CancellationToken>()))
 			.ReturnsAsync(true);
 
@@ -100,7 +100,7 @@ public class SourceFetcherWorkerTests
 		await RunOneIterationAsync(sut);
 
 		// Assert
-		_rawArticleRepoMock.Verify(r => r.AddAsync(It.IsAny<RawArticle>(), It.IsAny<CancellationToken>()), Times.Never);
+		_articleRepoMock.Verify(r => r.AddAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()), Times.Never);
 	}
 
 	// ------------------------------------------------------------------
@@ -115,7 +115,7 @@ public class SourceFetcherWorkerTests
 			.Setup(p => p.ParseAsync(_testSource, It.IsAny<CancellationToken>()))
 			.ReturnsAsync([article]);
 
-		_rawArticleRepoMock
+		_articleRepoMock
 			.Setup(r => r.ExistsByUrlAsync("https://news.com/duplicate", It.IsAny<CancellationToken>()))
 			.ReturnsAsync(true);
 
@@ -125,7 +125,7 @@ public class SourceFetcherWorkerTests
 		await RunOneIterationAsync(sut);
 
 		// Assert
-		_rawArticleRepoMock.Verify(r => r.AddAsync(It.IsAny<RawArticle>(), It.IsAny<CancellationToken>()), Times.Never);
+		_articleRepoMock.Verify(r => r.AddAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()), Times.Never);
 	}
 
 	// ------------------------------------------------------------------
@@ -143,7 +143,7 @@ public class SourceFetcherWorkerTests
 			.Setup(p => p.ParseAsync(_testSource, It.IsAny<CancellationToken>()))
 			.ReturnsAsync([article]);
 
-		_rawArticleRepoMock
+		_articleRepoMock
 			.Setup(r => r.GetRecentTitlesForDeduplicationAsync(24, It.IsAny<CancellationToken>()))
 			.ReturnsAsync([existingTitle]);
 
@@ -153,7 +153,7 @@ public class SourceFetcherWorkerTests
 		await RunOneIterationAsync(sut);
 
 		// Assert — score between these two titles is well above 85
-		_rawArticleRepoMock.Verify(r => r.AddAsync(It.IsAny<RawArticle>(), It.IsAny<CancellationToken>()), Times.Never);
+		_articleRepoMock.Verify(r => r.AddAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()), Times.Never);
 	}
 
 	// ------------------------------------------------------------------
@@ -171,7 +171,7 @@ public class SourceFetcherWorkerTests
 			.Setup(p => p.ParseAsync(_testSource, It.IsAny<CancellationToken>()))
 			.ReturnsAsync([article]);
 
-		_rawArticleRepoMock
+		_articleRepoMock
 			.Setup(r => r.GetRecentTitlesForDeduplicationAsync(24, It.IsAny<CancellationToken>()))
 			.ReturnsAsync([existingTitle]);
 
@@ -181,7 +181,7 @@ public class SourceFetcherWorkerTests
 		await RunOneIterationAsync(sut);
 
 		// Assert
-		_rawArticleRepoMock.Verify(r => r.AddAsync(article, It.IsAny<CancellationToken>()), Times.Once);
+		_articleRepoMock.Verify(r => r.AddAsync(article, It.IsAny<CancellationToken>()), Times.Once);
 	}
 
 	// ------------------------------------------------------------------
@@ -204,7 +204,7 @@ public class SourceFetcherWorkerTests
 		await RunOneIterationAsync(sut);
 
 		// Assert
-		_rawArticleRepoMock.Verify(r => r.AddAsync(article, It.IsAny<CancellationToken>()), Times.Once);
+		_articleRepoMock.Verify(r => r.AddAsync(article, It.IsAny<CancellationToken>()), Times.Once);
 	}
 
 	// ------------------------------------------------------------------
@@ -229,7 +229,7 @@ public class SourceFetcherWorkerTests
 		await RunOneIterationAsync(sut);
 
 		// Assert
-		_rawArticleRepoMock.Verify(r => r.AddAsync(It.IsAny<RawArticle>(), It.IsAny<CancellationToken>()), Times.Never);
+		_articleRepoMock.Verify(r => r.AddAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()), Times.Never);
 	}
 
 	// ------------------------------------------------------------------
@@ -250,10 +250,10 @@ public class SourceFetcherWorkerTests
 		await RunOneIterationAsync(sut);
 
 		// Assert
-		_rawArticleRepoMock.Verify(
+		_articleRepoMock.Verify(
 			r => r.ExistsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
 			Times.Never);
-		_rawArticleRepoMock.Verify(r => r.AddAsync(It.IsAny<RawArticle>(), It.IsAny<CancellationToken>()), Times.Never);
+		_articleRepoMock.Verify(r => r.AddAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()), Times.Never);
 	}
 
 	// ------------------------------------------------------------------
@@ -294,11 +294,11 @@ public class SourceFetcherWorkerTests
 			.Returns(_sourceRepoMock.Object);
 
 		serviceProviderMock
-			.Setup(sp => sp.GetService(typeof(IRawArticleRepository)))
-			.Returns(_rawArticleRepoMock.Object);
+			.Setup(sp => sp.GetService(typeof(IArticleRepository)))
+			.Returns(_articleRepoMock.Object);
 
 		serviceProviderMock
-			.Setup(sp => sp.GetService(typeof(IRawArticleValidator)))
+			.Setup(sp => sp.GetService(typeof(IArticleValidator)))
 			.Returns(_validatorMock.Object);
 
 		// GetServices<ISourceParser>() is resolved via IEnumerable<ISourceParser>
@@ -310,7 +310,7 @@ public class SourceFetcherWorkerTests
 		_scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
 	}
 
-	private static RawArticle CreateArticle(
+	private static Article CreateArticle(
 		string externalId,
 		string title = "Test Article Title For Testing",
 		string url = "https://example.com/article") =>
@@ -320,7 +320,7 @@ public class SourceFetcherWorkerTests
 			ExternalId = externalId,
 			Title = title,
 			OriginalUrl = url,
-			Content = "Some article content long enough to pass validation",
+			OriginalContent = "Some article content long enough to pass validation",
 			PublishedAt = DateTimeOffset.UtcNow
 		};
 }

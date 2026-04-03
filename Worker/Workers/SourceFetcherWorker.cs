@@ -40,8 +40,8 @@ public class SourceFetcherWorker : BackgroundService
 	{
 		using var scope = _scopeFactory.CreateScope();
 		var sourceRepository = scope.ServiceProvider.GetRequiredService<ISourceRepository>();
-		var rawArticleRepository = scope.ServiceProvider.GetRequiredService<IRawArticleRepository>();
-		var validator = scope.ServiceProvider.GetRequiredService<IRawArticleValidator>();
+		var articleRepository = scope.ServiceProvider.GetRequiredService<IArticleRepository>();
+		var validator = scope.ServiceProvider.GetRequiredService<IArticleValidator>();
 		var parsers = scope.ServiceProvider.GetServices<ISourceParser>()
 		                   .ToDictionary(p => p.SourceType);
 
@@ -54,7 +54,7 @@ public class SourceFetcherWorker : BackgroundService
 			{
 				try
 				{
-					await ProcessSourceAsync(source, parser, rawArticleRepository, validator, cancellationToken);
+					await ProcessSourceAsync(source, parser, articleRepository, validator, cancellationToken);
 					await sourceRepository.UpdateLastFetchedAtAsync(source.Id, DateTimeOffset.UtcNow, cancellationToken);
 				}
 				catch (Exception ex)
@@ -68,62 +68,62 @@ public class SourceFetcherWorker : BackgroundService
 	private async Task ProcessSourceAsync(
 		Source source,
 		ISourceParser parser,
-		IRawArticleRepository rawArticleRepository,
-		IRawArticleValidator validator,
+		IArticleRepository articleRepository,
+		IArticleValidator validator,
 		CancellationToken cancellationToken)
 	{
-		var rawArticles = await parser.ParseAsync(source, cancellationToken);
-		_logger.LogInformation("Parsed {Count} articles from {SourceName}", rawArticles.Count, source.Name);
+		var articles = await parser.ParseAsync(source, cancellationToken);
+		_logger.LogInformation("Parsed {Count} articles from {SourceName}", articles.Count, source.Name);
 
 		// Fetch once per source — reused for every article in the batch
-		var recentTitles = await rawArticleRepository.GetRecentTitlesForDeduplicationAsync(
+		var recentTitles = await articleRepository.GetRecentTitlesForDeduplicationAsync(
 			_validationOptions.TitleDeduplicationWindowHours, cancellationToken);
 
 		var saved = 0;
 		var skipped = 0;
 
-		foreach (var rawArticle in rawArticles)
+		foreach (var article in articles)
 		{
-			if (string.IsNullOrEmpty(rawArticle.ExternalId)) continue;
+			if (string.IsNullOrEmpty(article.ExternalId)) continue;
 
-			var (isValid, reason) = validator.Validate(rawArticle);
+			var (isValid, reason) = validator.Validate(article);
 			if (!isValid)
 			{
-				_logger.LogDebug("Skipping '{Title}' from {SourceName}: {Reason}", rawArticle.Title, source.Name, reason);
+				_logger.LogDebug("Skipping '{Title}' from {SourceName}: {Reason}", article.Title, source.Name, reason);
 				skipped++;
 				continue;
 			}
 
-			// ExternalId dedup (existing)
-			var exists = await rawArticleRepository.ExistsAsync(source.Id, rawArticle.ExternalId, cancellationToken);
+			// ExternalId dedup
+			var exists = await articleRepository.ExistsAsync(source.Id, article.ExternalId, cancellationToken);
 			if (exists) continue;
 
-			// URL deduplication (cross-source, new)
-			var urlExists = await rawArticleRepository.ExistsByUrlAsync(rawArticle.OriginalUrl, cancellationToken);
+			// URL deduplication
+			var urlExists = await articleRepository.ExistsByUrlAsync(article.OriginalUrl ?? string.Empty, cancellationToken);
 			if (urlExists)
 			{
-				_logger.LogDebug("Skipping '{Title}' — URL already exists: {Url}", rawArticle.Title, rawArticle.OriginalUrl);
+				_logger.LogDebug("Skipping '{Title}' — URL already exists: {Url}", article.Title, article.OriginalUrl);
 				skipped++;
 				continue;
 			}
 
-			// Title fuzzy deduplication (new)
+			// Title fuzzy deduplication
 			if (recentTitles.Count > 0)
 			{
 				var bestScore = recentTitles
-					.Select(t => FuzzySharp.Fuzz.TokenSetRatio(rawArticle.Title, t))
+					.Select(t => FuzzySharp.Fuzz.TokenSetRatio(article.Title, t))
 					.Max();
 
 				if (bestScore >= _validationOptions.TitleSimilarityThreshold)
 				{
-					_logger.LogDebug("Skipping '{Title}' — title duplicate (score {Score})", rawArticle.Title, bestScore);
+					_logger.LogDebug("Skipping '{Title}' — title duplicate (score {Score})", article.Title, bestScore);
 					skipped++;
 					continue;
 				}
 			}
 
-			await rawArticleRepository.AddAsync(rawArticle, cancellationToken);
-			recentTitles.Add(rawArticle.Title); // intra-batch dedup
+			await articleRepository.AddAsync(article, cancellationToken);
+			recentTitles.Add(article.Title); // intra-batch dedup
 			saved++;
 		}
 

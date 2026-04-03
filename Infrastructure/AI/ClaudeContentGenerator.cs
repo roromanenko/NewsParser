@@ -56,7 +56,7 @@ public class ClaudeContentGenerator : IContentGenerator
             Category: {article.Category}
             Tags: {string.Join(", ", article.Tags)}
             Sentiment: {article.Sentiment}
-            Source URL: {article.RawArticle.OriginalUrl}
+            Source URL: {article.OriginalUrl}
             ARTICLE:
             Title: {article.Title}
             Content: {article.Content}

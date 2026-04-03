@@ -3,8 +3,15 @@
 public class Article
 {
 	public Guid Id { get; init; }
-	public RawArticle RawArticle { get; init; } = null!;
 	public List<Publication> Publications { get; set; } = [];
+
+	// Source fields (previously on RawArticle)
+	public string? OriginalContent { get; set; }
+	public Guid? SourceId { get; set; }
+	public string? OriginalUrl { get; set; }
+	public DateTimeOffset? PublishedAt { get; set; }
+	public string? ExternalId { get; set; }
+	public float[]? Embedding { get; set; }
 
 	//Ai
 	public string Title { get; set; } = string.Empty;
@@ -27,16 +34,9 @@ public class Article
 	public int RetryCount { get; set; }
 
 	public Guid? EventId { get; set; }
-	public EventArticleRole? Role { get; set; }
+	public ArticleRole? Role { get; set; }
 	public bool WasReclassified { get; set; }
 	public DateTimeOffset? AddedToEventAt { get; set; }
-}
-
-public enum EventArticleRole
-{
-	Initiator,
-	Update,
-	Contradiction
 }
 
 public enum Sentiment
@@ -51,8 +51,6 @@ public enum ArticleStatus
 	Pending,
 	Analyzing,
 	AnalysisDone,
-	Classifying,
-	Processing,
 	Approved,
 	Rejected,
 	Published

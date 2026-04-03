@@ -8,7 +8,7 @@ public class Source
 	public SourceType Type { get; set; }
 	public bool IsActive { get; set; }
 	public DateTimeOffset? LastFetchedAt { get; set; }
-	public List<RawArticle> RawArticles { get; set; } = [];
+	public List<Article> Articles { get; set; } = [];
 }
 
 public enum SourceType

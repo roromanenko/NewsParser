@@ -17,13 +17,12 @@ public class PublicationRepository(NewsParserDbContext db) : IPublicationReposit
 
 	public async Task<List<Publication>> GetPendingForContentGenerationAsync(int batchSize, CancellationToken cancellationToken = default)
 	{
+		var statusStr = PublicationStatus.Pending.ToString();
 		var entities = await db.Publications
+			.FromSqlRaw(
+				$"SELECT * FROM publications WHERE \"Status\" = '{statusStr}' ORDER BY \"CreatedAt\" LIMIT {batchSize} FOR UPDATE SKIP LOCKED")
 			.Include(p => p.Article)
-				.ThenInclude(a => a.RawArticle)
 			.Include(p => p.PublishTarget)
-			.Where(p => p.Status == PublicationStatus.Pending.ToString())
-			.OrderBy(p => p.CreatedAt)
-			.Take(batchSize)
 			.ToListAsync(cancellationToken);
 
 		return entities.Select(p => p.ToDomain()).ToList();

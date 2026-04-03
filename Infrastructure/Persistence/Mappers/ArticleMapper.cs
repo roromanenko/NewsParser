@@ -1,6 +1,7 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Core.DomainModels.AI;
 using Infrastructure.Persistence.Entity;
+using Pgvector;
 
 namespace Infrastructure.Persistence.Mappers;
 
@@ -9,7 +10,12 @@ public static class ArticleMapper
 	public static Article ToDomain(this ArticleEntity entity) => new()
 	{
 		Id = entity.Id,
-		RawArticle = entity.RawArticle?.ToDomain() ?? new RawArticle(),
+		OriginalContent = entity.OriginalContent,
+		SourceId = entity.SourceId,
+		OriginalUrl = entity.OriginalUrl,
+		PublishedAt = entity.PublishedAt,
+		ExternalId = entity.ExternalId,
+		Embedding = entity.Embedding?.ToArray(),
 		Title = entity.Title,
 		Content = entity.Content,
 		Tags = entity.Tags,
@@ -24,7 +30,7 @@ public static class ArticleMapper
 		RejectionReason = entity.RejectionReason,
 		RetryCount = entity.RetryCount,
 		EventId = entity.EventId,
-		Role = entity.Role != null ? Enum.Parse<EventArticleRole>(entity.Role) : null,
+		Role = entity.Role != null ? Enum.Parse<ArticleRole>(entity.Role) : null,
 		WasReclassified = entity.WasReclassified,
 		AddedToEventAt = entity.AddedToEventAt,
 	};
@@ -32,7 +38,12 @@ public static class ArticleMapper
 	public static ArticleEntity ToEntity(this Article domain) => new()
 	{
 		Id = domain.Id,
-		RawArticleId = domain.RawArticle.Id,
+		OriginalContent = domain.OriginalContent,
+		SourceId = domain.SourceId,
+		OriginalUrl = domain.OriginalUrl,
+		PublishedAt = domain.PublishedAt,
+		ExternalId = domain.ExternalId,
+		Embedding = domain.Embedding != null ? new Vector(domain.Embedding) : null,
 		Title = domain.Title,
 		Content = domain.Content,
 		Tags = domain.Tags,
@@ -53,13 +64,17 @@ public static class ArticleMapper
 	};
 
 	public static Article FromAnalysisResult(
-		RawArticle rawArticle,
+		Article pendingArticle,
 		ArticleAnalysisResult analysis,
 		string modelVersion) => new()
 	{
 		Id = Guid.NewGuid(),
-		RawArticle = rawArticle,
-		Title = rawArticle.Title,
+		Title = pendingArticle.Title,
+		OriginalContent = pendingArticle.OriginalContent,
+		OriginalUrl = pendingArticle.OriginalUrl,
+		PublishedAt = pendingArticle.PublishedAt,
+		SourceId = pendingArticle.SourceId,
+		ExternalId = pendingArticle.ExternalId,
 		Category = analysis.Category,
 		Tags = analysis.Tags,
 		Sentiment = Enum.Parse<Sentiment>(analysis.Sentiment),

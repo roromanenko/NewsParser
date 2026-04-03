@@ -15,7 +15,7 @@ public class TelegramParser : ISourceParser
 
 	public SourceType SourceType => SourceType.Telegram;
 
-	public async Task<List<RawArticle>> ParseAsync(Source source, CancellationToken cancellationToken = default)
+	public async Task<List<Article>> ParseAsync(Source source, CancellationToken cancellationToken = default)
 	{
 		if (!_clientService.IsReady) return [];
 
@@ -24,18 +24,18 @@ public class TelegramParser : ISourceParser
 
 		var messages = await _clientService.GetChannelMessagesAsync(username, source.Id, cancellationToken);
 
-		return messages.Select(msg => new RawArticle
+		return messages.Select(msg => new Article
 		{
 			Id = Guid.NewGuid(),
 			SourceId = source.Id,
-			Source = source,
 			ExternalId = msg.id.ToString(),
 			Title = BuildTitle(msg.message),
-			Content = msg.message,
+			OriginalContent = msg.message,
 			OriginalUrl = $"https://t.me/{username}/{msg.id}",
 			PublishedAt = new DateTimeOffset(msg.date, TimeSpan.Zero),
 			Language = string.Empty,
-			Status = RawArticleStatus.Pending
+			Status = ArticleStatus.Pending,
+			ProcessedAt = DateTimeOffset.UtcNow,
 		}).ToList();
 	}
 

@@ -5,5 +5,5 @@ namespace Core.Interfaces.Parsers;
 public interface ISourceParser
 {
 	SourceType SourceType { get; }
-	Task<List<RawArticle>> ParseAsync(Source source, CancellationToken cancellationToken = default);
+	Task<List<Article>> ParseAsync(Source source, CancellationToken cancellationToken = default);
 }

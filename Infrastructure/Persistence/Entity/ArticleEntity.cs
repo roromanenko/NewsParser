@@ -1,11 +1,21 @@
-﻿namespace Infrastructure.Persistence.Entity;
+﻿using Pgvector;
+
+namespace Infrastructure.Persistence.Entity;
 
 public class ArticleEntity
 {
 	public Guid Id { get; init; }
-	public Guid RawArticleId { get; init; }
-	public RawArticleEntity RawArticle { get; init; } = null!;
 	public List<PublicationEntity> Publications { get; set; } = [];
+
+	// Source fields
+	public string? OriginalContent { get; set; }
+	public Guid? SourceId { get; set; }
+	public SourceEntity? Source { get; set; }
+	public string? OriginalUrl { get; set; }
+	public DateTimeOffset? PublishedAt { get; set; }
+	public string? ExternalId { get; set; }
+	public Vector? Embedding { get; set; }
+
 	public string Title { get; set; } = string.Empty;
 	public string Content { get; set; } = string.Empty;
 	public List<string> Tags { get; set; } = [];

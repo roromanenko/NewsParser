@@ -9,7 +9,8 @@
       "Bash(dotnet tool:*)",
       "Bash(ls:*)",
       "Bash(dotnet sln:*)",
-      "Bash(dotnet test:*)"
+      "Bash(dotnet test:*)",
+      "Bash(rm:*)"
     ]
   }
 }

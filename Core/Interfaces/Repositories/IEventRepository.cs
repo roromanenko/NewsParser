@@ -31,7 +31,7 @@ public interface IEventRepository
 	Task AssignArticleToEventAsync(
 		Guid articleId,
 		Guid eventId,
-		EventArticleRole role,
+		ArticleRole role,
 		CancellationToken cancellationToken = default);
 
 	Task AddEventUpdateAsync(
@@ -82,7 +82,7 @@ public interface IEventRepository
 
 	Task UpdateArticleRoleAsync(
 		Guid articleId,
-		EventArticleRole role,
+		ArticleRole role,
 		CancellationToken cancellationToken = default);
 
 	Task UpdateStatusAsync(

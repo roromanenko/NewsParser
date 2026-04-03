@@ -13,9 +13,9 @@ public class SourceConfiguration : IEntityTypeConfiguration<SourceEntity>
 		builder.HasIndex(s => s.Url).IsUnique();
 
 		builder
-			.HasMany(s => s.RawArticles)
-			.WithOne(r => r.Source)
-			.HasForeignKey(r => r.SourceId);
+			.HasMany(s => s.Articles)
+			.WithOne(a => a.Source)
+			.HasForeignKey(a => a.SourceId);
 
 		builder
 			.Property(s => s.Type)

@@ -85,9 +85,9 @@ public class EventsController(
 		[FromBody] ReclassifyArticleRequest request,
 		CancellationToken cancellationToken = default)
 	{
-		if (!Enum.TryParse<EventArticleRole>(request.Role, ignoreCase: true, out var role))
+		if (!Enum.TryParse<ArticleRole>(request.Role, ignoreCase: true, out var role))
 			return BadRequest($"Invalid role: {request.Role}. Valid values: " +
-				$"{string.Join(", ", Enum.GetNames<EventArticleRole>())}");
+				$"{string.Join(", ", Enum.GetNames<ArticleRole>())}");
 
 		await eventService.ReclassifyArticleAsync(
 			id, request.ArticleId, request.TargetEventId, role, cancellationToken);
