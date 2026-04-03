@@ -12,6 +12,8 @@ public class EventEntity
 	public DateTimeOffset LastUpdatedAt { get; set; }
 	public Vector? Embedding { get; set; }
 
+	public int ArticleCount { get; set; } = 0;
+
 	public List<ArticleEntity> Articles { get; set; } = [];
 	public List<EventUpdateEntity> EventUpdates { get; set; } = [];
 	public List<ContradictionEntity> Contradictions { get; set; } = [];

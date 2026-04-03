@@ -20,7 +20,7 @@ public class GeminiArticleAnalyzer : IArticleAnalyzer
 		_httpClient = httpClient;
 	}
 
-	public async Task<ArticleAnalysisResult> AnalyzeAsync(RawArticle rawArticle, CancellationToken cancellationToken = default)
+	public async Task<ArticleAnalysisResult> AnalyzeAsync(Article article, CancellationToken cancellationToken = default)
 	{
 		var url = $"https://generativelanguage.googleapis.com/v1beta/models/{_model}:generateContent?key={_apiKey}";
 
@@ -28,14 +28,13 @@ public class GeminiArticleAnalyzer : IArticleAnalyzer
         {_prompt}
 
         SOURCE METADATA:
-        Published: {rawArticle.PublishedAt:yyyy-MM-dd HH:mm UTC}
-        Source URL: {rawArticle.OriginalUrl}
-        Detected Language: {(string.IsNullOrWhiteSpace(rawArticle.Language) ? "unknown" : rawArticle.Language)}
-        RSS Categories: {(rawArticle.Category.Count > 0 ? string.Join(", ", rawArticle.Category) : "none")}
+        Published: {article.PublishedAt:yyyy-MM-dd HH:mm UTC}
+        Source URL: {article.OriginalUrl}
+        Detected Language: {(string.IsNullOrWhiteSpace(article.Language) ? "unknown" : article.Language)}
 
         ARTICLE:
-        Title: {rawArticle.Title}
-        Content: {rawArticle.Content}
+        Title: {article.Title}
+        Content: {article.OriginalContent}
         """;
 
 		var requestBody = JsonSerializer.Serialize(new

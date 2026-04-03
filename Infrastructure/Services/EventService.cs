@@ -52,7 +52,7 @@ public class EventService(
 	Guid currentEventId,
 	Guid articleId,
 	Guid targetEventId,
-	EventArticleRole role,
+	ArticleRole role,
 	CancellationToken cancellationToken = default)
 	{
 		var evt = await eventRepository.GetByIdAsync(currentEventId, cancellationToken)

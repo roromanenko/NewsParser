@@ -1,4 +1,4 @@
-﻿using CodeHollow.FeedReader;
+using CodeHollow.FeedReader;
 using Core.DomainModels;
 using Core.Interfaces.Parsers;
 
@@ -8,22 +8,22 @@ public class RssParser : ISourceParser
 {
 	public SourceType SourceType => SourceType.Rss;
 
-	public async Task<List<RawArticle>> ParseAsync(Source source, CancellationToken cancellationToken = default)
+	public async Task<List<Article>> ParseAsync(Source source, CancellationToken cancellationToken = default)
 	{
 		var feed = await FeedReader.ReadAsync(source.Url, cancellationToken);
 
-		return feed.Items.Select(item => new RawArticle
+		return feed.Items.Select(item => new Article
 		{
 			Id = Guid.NewGuid(),
 			SourceId = source.Id,
-			Source = source,
 			Title = item.Title ?? string.Empty,
-			Content = item.Content ?? item.Description ?? string.Empty,
+			OriginalContent = item.Content ?? item.Description ?? string.Empty,
 			OriginalUrl = item.Link ?? string.Empty,
 			ExternalId = item.Id ?? item.Link,
 			PublishedAt = item.PublishingDate ?? DateTimeOffset.UtcNow,
 			Language = string.Empty,
-			Status = RawArticleStatus.Pending
+			Status = ArticleStatus.Pending,
+			ProcessedAt = DateTimeOffset.UtcNow,
 		}).ToList();
 	}
 }

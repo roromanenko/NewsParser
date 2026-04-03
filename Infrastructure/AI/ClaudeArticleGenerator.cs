@@ -22,7 +22,7 @@ public class ClaudeArticleGenerator : IArticleGenerator
 	}
 
 	public async Task<ArticleGenerationResult> GenerateAsync(
-	RawArticle rawArticle,
+	Article article,
 	ArticleAnalysisResult analysis,
 	CancellationToken cancellationToken = default)
 	{
@@ -32,8 +32,8 @@ public class ClaudeArticleGenerator : IArticleGenerator
         OUTPUT LANGUAGE: {_outputLanguage}
 
         SOURCE METADATA:
-        Published: {rawArticle.PublishedAt:yyyy-MM-dd HH:mm UTC}
-        Source URL: {rawArticle.OriginalUrl}
+        Published: {article.PublishedAt:yyyy-MM-dd HH:mm UTC}
+        Source URL: {article.OriginalUrl}
 
         ANALYSIS RESULTS:
         Language: {analysis.Language}
@@ -43,8 +43,8 @@ public class ClaudeArticleGenerator : IArticleGenerator
         Summary: {analysis.Summary}
 
         ORIGINAL ARTICLE:
-        Title: {rawArticle.Title}
-        Content: {rawArticle.Content}
+        Title: {article.Title}
+        Content: {article.OriginalContent}
         """;
 
 		var messages = new List<Message>

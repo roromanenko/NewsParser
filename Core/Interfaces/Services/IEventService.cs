@@ -13,6 +13,6 @@ public interface IEventService
 		Guid currentEventId,
 		Guid articleId,
 		Guid targetEventId,
-		EventArticleRole role,
+		ArticleRole role,
 		CancellationToken cancellationToken = default);
 }

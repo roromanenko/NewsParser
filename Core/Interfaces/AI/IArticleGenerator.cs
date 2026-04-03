@@ -5,5 +5,5 @@ namespace Core.Interfaces.AI;
 
 public interface IArticleGenerator
 {
-	Task<ArticleGenerationResult> GenerateAsync(RawArticle rawArticle, ArticleAnalysisResult analysis, CancellationToken cancellationToken = default);
+	Task<ArticleGenerationResult> GenerateAsync(Article article, ArticleAnalysisResult analysis, CancellationToken cancellationToken = default);
 }

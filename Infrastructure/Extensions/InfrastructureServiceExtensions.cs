@@ -54,7 +54,6 @@ public static class InfrastructureServiceExtensions
 	private static IServiceCollection AddRepositories(this IServiceCollection services)
 	{
 		services.AddScoped<ISourceRepository, SourceRepository>();
-		services.AddScoped<IRawArticleRepository, RawArticleRepository>();
 		services.AddScoped<IArticleRepository, ArticleRepository>();
 		services.AddScoped<IPublicationRepository, PublicationRepository>();
 		services.AddScoped<IUserRepository, UserRepository>();
@@ -168,7 +167,7 @@ public static class InfrastructureServiceExtensions
 		services.AddScoped<ISourceService, SourceService>();
 		services.AddScoped<IPublishTargetService, PublishTargetService>();
 		services.Configure<ValidationOptions>(configuration.GetSection(ValidationOptions.SectionName));
-		services.AddScoped<IRawArticleValidator, RawArticleValidator>();
+		services.AddScoped<IArticleValidator, ArticleValidator>();
 		services.AddScoped<IEventService, EventService>();
 
 		return services;

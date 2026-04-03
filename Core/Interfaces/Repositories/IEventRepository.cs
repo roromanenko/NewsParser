@@ -8,7 +8,6 @@ public interface IEventRepository
 
 	Task<List<Event>> GetActiveEventsAsync(CancellationToken cancellationToken = default);
 
-	// Векторный поиск похожих событий в окне времени
 	Task<List<(Event Event, double Similarity)>> FindSimilarEventsAsync(
 		float[] embedding,
 		double threshold,
@@ -31,7 +30,7 @@ public interface IEventRepository
 	Task AssignArticleToEventAsync(
 		Guid articleId,
 		Guid eventId,
-		EventArticleRole role,
+		ArticleRole role,
 		CancellationToken cancellationToken = default);
 
 	Task AddEventUpdateAsync(
@@ -43,7 +42,6 @@ public interface IEventRepository
 		List<Guid> articleIds,
 		CancellationToken cancellationToken = default);
 
-	// Для EventUpdateWorker
 	Task<List<EventUpdate>> GetUnpublishedUpdatesAsync(
 		int batchSize,
 		CancellationToken cancellationToken = default);
@@ -52,12 +50,10 @@ public interface IEventRepository
 		Guid eventUpdateId,
 		CancellationToken cancellationToken = default);
 
-	// Для лимита апдейтов в сутки
 	Task<int> CountTodayUpdatesAsync(
 		Guid eventId,
 		CancellationToken cancellationToken = default);
 
-	// Для минимального интервала между апдейтами
 	Task<DateTimeOffset?> GetLastUpdateTimeAsync(
 		Guid eventId,
 		CancellationToken cancellationToken = default);
@@ -82,7 +78,7 @@ public interface IEventRepository
 
 	Task UpdateArticleRoleAsync(
 		Guid articleId,
-		EventArticleRole role,
+		ArticleRole role,
 		CancellationToken cancellationToken = default);
 
 	Task UpdateStatusAsync(
