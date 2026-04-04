@@ -82,8 +82,8 @@ public class ArticleRepository : IArticleRepository
 	{
 		var statusStr = ArticleStatus.Pending.ToString();
 		var entities = await _context.Articles
-			.FromSqlRaw(
-				$"SELECT * FROM articles WHERE \"Status\" = '{statusStr}' ORDER BY \"ProcessedAt\" LIMIT {batchSize} FOR UPDATE SKIP LOCKED")
+			.FromSql(
+				$"SELECT * FROM articles WHERE \"Status\" = {statusStr} ORDER BY \"ProcessedAt\" LIMIT {batchSize} FOR UPDATE SKIP LOCKED")
 			.ToListAsync(cancellationToken);
 
 		return entities.Select(e => e.ToDomain()).ToList();
@@ -93,8 +93,8 @@ public class ArticleRepository : IArticleRepository
 	{
 		var statusStr = ArticleStatus.AnalysisDone.ToString();
 		var entities = await _context.Articles
-			.FromSqlRaw(
-				$"SELECT * FROM articles WHERE \"Status\" = '{statusStr}' AND \"EventId\" IS NULL ORDER BY \"ProcessedAt\" LIMIT {batchSize} FOR UPDATE SKIP LOCKED")
+			.FromSql(
+				$"SELECT * FROM articles WHERE \"Status\" = {statusStr} AND \"EventId\" IS NULL ORDER BY \"ProcessedAt\" LIMIT {batchSize} FOR UPDATE SKIP LOCKED")
 			.ToListAsync(cancellationToken);
 
 		return entities.Select(e => e.ToDomain()).ToList();

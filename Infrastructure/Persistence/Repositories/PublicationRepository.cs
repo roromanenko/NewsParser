@@ -19,8 +19,8 @@ public class PublicationRepository(NewsParserDbContext db) : IPublicationReposit
 	{
 		var statusStr = PublicationStatus.Pending.ToString();
 		var entities = await db.Publications
-			.FromSqlRaw(
-				$"SELECT * FROM publications WHERE \"Status\" = '{statusStr}' ORDER BY \"CreatedAt\" LIMIT {batchSize} FOR UPDATE SKIP LOCKED")
+			.FromSql(
+				$"SELECT * FROM publications WHERE \"Status\" = {statusStr} ORDER BY \"CreatedAt\" LIMIT {batchSize} FOR UPDATE SKIP LOCKED")
 			.Include(p => p.Article)
 			.Include(p => p.PublishTarget)
 			.ToListAsync(cancellationToken);
@@ -30,11 +30,11 @@ public class PublicationRepository(NewsParserDbContext db) : IPublicationReposit
 
 	public async Task<List<Publication>> GetReadyForPublishAsync(int batchSize, CancellationToken cancellationToken = default)
 	{
+		var statusStr = PublicationStatus.ContentReady.ToString();
 		var entities = await db.Publications
+			.FromSql(
+				$"SELECT * FROM publications WHERE \"Status\" = {statusStr} ORDER BY \"CreatedAt\" LIMIT {batchSize} FOR UPDATE SKIP LOCKED")
 			.Include(p => p.PublishTarget)
-			.Where(p => p.Status == PublicationStatus.ContentReady.ToString())
-			.OrderBy(p => p.CreatedAt)
-			.Take(batchSize)
 			.ToListAsync(cancellationToken);
 
 		return entities.Select(p => p.ToDomain()).ToList();

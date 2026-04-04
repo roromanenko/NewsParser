@@ -247,35 +247,30 @@ public class EventRepository : IEventRepository
 		Guid targetEventId,
 		CancellationToken cancellationToken = default)
 	{
-		// Переносим все Articles из source в target
 		await _context.Articles
 			.Where(a => a.EventId == sourceEventId)
 			.ExecuteUpdateAsync(s => s
 				.SetProperty(a => a.EventId, targetEventId),
 			cancellationToken);
 
-		// Переносим EventUpdate
 		await _context.EventUpdates
 			.Where(eu => eu.EventId == sourceEventId)
 			.ExecuteUpdateAsync(s => s
 				.SetProperty(eu => eu.EventId, targetEventId),
 			cancellationToken);
 
-		// Переносим Contradiction
 		await _context.Contradictions
 			.Where(c => c.EventId == sourceEventId)
 			.ExecuteUpdateAsync(s => s
 				.SetProperty(c => c.EventId, targetEventId),
 			cancellationToken);
 
-		// Архивируем source событие
 		await _context.Events
 			.Where(e => e.Id == sourceEventId)
 			.ExecuteUpdateAsync(s => s
 				.SetProperty(e => e.Status, EventStatus.Archived.ToString()),
 			cancellationToken);
 
-		// Обновляем LastUpdatedAt target
 		await _context.Events
 			.Where(e => e.Id == targetEventId)
 			.ExecuteUpdateAsync(s => s

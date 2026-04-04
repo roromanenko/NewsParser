@@ -9,6 +9,13 @@ namespace Worker.Workers;
 
 public class ArticleAnalysisWorker : BackgroundService
 {
+	private record AnalysisContext(
+		IArticleRepository ArticleRepository,
+		IEventRepository EventRepository,
+		IArticleAnalyzer Analyzer,
+		IGeminiEmbeddingService EmbeddingService,
+		IEventClassifier Classifier,
+		IEventSummaryUpdater SummaryUpdater);
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly ILogger<ArticleAnalysisWorker> _logger;
 	private readonly ArticleProcessingOptions _options;
@@ -38,14 +45,15 @@ public class ArticleAnalysisWorker : BackgroundService
 	private async Task ProcessAsync(CancellationToken cancellationToken)
 	{
 		using var scope = _scopeFactory.CreateScope();
-		var articleRepository = scope.ServiceProvider.GetRequiredService<IArticleRepository>();
-		var eventRepository = scope.ServiceProvider.GetRequiredService<IEventRepository>();
-		var analyzer = scope.ServiceProvider.GetRequiredService<IArticleAnalyzer>();
-		var embeddingService = scope.ServiceProvider.GetRequiredService<IGeminiEmbeddingService>();
-		var classifier = scope.ServiceProvider.GetRequiredService<IEventClassifier>();
-		var summaryUpdater = scope.ServiceProvider.GetRequiredService<IEventSummaryUpdater>();
+		var ctx = new AnalysisContext(
+			ArticleRepository: scope.ServiceProvider.GetRequiredService<IArticleRepository>(),
+			EventRepository: scope.ServiceProvider.GetRequiredService<IEventRepository>(),
+			Analyzer: scope.ServiceProvider.GetRequiredService<IArticleAnalyzer>(),
+			EmbeddingService: scope.ServiceProvider.GetRequiredService<IGeminiEmbeddingService>(),
+			Classifier: scope.ServiceProvider.GetRequiredService<IEventClassifier>(),
+			SummaryUpdater: scope.ServiceProvider.GetRequiredService<IEventSummaryUpdater>());
 
-		var articles = await articleRepository.GetPendingAsync(_options.BatchSize, cancellationToken);
+		var articles = await ctx.ArticleRepository.GetPendingAsync(_options.BatchSize, cancellationToken);
 
 		if (articles.Count == 0)
 		{
@@ -57,30 +65,23 @@ public class ArticleAnalysisWorker : BackgroundService
 
 		foreach (var article in articles)
 		{
-			await ProcessArticleAsync(article, articleRepository, eventRepository,
-				analyzer, embeddingService, classifier, summaryUpdater, cancellationToken);
+			await ProcessArticleAsync(article, ctx, cancellationToken);
 		}
 	}
 
 	private async Task ProcessArticleAsync(
 		Article article,
-		IArticleRepository articleRepository,
-		IEventRepository eventRepository,
-		IArticleAnalyzer analyzer,
-		IGeminiEmbeddingService embeddingService,
-		IEventClassifier classifier,
-		IEventSummaryUpdater summaryUpdater,
+		AnalysisContext ctx,
 		CancellationToken cancellationToken)
 	{
 		try
 		{
 			_logger.LogInformation("Analyzing article {Id}: {Title}", article.Id, article.Title);
-			await articleRepository.UpdateStatusAsync(article.Id, ArticleStatus.Analyzing, cancellationToken);
+			await ctx.ArticleRepository.UpdateStatusAsync(article.Id, ArticleStatus.Analyzing, cancellationToken);
 
-			// Phase A — enrich via AI analyzer
-			var analysis = await analyzer.AnalyzeAsync(article, cancellationToken);
+			var analysis = await ctx.Analyzer.AnalyzeAsync(article, cancellationToken);
 
-			await articleRepository.UpdateAnalysisResultAsync(
+			await ctx.ArticleRepository.UpdateAnalysisResultAsync(
 				article.Id,
 				analysis.Category,
 				analysis.Tags,
@@ -97,11 +98,10 @@ public class ArticleAnalysisWorker : BackgroundService
 			article.Language = analysis.Language;
 			article.Summary = analysis.Summary;
 
-			// Phase B — generate embedding once, check for near-duplicates
 			var embeddingText = $"{article.Title}. {analysis.Summary}";
-			var embedding = await embeddingService.GenerateEmbeddingAsync(embeddingText, cancellationToken);
+			var embedding = await ctx.EmbeddingService.GenerateEmbeddingAsync(embeddingText, cancellationToken);
 
-			var isDuplicate = await articleRepository.HasSimilarAsync(
+			var isDuplicate = await ctx.ArticleRepository.HasSimilarAsync(
 				article.Id,
 				embedding,
 				_options.DeduplicationThreshold,
@@ -111,17 +111,15 @@ public class ArticleAnalysisWorker : BackgroundService
 			if (isDuplicate)
 			{
 				_logger.LogInformation("Article {Id} is a near-duplicate, rejecting", article.Id);
-				await articleRepository.UpdateRejectionAsync(
+				await ctx.ArticleRepository.UpdateRejectionAsync(
 					article.Id, Guid.Empty, "duplicate_by_vector", cancellationToken);
 				return;
 			}
 
-			await articleRepository.UpdateEmbeddingAsync(article.Id, embedding, cancellationToken);
+			await ctx.ArticleRepository.UpdateEmbeddingAsync(article.Id, embedding, cancellationToken);
 			article.Embedding = embedding;
 
-			// Phase C — classify into event
-			await ClassifyIntoEventAsync(
-				article, eventRepository, classifier, summaryUpdater, embeddingService, cancellationToken);
+			await ClassifyIntoEventAsync(article, ctx, cancellationToken);
 
 			_logger.LogInformation("Successfully processed article {Id}", article.Id);
 		}
@@ -129,32 +127,29 @@ public class ArticleAnalysisWorker : BackgroundService
 		{
 			_logger.LogError(ex, "Failed to process article {Id}", article.Id);
 
-			await articleRepository.IncrementRetryAsync(article.Id, cancellationToken);
+			await ctx.ArticleRepository.IncrementRetryAsync(article.Id, cancellationToken);
 			var newRetryCount = article.RetryCount + 1;
 
 			if (newRetryCount >= _options.MaxRetryCount)
 			{
 				_logger.LogWarning("Article {Id} exceeded max retries, rejecting", article.Id);
-				await articleRepository.UpdateStatusAsync(article.Id, ArticleStatus.Rejected, cancellationToken);
+				await ctx.ArticleRepository.UpdateStatusAsync(article.Id, ArticleStatus.Rejected, cancellationToken);
 			}
 			else
 			{
-				await articleRepository.UpdateStatusAsync(article.Id, ArticleStatus.Pending, cancellationToken);
+				await ctx.ArticleRepository.UpdateStatusAsync(article.Id, ArticleStatus.Pending, cancellationToken);
 			}
 		}
 	}
 
 	private async Task ClassifyIntoEventAsync(
 		Article article,
-		IEventRepository eventRepository,
-		IEventClassifier classifier,
-		IEventSummaryUpdater summaryUpdater,
-		IGeminiEmbeddingService embeddingService,
+		AnalysisContext ctx,
 		CancellationToken cancellationToken)
 	{
 		var embedding = article.Embedding!;
 
-		var similarEvents = await eventRepository.FindSimilarEventsAsync(
+		var similarEvents = await ctx.EventRepository.FindSimilarEventsAsync(
 			embedding,
 			_options.AutoNewEventThreshold,
 			_options.SimilarityWindowHours,
@@ -166,7 +161,7 @@ public class ArticleAnalysisWorker : BackgroundService
 		if (similarEvents.Count == 0)
 		{
 			_logger.LogInformation("No similar events for article {Id}, creating new event", article.Id);
-			targetEvent = await CreateNewEventAsync(article, embedding, eventRepository, cancellationToken);
+			targetEvent = await CreateNewEventAsync(article, embedding, ctx.EventRepository, cancellationToken);
 			role = ArticleRole.Initiator;
 		}
 		else
@@ -181,8 +176,7 @@ public class ArticleAnalysisWorker : BackgroundService
 				role = ArticleRole.Update;
 
 				await UpdateEventEmbeddingAsync(
-					targetEvent, article.Summary ?? string.Empty, embedding,
-					summaryUpdater, embeddingService, eventRepository, cancellationToken);
+					targetEvent, article.Summary ?? string.Empty, embedding, ctx, cancellationToken);
 			}
 			else
 			{
@@ -190,11 +184,11 @@ public class ArticleAnalysisWorker : BackgroundService
 					article.Id, topSimilarity);
 
 				var candidates = similarEvents.Select(x => x.Event).ToList();
-				var result = await classifier.ClassifyAsync(article, candidates, cancellationToken);
+				var result = await ctx.Classifier.ClassifyAsync(article, candidates, cancellationToken);
 
 				if (result.IsNewEvent || result.MatchedEventId is null)
 				{
-					targetEvent = await CreateNewEventAsync(article, embedding, eventRepository, cancellationToken);
+					targetEvent = await CreateNewEventAsync(article, embedding, ctx.EventRepository, cancellationToken);
 					role = ArticleRole.Initiator;
 				}
 				else
@@ -205,7 +199,7 @@ public class ArticleAnalysisWorker : BackgroundService
 
 				if (result.Contradictions.Count > 0)
 				{
-					await SaveContradictionsAsync(result, targetEvent, article, eventRepository, cancellationToken);
+					await SaveContradictionsAsync(result, targetEvent, article, ctx.EventRepository, cancellationToken);
 				}
 
 				List<string> newFacts = [];
@@ -213,19 +207,18 @@ public class ArticleAnalysisWorker : BackgroundService
 				if (!result.IsNewEvent && result.IsSignificantUpdate && result.NewFacts.Count > 0)
 				{
 					newFacts = result.NewFacts;
-					await TrySaveEventUpdateAsync(targetEvent, article, newFacts, eventRepository, cancellationToken);
+					await TrySaveEventUpdateAsync(targetEvent, article, newFacts, ctx.EventRepository, cancellationToken);
 				}
 
 				if (role != ArticleRole.Initiator)
 				{
 					await UpdateEventEmbeddingAsync(
-						targetEvent, article.Summary ?? string.Empty, embedding,
-						summaryUpdater, embeddingService, eventRepository, cancellationToken);
+						targetEvent, article.Summary ?? string.Empty, embedding, ctx, cancellationToken);
 				}
 			}
 		}
 
-		await eventRepository.AssignArticleToEventAsync(article.Id, targetEvent.Id, role, cancellationToken);
+		await ctx.EventRepository.AssignArticleToEventAsync(article.Id, targetEvent.Id, role, cancellationToken);
 	}
 
 	private static async Task<Event> CreateNewEventAsync(
@@ -253,14 +246,11 @@ public class ArticleAnalysisWorker : BackgroundService
 		Event evt,
 		string newFact,
 		float[] articleEmbedding,
-		IEventSummaryUpdater summaryUpdater,
-		IGeminiEmbeddingService embeddingService,
-		IEventRepository eventRepository,
+		AnalysisContext ctx,
 		CancellationToken cancellationToken)
 	{
 		try
 		{
-			// Average the existing event embedding with the new article embedding
 			var count = evt.ArticleCount > 0 ? evt.ArticleCount : 1;
 			float[] updatedEmbedding;
 
@@ -280,17 +270,16 @@ public class ArticleAnalysisWorker : BackgroundService
 
 			if (newFacts.Count > 0)
 			{
-				updatedSummary = await summaryUpdater.UpdateSummaryAsync(evt, newFacts, cancellationToken);
+				updatedSummary = await ctx.SummaryUpdater.UpdateSummaryAsync(evt, newFacts, cancellationToken);
 			}
 
-			// UpdateSummaryAndEmbeddingAsync also increments ArticleCount
-			await eventRepository.UpdateSummaryAndEmbeddingAsync(
+			await ctx.EventRepository.UpdateSummaryAndEmbeddingAsync(
 				evt.Id, updatedSummary, updatedEmbedding, cancellationToken);
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Failed to update embedding for event {EventId}, continuing", evt.Id);
-			await eventRepository.UpdateLastUpdatedAtAsync(evt.Id, DateTimeOffset.UtcNow, cancellationToken);
+			await ctx.EventRepository.UpdateLastUpdatedAtAsync(evt.Id, DateTimeOffset.UtcNow, cancellationToken);
 		}
 	}
 

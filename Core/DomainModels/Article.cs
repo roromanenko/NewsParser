@@ -5,7 +5,6 @@ public class Article
 	public Guid Id { get; init; }
 	public List<Publication> Publications { get; set; } = [];
 
-	// Source fields (previously on RawArticle)
 	public string? OriginalContent { get; set; }
 	public Guid? SourceId { get; set; }
 	public string? OriginalUrl { get; set; }
