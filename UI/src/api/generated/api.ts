@@ -37,7 +37,8 @@ export interface ArticleDetailDto {
     'summary'?: string | null;
     'processedAt'?: string;
     'modelVersion'?: string | null;
-    'source'?: RawArticleDto;
+    'originalUrl'?: string | null;
+    'publishedAt'?: string | null;
     'event'?: ArticleEventDto;
 }
 export interface ArticleEventDto {
@@ -155,13 +156,6 @@ export interface PublishTargetDto {
     'identifier'?: string | null;
     'systemPrompt'?: string | null;
     'isActive'?: boolean;
-}
-export interface RawArticleDto {
-    'id'?: string;
-    'title'?: string | null;
-    'originalUrl'?: string | null;
-    'publishedAt'?: string;
-    'language'?: string | null;
 }
 export interface ReclassifyArticleRequest {
     'articleId'?: string;

@@ -26,7 +26,6 @@ docs/LoginResponse.md
 docs/MergeEventsRequest.md
 docs/PublishTargetDto.md
 docs/PublishTargetsApi.md
-docs/RawArticleDto.md
 docs/ReclassifyArticleRequest.md
 docs/RegisterRequest.md
 docs/RejectArticleRequest.md

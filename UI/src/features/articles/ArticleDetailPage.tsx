@@ -123,16 +123,15 @@ export function ArticleDetailPage() {
           </div>
 
           {/* Source */}
-          {article.source && (
+          {(article.originalUrl || article.publishedAt) && (
             <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Original Source</h3>
-              {article.source.title && (
-                <p className="text-sm font-medium text-gray-800">{article.source.title}</p>
+              {article.publishedAt && (
+                <p className="text-xs text-gray-500">{formatDate(article.publishedAt)}</p>
               )}
-              <p className="text-xs text-gray-500">{formatDate(article.source.publishedAt)}</p>
-              {article.source.originalUrl && (
+              {article.originalUrl && (
                 <a
-                  href={article.source.originalUrl}
+                  href={article.originalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 transition-colors"

@@ -15,7 +15,8 @@ Name | Type | Description | Notes
 **summary** | **string** |  | [optional] [default to undefined]
 **processedAt** | **string** |  | [optional] [default to undefined]
 **modelVersion** | **string** |  | [optional] [default to undefined]
-**source** | [**RawArticleDto**](RawArticleDto.md) |  | [optional] [default to undefined]
+**originalUrl** | **string** |  | [optional] [default to undefined]
+**publishedAt** | **string** |  | [optional] [default to undefined]
 **event** | [**ArticleEventDto**](ArticleEventDto.md) |  | [optional] [default to undefined]
 
 ## Example
@@ -34,7 +35,8 @@ const instance: ArticleDetailDto = {
     summary,
     processedAt,
     modelVersion,
-    source,
+    originalUrl,
+    publishedAt,
     event,
 };
 ```
