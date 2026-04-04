@@ -13,6 +13,7 @@ Name | Type | Description | Notes
 **sentiment** | **string** |  | [optional] [default to undefined]
 **language** | **string** |  | [optional] [default to undefined]
 **summary** | **string** |  | [optional] [default to undefined]
+**keyFacts** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **processedAt** | **string** |  | [optional] [default to undefined]
 **modelVersion** | **string** |  | [optional] [default to undefined]
 **originalUrl** | **string** |  | [optional] [default to undefined]
@@ -33,6 +34,7 @@ const instance: ArticleDetailDto = {
     sentiment,
     language,
     summary,
+    keyFacts,
     processedAt,
     modelVersion,
     originalUrl,

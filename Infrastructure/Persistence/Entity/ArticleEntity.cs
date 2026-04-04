@@ -26,6 +26,7 @@ public class ArticleEntity
 	public string ModelVersion { get; set; } = string.Empty;
 	public string Language { get; set; } = string.Empty;
 	public string? Summary { get; set; }
+	public List<string> KeyFacts { get; set; } = [];
 	public Guid? RejectedByEditorId { get; set; }
 	public string? RejectionReason { get; set; }
 	public int RetryCount { get; set; }

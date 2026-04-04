@@ -54,5 +54,27 @@ export function useEventMutations(eventId?: string) {
     onError: () => toast('Failed to update status', 'error'),
   })
 
-  return { resolveContradiction, mergeEvents, reclassifyArticle, changeStatus }
+  const approveEvent = useMutation({
+    mutationFn: (publishTargetIds: string[]) =>
+      eventsApi.eventsIdApprovePost(eventId!, { publishTargetIds }),
+    onSuccess: () => {
+      toast('Event approved successfully', 'success')
+      queryClient.invalidateQueries({ queryKey: ['event', eventId] })
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+    },
+    onError: () => toast('Failed to approve event', 'error'),
+  })
+
+  const rejectEvent = useMutation({
+    mutationFn: (reason: string) =>
+      eventsApi.eventsIdRejectPost(eventId!, { reason }),
+    onSuccess: () => {
+      toast('Event rejected', 'success')
+      queryClient.invalidateQueries({ queryKey: ['event', eventId] })
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+    },
+    onError: () => toast('Failed to reject event', 'error'),
+  })
+
+  return { resolveContradiction, mergeEvents, reclassifyArticle, changeStatus, approveEvent, rejectEvent }
 }

@@ -1,4 +1,4 @@
-﻿namespace Core.DomainModels;
+namespace Core.DomainModels;
 
 public class Article
 {
@@ -18,6 +18,8 @@ public class Article
 	public List<string> Tags { get; set; } = [];
 	public string Category { get; set; } = string.Empty;
 	public Sentiment Sentiment { get; set; }
+	public string? Summary { get; set; }
+	public List<string> KeyFacts { get; set; } = [];
 
 	//Service
 	public DateTimeOffset ProcessedAt { get; set; }
@@ -25,7 +27,6 @@ public class Article
 	public string ModelVersion { get; set; } = string.Empty;
 
 	public string Language { get; set; } = string.Empty;
-	public string? Summary { get; set; }
 
 	public Guid? RejectedByEditorId { get; set; }
 	public string? RejectionReason { get; set; }

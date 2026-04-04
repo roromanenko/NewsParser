@@ -33,6 +33,7 @@ public static class EventMapper
         article.Id,
         article.Title,
         article.Summary,
+        article.KeyFacts ?? [],
         article.Role?.ToString() ?? string.Empty,
         article.AddedToEventAt ?? article.ProcessedAt
     );

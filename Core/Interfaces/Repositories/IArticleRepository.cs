@@ -17,6 +17,7 @@ public interface IArticleRepository
 	Task<List<Article>> GetPendingForClassificationAsync(int batchSize, CancellationToken cancellationToken = default);
 
 	// Analysis result update
+	Task UpdateKeyFactsAsync(Guid id, List<string> keyFacts, CancellationToken cancellationToken = default);
 	Task UpdateAnalysisResultAsync(Guid id, string category, List<string> tags, string sentiment,
 		string language, string summary, string modelVersion, ArticleStatus status,
 		CancellationToken cancellationToken = default);

@@ -97,14 +97,6 @@ public static class InfrastructureServiceExtensions
 			promptsOptions.EventSummaryUpdater
 		));
 
-		/*
-		services.AddScoped<IArticleAnalyzer>(_ => new ClaudeArticleAnalyzer(
-			aiOptions.Anthropic.ApiKey,
-			aiOptions.Anthropic.AnalyzerModel,
-			promptsOptions.Analyzer
-		));
-		*/
-
 		services.AddScoped<IArticleGenerator>(_ => new ClaudeArticleGenerator(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.GeneratorModel,
@@ -121,6 +113,11 @@ public static class InfrastructureServiceExtensions
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.ContentGeneratorModel,
 			contentGeneratorPrompts
+		));
+
+		services.AddScoped<IKeyFactsExtractor>(_ => new HaikuKeyFactsExtractor(
+			aiOptions.Anthropic.ApiKey,
+			aiOptions.Anthropic.KeyFactsExtractorModel
 		));
 
 		services.AddScoped<IEventClassifier>(_ => new ClaudeEventClassifier(
@@ -161,7 +158,7 @@ public static class InfrastructureServiceExtensions
 
 	private static IServiceCollection AddServices(this IServiceCollection services, IConfiguration configuration)
 	{
-		services.AddScoped<IArticleApprovalService, ArticleApprovalService>();
+		services.AddScoped<IEventApprovalService, EventApprovalService>();
 		services.AddScoped<IUserService, UserService>();
 		services.AddScoped<IJwtService, JwtService>();
 		services.AddScoped<ISourceService, SourceService>();

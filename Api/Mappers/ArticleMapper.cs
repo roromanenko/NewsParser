@@ -26,7 +26,8 @@ public static class ArticleMapper
         return new ArticleDetailDto(
             article.Id, article.Title, article.Content, article.Category,
             article.Tags, article.Sentiment.ToString(), article.Language,
-            article.Summary, article.ProcessedAt, article.ModelVersion,
+            article.Summary, article.KeyFacts ?? [],
+            article.ProcessedAt, article.ModelVersion,
             article.OriginalUrl, article.PublishedAt,
             eventDto
         );

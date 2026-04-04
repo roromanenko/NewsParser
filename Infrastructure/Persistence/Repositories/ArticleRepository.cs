@@ -36,7 +36,7 @@ public class ArticleRepository : IArticleRepository
 	public async Task<List<Article>> GetPendingForApprovalAsync(int page, int pageSize, CancellationToken cancellationToken = default)
 	{
 		var entities = await _context.Articles
-			.Where(a => a.Status == ArticleStatus.Pending.ToString())
+			.Where(a => a.Status == ArticleStatus.AnalysisDone.ToString())
 			.OrderByDescending(a => a.ProcessedAt)
 			.Skip((page - 1) * pageSize)
 			.Take(pageSize)
@@ -48,7 +48,7 @@ public class ArticleRepository : IArticleRepository
 	public async Task<int> CountPendingForApprovalAsync(CancellationToken cancellationToken = default)
 	{
 		return await _context.Articles
-			.CountAsync(a => a.Status == ArticleStatus.Pending.ToString(), cancellationToken);
+			.CountAsync(a => a.Status == ArticleStatus.AnalysisDone.ToString(), cancellationToken);
 	}
 
 	public async Task UpdateStatusAsync(Guid id, ArticleStatus status, CancellationToken cancellationToken = default)
@@ -98,6 +98,13 @@ public class ArticleRepository : IArticleRepository
 			.ToListAsync(cancellationToken);
 
 		return entities.Select(e => e.ToDomain()).ToList();
+	}
+
+	public async Task UpdateKeyFactsAsync(Guid id, List<string> keyFacts, CancellationToken cancellationToken = default)
+	{
+		await _context.Articles
+			.Where(a => a.Id == id)
+			.ExecuteUpdateAsync(a => a.SetProperty(x => x.KeyFacts, keyFacts), cancellationToken);
 	}
 
 	public async Task UpdateAnalysisResultAsync(

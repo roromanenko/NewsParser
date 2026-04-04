@@ -15,7 +15,8 @@ public class ArticleAnalysisWorker : BackgroundService
 		IArticleAnalyzer Analyzer,
 		IGeminiEmbeddingService EmbeddingService,
 		IEventClassifier Classifier,
-		IEventSummaryUpdater SummaryUpdater);
+		IEventSummaryUpdater SummaryUpdater,
+		IKeyFactsExtractor KeyFactsExtractor);
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly ILogger<ArticleAnalysisWorker> _logger;
 	private readonly ArticleProcessingOptions _options;
@@ -51,7 +52,8 @@ public class ArticleAnalysisWorker : BackgroundService
 			Analyzer: scope.ServiceProvider.GetRequiredService<IArticleAnalyzer>(),
 			EmbeddingService: scope.ServiceProvider.GetRequiredService<IGeminiEmbeddingService>(),
 			Classifier: scope.ServiceProvider.GetRequiredService<IEventClassifier>(),
-			SummaryUpdater: scope.ServiceProvider.GetRequiredService<IEventSummaryUpdater>());
+			SummaryUpdater: scope.ServiceProvider.GetRequiredService<IEventSummaryUpdater>(),
+			KeyFactsExtractor: scope.ServiceProvider.GetRequiredService<IKeyFactsExtractor>());
 
 		var articles = await ctx.ArticleRepository.GetPendingAsync(_options.BatchSize, cancellationToken);
 
@@ -98,6 +100,8 @@ public class ArticleAnalysisWorker : BackgroundService
 			article.Language = analysis.Language;
 			article.Summary = analysis.Summary;
 
+			await ExtractAndPersistKeyFactsAsync(article, ctx, cancellationToken);
+
 			var embeddingText = $"{article.Title}. {analysis.Summary}";
 			var embedding = await ctx.EmbeddingService.GenerateEmbeddingAsync(embeddingText, cancellationToken);
 
@@ -139,6 +143,23 @@ public class ArticleAnalysisWorker : BackgroundService
 			{
 				await ctx.ArticleRepository.UpdateStatusAsync(article.Id, ArticleStatus.Pending, cancellationToken);
 			}
+		}
+	}
+
+	private async Task ExtractAndPersistKeyFactsAsync(
+		Article article,
+		AnalysisContext ctx,
+		CancellationToken cancellationToken)
+	{
+		try
+		{
+			var keyFacts = await ctx.KeyFactsExtractor.ExtractAsync(article, cancellationToken);
+			await ctx.ArticleRepository.UpdateKeyFactsAsync(article.Id, keyFacts, cancellationToken);
+			article.KeyFacts = keyFacts;
+		}
+		catch (Exception ex)
+		{
+			_logger.LogWarning(ex, "Key facts extraction failed for article {Id}, continuing", article.Id);
 		}
 	}
 

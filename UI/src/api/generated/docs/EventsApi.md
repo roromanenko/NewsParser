@@ -5,8 +5,10 @@ All URIs are relative to *http://localhost*
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
 |[**eventsGet**](#eventsget) | **GET** /events | |
+|[**eventsIdApprovePost**](#eventsidapprovepost) | **POST** /events/{id}/approve | |
 |[**eventsIdGet**](#eventsidget) | **GET** /events/{id} | |
 |[**eventsIdReclassifyPost**](#eventsidreclassifypost) | **POST** /events/{id}/reclassify | |
+|[**eventsIdRejectPost**](#eventsidrejectpost) | **POST** /events/{id}/reject | |
 |[**eventsIdResolveContradictionPost**](#eventsidresolvecontradictionpost) | **POST** /events/{id}/resolve-contradiction | |
 |[**eventsIdStatusPatch**](#eventsidstatuspatch) | **PATCH** /events/{id}/status | |
 |[**eventsMergePost**](#eventsmergepost) | **POST** /events/merge | |
@@ -54,6 +56,60 @@ const { status, data } = await apiInstance.eventsGet(
 ### HTTP request headers
 
  - **Content-Type**: Not defined
+ - **Accept**: text/plain, application/json, text/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **eventsIdApprovePost**
+> EventListItemDto eventsIdApprovePost()
+
+
+### Example
+
+```typescript
+import {
+    EventsApi,
+    Configuration,
+    ApproveEventRequest
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new EventsApi(configuration);
+
+let id: string; // (default to undefined)
+let approveEventRequest: ApproveEventRequest; // (optional)
+
+const { status, data } = await apiInstance.eventsIdApprovePost(
+    id,
+    approveEventRequest
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **approveEventRequest** | **ApproveEventRequest**|  | |
+| **id** | [**string**] |  | defaults to undefined|
+
+
+### Return type
+
+**EventListItemDto**
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json, text/json, application/*+json
  - **Accept**: text/plain, application/json, text/json
 
 
@@ -159,6 +215,60 @@ void (empty response body)
 
  - **Content-Type**: application/json, text/json, application/*+json
  - **Accept**: Not defined
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **eventsIdRejectPost**
+> EventListItemDto eventsIdRejectPost()
+
+
+### Example
+
+```typescript
+import {
+    EventsApi,
+    Configuration,
+    RejectEventRequest
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new EventsApi(configuration);
+
+let id: string; // (default to undefined)
+let rejectEventRequest: RejectEventRequest; // (optional)
+
+const { status, data } = await apiInstance.eventsIdRejectPost(
+    id,
+    rejectEventRequest
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **rejectEventRequest** | **RejectEventRequest**|  | |
+| **id** | [**string**] |  | defaults to undefined|
+
+
+### Return type
+
+**EventListItemDto**
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json, text/json, application/*+json
+ - **Accept**: text/plain, application/json, text/json
 
 
 ### HTTP response details

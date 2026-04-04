@@ -51,6 +51,10 @@ namespace Infrastructure.Migrations
                     b.Property<string>("ExternalId")
                         .HasColumnType("text");
 
+                    b.PrimitiveCollection<string>("KeyFacts")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
                     b.Property<string>("Language")
                         .IsRequired()
                         .HasColumnType("text");
@@ -511,6 +515,11 @@ namespace Infrastructure.Migrations
                         .WithMany("Publications")
                         .HasForeignKey("EditorId");
 
+                    b.HasOne("Infrastructure.Persistence.Entity.EventEntity", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Infrastructure.Persistence.Entity.PublicationEntity", "ParentPublication")
                         .WithMany()
                         .HasForeignKey("ParentPublicationId")
@@ -525,6 +534,8 @@ namespace Infrastructure.Migrations
                     b.Navigation("Article");
 
                     b.Navigation("Editor");
+
+                    b.Navigation("Event");
 
                     b.Navigation("ParentPublication");
 

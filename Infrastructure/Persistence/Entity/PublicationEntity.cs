@@ -16,6 +16,7 @@ public class PublicationEntity
 	public DateTimeOffset? ApprovedAt { get; set; }
 	public List<PublishLogEntity> PublishLogs { get; set; } = [];
 	public Guid? EventId { get; set; }
+	public EventEntity? Event { get; set; }
 	public Guid? ParentPublicationId { get; set; }
 	public PublicationEntity? ParentPublication { get; set; }
 	public string? UpdateContext { get; set; }

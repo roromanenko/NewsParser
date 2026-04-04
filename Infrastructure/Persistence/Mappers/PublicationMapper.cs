@@ -17,6 +17,7 @@ public static class PublicationMapper
 		PublishedAt = entity.PublishedAt,
 		ApprovedAt = entity.ApprovedAt,
 		EventId = entity.EventId,
+		Event = entity.Event?.ToDomain(),
 		ParentPublicationId = entity.ParentPublicationId,
 		UpdateContext = entity.UpdateContext,
 	};

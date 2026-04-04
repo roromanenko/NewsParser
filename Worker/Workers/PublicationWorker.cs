@@ -62,26 +62,42 @@ public class PublicationWorker : BackgroundService
 
 		foreach (var publication in publications)
 		{
-			try
-			{
-				_logger.LogInformation("Generating content for publication {Id}, target {Target}",
-					publication.Id, publication.PublishTarget.Name);
+			await GenerateContentForPublicationAsync(
+				publication, contentGenerator, publicationRepository, cancellationToken);
+		}
+	}
 
-				var content = await contentGenerator.GenerateForPlatformAsync(
-					publication.Article,
-					publication.PublishTarget,
-					cancellationToken,
-					updateContext: publication.UpdateContext);
+	private async Task GenerateContentForPublicationAsync(
+		Publication publication,
+		IContentGenerator contentGenerator,
+		IPublicationRepository publicationRepository,
+		CancellationToken cancellationToken)
+	{
+		if (publication.Event is null)
+		{
+			_logger.LogWarning("Publication {Id} has no Event loaded, skipping content generation", publication.Id);
+			return;
+		}
 
-				await publicationRepository.UpdateGeneratedContentAsync(publication.Id, content, cancellationToken);
-				await publicationRepository.UpdateStatusAsync(publication.Id, PublicationStatus.ContentReady, cancellationToken);
+		try
+		{
+			_logger.LogInformation("Generating content for publication {Id}, event {EventTitle}, target {Target}",
+				publication.Id, publication.Event.Title, publication.PublishTarget.Name);
 
-				_logger.LogInformation("Successfully generated content for publication {Id}", publication.Id);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to generate content for publication {Id}", publication.Id);
-			}
+			var content = await contentGenerator.GenerateForPlatformAsync(
+				publication.Event,
+				publication.PublishTarget,
+				cancellationToken,
+				updateContext: publication.UpdateContext);
+
+			await publicationRepository.UpdateGeneratedContentAsync(publication.Id, content, cancellationToken);
+			await publicationRepository.UpdateStatusAsync(publication.Id, PublicationStatus.ContentReady, cancellationToken);
+
+			_logger.LogInformation("Successfully generated content for publication {Id}", publication.Id);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Failed to generate content for publication {Id}", publication.Id);
 		}
 	}
 

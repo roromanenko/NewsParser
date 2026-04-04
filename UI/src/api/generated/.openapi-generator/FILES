@@ -4,7 +4,7 @@ api.ts
 base.ts
 common.ts
 configuration.ts
-docs/ApproveArticleRequest.md
+docs/ApproveEventRequest.md
 docs/ArticleDetailDto.md
 docs/ArticleEventDto.md
 docs/ArticleListItemDto.md
@@ -28,7 +28,7 @@ docs/PublishTargetDto.md
 docs/PublishTargetsApi.md
 docs/ReclassifyArticleRequest.md
 docs/RegisterRequest.md
-docs/RejectArticleRequest.md
+docs/RejectEventRequest.md
 docs/ResolveContradictionRequest.md
 docs/SourceDto.md
 docs/SourcesApi.md

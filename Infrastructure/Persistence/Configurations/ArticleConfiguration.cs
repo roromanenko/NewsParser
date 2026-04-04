@@ -45,6 +45,10 @@ public class ArticleConfiguration : IEntityTypeConfiguration<ArticleEntity>
 			.HasConversion<string>();
 
 		builder
+			.Property(a => a.KeyFacts)
+			.HasColumnType("jsonb");
+
+		builder
 			.Property(a => a.Embedding)
 			.HasColumnType("vector(768)");
 

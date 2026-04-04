@@ -28,6 +28,7 @@ public record EventArticleDto(
 	Guid ArticleId,
 	string Title,
 	string? Summary,
+	List<string> KeyFacts,
 	string Role,
 	DateTimeOffset AddedAt
 );
@@ -46,6 +47,10 @@ public record ContradictionDto(
 	DateTimeOffset CreatedAt,
 	List<Guid> ArticleIds
 );
+
+public record ApproveEventRequest(List<Guid> PublishTargetIds);
+
+public record RejectEventRequest(string Reason);
 
 public record MergeEventsRequest(Guid SourceEventId, Guid TargetEventId);
 
