@@ -34,7 +34,8 @@ public class PublicationRepository(NewsParserDbContext db) : IPublicationReposit
 			.Include(p => p.PublishTarget)
 			.Include(p => p.Event)
 				.ThenInclude(e => e!.Articles)
-			.ToListAsync(cancellationToken);
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
 
 		return entities.Select(p => p.ToDomain()).ToList();
 	}
@@ -46,6 +47,7 @@ public class PublicationRepository(NewsParserDbContext db) : IPublicationReposit
 			.FromSql(
 				$"SELECT * FROM publications WHERE \"Status\" = {statusStr} ORDER BY \"CreatedAt\" LIMIT {batchSize} FOR UPDATE SKIP LOCKED")
 			.Include(p => p.PublishTarget)
+			.AsNoTracking()
 			.ToListAsync(cancellationToken);
 
 		return entities.Select(p => p.ToDomain()).ToList();
