@@ -26,5 +26,6 @@ public class AnthropicOptions
 	public string ContradictionDetectorModel { get; set; } = "claude-haiku-4-5-20251001";
 	public string SummaryUpdaterModel { get; set; } = "claude-haiku-4-5-20251001";
 	public string KeyFactsExtractorModel { get; set; } = "claude-haiku-4-5-20251001";
+	public string TitleGeneratorModel { get; set; } = "claude-haiku-4-5-20251001";
 	public string OutputLanguage { get; set; } = "uk";
 }

@@ -1,4 +1,4 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Core.DomainModels.AI;
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
@@ -36,6 +36,7 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
     private Mock<IEventSummaryUpdater> _summaryUpdaterMock = null!;
     private Mock<IKeyFactsExtractor> _keyFactsExtractorMock = null!;
     private Mock<IContradictionDetector> _contradictionDetectorMock = null!;
+    private Mock<IEventTitleGenerator> _titleGeneratorMock = null!;
 
     private IOptions<ArticleProcessingOptions> _processingOptions = null!;
     private IOptions<AiOptions> _aiOptions = null!;
@@ -52,6 +53,7 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
         _summaryUpdaterMock = new Mock<IEventSummaryUpdater>();
         _keyFactsExtractorMock = new Mock<IKeyFactsExtractor>();
         _contradictionDetectorMock = new Mock<IContradictionDetector>();
+        _titleGeneratorMock = new Mock<IEventTitleGenerator>();
 
         // AutoSameEventThreshold=0.90, AutoNewEventThreshold=0.70
         // A grey-zone similarity is in (0.70, 0.90) — tests use 0.80
@@ -241,6 +243,10 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
         _contradictionDetectorMock
             .Setup(d => d.DetectAsync(It.IsAny<Article>(), It.IsAny<Event>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
+
+        _titleGeneratorMock
+            .Setup(g => g.GenerateTitleAsync(It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Тестовий заголовок події");
     }
 
     private void WireUpScopeFactory()
@@ -264,6 +270,8 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
             .Returns(_keyFactsExtractorMock.Object);
         serviceProviderMock.Setup(sp => sp.GetService(typeof(IContradictionDetector)))
             .Returns(_contradictionDetectorMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IEventTitleGenerator)))
+            .Returns(_titleGeneratorMock.Object);
 
         scopeMock.Setup(s => s.ServiceProvider).Returns(serviceProviderMock.Object);
         _scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);

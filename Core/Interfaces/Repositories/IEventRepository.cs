@@ -17,8 +17,9 @@ public interface IEventRepository
 
 	Task<Event> CreateAsync(Event evt, CancellationToken cancellationToken = default);
 
-	Task UpdateSummaryAndEmbeddingAsync(
+	Task UpdateSummaryTitleAndEmbeddingAsync(
 		Guid id,
+		string title,
 		string summary,
 		float[] embedding,
 		CancellationToken cancellationToken = default);

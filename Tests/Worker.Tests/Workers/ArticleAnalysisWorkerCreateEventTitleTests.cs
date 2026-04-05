@@ -1,4 +1,5 @@
 using Core.DomainModels;
+using Core.DomainModels.AI;
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
 using FluentAssertions;
@@ -14,15 +15,15 @@ using Worker.Workers;
 namespace Worker.Tests.Workers;
 
 /// <summary>
-/// Tests focused on the key-facts extraction phase (Phase A2) inside
-/// ArticleAnalysisWorker.ProcessArticleAsync → ExtractAndPersistKeyFactsAsync.
+/// Tests focused on title generation during new event creation inside
+/// ArticleAnalysisWorker.CreateNewEventAsync.
 ///
-/// The worker loops on Task.Delay; to keep tests fast the analysis interval
-/// is set to 9999 seconds so the loop body runs exactly once before StopAsync
-/// cancels the delay.
+/// FindSimilarEventsAsync is configured to return an empty list for all tests,
+/// which forces the worker down the new-event-creation path where
+/// IEventTitleGenerator.GenerateTitleAsync is called before CreateAsync.
 /// </summary>
 [TestFixture]
-public class ArticleAnalysisWorkerKeyFactsTests
+public class ArticleAnalysisWorkerCreateEventTitleTests
 {
     private Mock<IServiceScopeFactory> _scopeFactoryMock = null!;
     private Mock<IArticleRepository> _articleRepoMock = null!;
@@ -61,7 +62,10 @@ public class ArticleAnalysisWorkerKeyFactsTests
             DeduplicationWindowHours = 72,
             AutoSameEventThreshold = 0.90,
             AutoNewEventThreshold = 0.70,
-            SimilarityWindowHours = 24
+            SimilarityWindowHours = 24,
+            AnalyzeAutoMatchUpdates = true,
+            MaxUpdatesPerDay = 10,
+            MinUpdateIntervalMinutes = 30,
         });
 
         _aiOptions = Options.Create(new AiOptions
@@ -75,23 +79,30 @@ public class ArticleAnalysisWorkerKeyFactsTests
     }
 
     // ------------------------------------------------------------------
-    // P0 — Key facts are extracted and persisted after the analysis result
+    // P0 — When TitleGenerator returns a non-empty Ukrainian string,
+    //       CreateAsync is called with that string as the event Title
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task ProcessArticleAsync_WhenKeyFactsExtracted_PersistsKeyFactsViaRepository()
+    public async Task CreateNewEventAsync_WhenTitleGeneratorReturnsNonEmptyString_CreatesEventWithGeneratedTitle()
     {
         // Arrange
+        const string generatedTitle = "Масштабна повінь на заході України: тисячі евакуйованих";
         var article = CreatePendingArticle();
-        var extractedFacts = new List<string> { "Fact one.", "Fact two.", "Fact three." };
 
         _articleRepoMock
             .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([article]);
 
-        _keyFactsExtractorMock
-            .Setup(e => e.ExtractAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(extractedFacts);
+        _titleGeneratorMock
+            .Setup(g => g.GenerateTitleAsync(It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(generatedTitle);
+
+        Event? capturedEvent = null;
+        _eventRepoMock
+            .Setup(r => r.CreateAsync(It.IsAny<Event>(), It.IsAny<CancellationToken>()))
+            .Callback<Event, CancellationToken>((evt, _) => capturedEvent = evt)
+            .ReturnsAsync((Event e, CancellationToken _) => e);
 
         var sut = CreateWorker();
 
@@ -99,21 +110,17 @@ public class ArticleAnalysisWorkerKeyFactsTests
         await RunOneIterationAsync(sut);
 
         // Assert
-        _keyFactsExtractorMock.Verify(
-            e => e.ExtractAsync(It.Is<Article>(a => a.Id == article.Id), It.IsAny<CancellationToken>()),
-            Times.Once);
-        _articleRepoMock.Verify(
-            r => r.UpdateKeyFactsAsync(article.Id, extractedFacts, It.IsAny<CancellationToken>()),
-            Times.Once);
+        capturedEvent.Should().NotBeNull();
+        capturedEvent!.Title.Should().Be(generatedTitle);
     }
 
     // ------------------------------------------------------------------
-    // P1 — IKeyFactsExtractor failure logs a warning but article continues
-    //       to the embedding phase
+    // P1 — When TitleGenerator returns an empty string,
+    //       CreateAsync is called with the article Title as fallback
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task ProcessArticleAsync_WhenKeyFactsExtractorThrows_ContinuesToEmbeddingPhase()
+    public async Task CreateNewEventAsync_WhenTitleGeneratorReturnsEmptyString_CreatesEventWithArticleTitleAsFallback()
     {
         // Arrange
         var article = CreatePendingArticle();
@@ -122,41 +129,15 @@ public class ArticleAnalysisWorkerKeyFactsTests
             .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([article]);
 
-        _keyFactsExtractorMock
-            .Setup(e => e.ExtractAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new HttpRequestException("AI service unavailable"));
+        _titleGeneratorMock
+            .Setup(g => g.GenerateTitleAsync(It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(string.Empty);
 
-        var sut = CreateWorker();
-
-        // Act
-        await RunOneIterationAsync(sut);
-
-        // Assert — embedding phase proceeds; UpdateKeyFactsAsync is not called on failure
-        _embeddingServiceMock.Verify(
-            s => s.GenerateEmbeddingAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
-            Times.Once);
-        _articleRepoMock.Verify(
-            r => r.UpdateKeyFactsAsync(It.IsAny<Guid>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-    }
-
-    // ------------------------------------------------------------------
-    // P0 — UpdateKeyFactsAsync is called with the extracted list
-    // ------------------------------------------------------------------
-
-    [Test]
-    public async Task ProcessArticleAsync_WhenExtractorReturnsEmptyList_CallsUpdateKeyFactsWithEmptyList()
-    {
-        // Arrange
-        var article = CreatePendingArticle();
-
-        _articleRepoMock
-            .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([article]);
-
-        _keyFactsExtractorMock
-            .Setup(e => e.ExtractAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
+        Event? capturedEvent = null;
+        _eventRepoMock
+            .Setup(r => r.CreateAsync(It.IsAny<Event>(), It.IsAny<CancellationToken>()))
+            .Callback<Event, CancellationToken>((evt, _) => capturedEvent = evt)
+            .ReturnsAsync((Event e, CancellationToken _) => e);
 
         var sut = CreateWorker();
 
@@ -164,11 +145,46 @@ public class ArticleAnalysisWorkerKeyFactsTests
         await RunOneIterationAsync(sut);
 
         // Assert
-        _articleRepoMock.Verify(
-            r => r.UpdateKeyFactsAsync(
-                article.Id,
-                It.Is<List<string>>(l => l.Count == 0),
-                It.IsAny<CancellationToken>()),
+        capturedEvent.Should().NotBeNull();
+        capturedEvent!.Title.Should().Be(article.Title);
+    }
+
+    // ------------------------------------------------------------------
+    // P1 — When TitleGenerator throws a non-cancellation exception,
+    //       the event is still created with the article Title (exception is caught and logged)
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task CreateNewEventAsync_WhenTitleGeneratorThrowsNonCancellationException_CreatesEventWithArticleTitleAsFallback()
+    {
+        // Arrange
+        var article = CreatePendingArticle();
+
+        _articleRepoMock
+            .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([article]);
+
+        _titleGeneratorMock
+            .Setup(g => g.GenerateTitleAsync(It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("AI rate limit exceeded"));
+
+        Event? capturedEvent = null;
+        _eventRepoMock
+            .Setup(r => r.CreateAsync(It.IsAny<Event>(), It.IsAny<CancellationToken>()))
+            .Callback<Event, CancellationToken>((evt, _) => capturedEvent = evt)
+            .ReturnsAsync((Event e, CancellationToken _) => e);
+
+        var sut = CreateWorker();
+
+        // Act
+        await RunOneIterationAsync(sut);
+
+        // Assert — CreateAsync must still be called and the event must bear the article title
+        capturedEvent.Should().NotBeNull();
+        capturedEvent!.Title.Should().Be(article.Title);
+
+        _eventRepoMock.Verify(
+            r => r.CreateAsync(It.IsAny<Event>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -192,20 +208,19 @@ public class ArticleAnalysisWorkerKeyFactsTests
 
     private void SetupDefaultRepositoryBehaviours()
     {
-        // Default: no pending articles
         _articleRepoMock
             .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         _analyzerMock
             .Setup(a => a.AnalyzeAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Core.DomainModels.AI.ArticleAnalysisResult
+            .ReturnsAsync(new ArticleAnalysisResult
             {
-                Category = "Technology",
-                Tags = ["ai", "news"],
+                Category = "Politics",
+                Tags = ["ukraine", "flood"],
                 Sentiment = "Neutral",
-                Language = "en",
-                Summary = "Analyzed summary."
+                Language = "uk",
+                Summary = "A major flood has struck western Ukraine."
             });
 
         _embeddingServiceMock
@@ -216,6 +231,7 @@ public class ArticleAnalysisWorkerKeyFactsTests
             .Setup(e => e.ExtractAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
+        // No similar events → forces new-event creation path
         _eventRepoMock
             .Setup(r => r.FindSimilarEventsAsync(
                 It.IsAny<float[]>(),
@@ -269,8 +285,10 @@ public class ArticleAnalysisWorkerKeyFactsTests
     private static Article CreatePendingArticle() => new()
     {
         Id = Guid.NewGuid(),
-        Title = "Test Article for Key Facts",
+        Title = "Повінь на заході України",
+        Summary = "A major flood has struck western Ukraine displacing thousands.",
         Status = ArticleStatus.Pending,
-        ProcessedAt = DateTimeOffset.UtcNow
+        ProcessedAt = DateTimeOffset.UtcNow,
+        KeyFacts = [],
     };
 }

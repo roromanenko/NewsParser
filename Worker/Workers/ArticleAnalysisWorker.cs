@@ -18,7 +18,8 @@ public class ArticleAnalysisWorker : BackgroundService
 		IEventClassifier Classifier,
 		IEventSummaryUpdater SummaryUpdater,
 		IKeyFactsExtractor KeyFactsExtractor,
-		IContradictionDetector ContradictionDetector);
+		IContradictionDetector ContradictionDetector,
+		IEventTitleGenerator TitleGenerator);
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly ILogger<ArticleAnalysisWorker> _logger;
 	private readonly ArticleProcessingOptions _options;
@@ -56,7 +57,8 @@ public class ArticleAnalysisWorker : BackgroundService
 			Classifier: scope.ServiceProvider.GetRequiredService<IEventClassifier>(),
 			SummaryUpdater: scope.ServiceProvider.GetRequiredService<IEventSummaryUpdater>(),
 			KeyFactsExtractor: scope.ServiceProvider.GetRequiredService<IKeyFactsExtractor>(),
-			ContradictionDetector: scope.ServiceProvider.GetRequiredService<IContradictionDetector>());
+			ContradictionDetector: scope.ServiceProvider.GetRequiredService<IContradictionDetector>(),
+			TitleGenerator: scope.ServiceProvider.GetRequiredService<IEventTitleGenerator>());
 
 		var articles = await ctx.ArticleRepository.GetPendingAsync(_options.BatchSize, cancellationToken);
 
@@ -171,7 +173,7 @@ public class ArticleAnalysisWorker : BackgroundService
 		if (similarEvents.Count == 0)
 		{
 			_logger.LogInformation("No similar events for article {Id}, creating new event", article.Id);
-			targetEvent = await CreateNewEventAsync(article, embedding, ctx.EventRepository, cancellationToken);
+			targetEvent = await CreateNewEventAsync(article, embedding, ctx.EventRepository, ctx.TitleGenerator, cancellationToken);
 			role = ArticleRole.Initiator;
 		}
 		else
@@ -284,7 +286,7 @@ public class ArticleAnalysisWorker : BackgroundService
 			}
 			else
 			{
-				targetEvent = await CreateNewEventAsync(article, embedding, ctx.EventRepository, cancellationToken);
+				targetEvent = await CreateNewEventAsync(article, embedding, ctx.EventRepository, ctx.TitleGenerator, cancellationToken);
 				role = ArticleRole.Initiator;
 			}
 		}
@@ -320,16 +322,19 @@ public class ArticleAnalysisWorker : BackgroundService
 		return candidates.FirstOrDefault(e => e.Articles.Any(a => contradictedArticleIds.Contains(a.Id)));
 	}
 
-	private static async Task<Event> CreateNewEventAsync(
+	private async Task<Event> CreateNewEventAsync(
 		Article article,
 		float[] embedding,
 		IEventRepository eventRepository,
+		IEventTitleGenerator titleGenerator,
 		CancellationToken cancellationToken)
 	{
+		var title = await GenerateTitleForNewEventAsync(article, titleGenerator, cancellationToken);
+
 		var newEvent = new Event
 		{
 			Id = Guid.NewGuid(),
-			Title = article.Title,
+			Title = title,
 			Summary = article.Summary ?? string.Empty,
 			Status = EventStatus.Active,
 			FirstSeenAt = DateTimeOffset.UtcNow,
@@ -339,6 +344,46 @@ public class ArticleAnalysisWorker : BackgroundService
 		};
 
 		return await eventRepository.CreateAsync(newEvent, cancellationToken);
+	}
+
+	private async Task<string> GenerateTitleForNewEventAsync(
+		Article article,
+		IEventTitleGenerator titleGenerator,
+		CancellationToken cancellationToken)
+	{
+		try
+		{
+			var generated = await titleGenerator.GenerateTitleAsync(
+				article.Summary ?? string.Empty,
+				[article.Title],
+				cancellationToken);
+			return string.IsNullOrWhiteSpace(generated) ? article.Title : generated;
+		}
+		catch (Exception ex) when (ex is not OperationCanceledException)
+		{
+			_logger.LogWarning(ex, "Title generation failed for new event, using article title");
+			return article.Title;
+		}
+	}
+
+	private async Task<string> GenerateTitleForUpdatedEventAsync(
+		Event evt,
+		string updatedSummary,
+		IEventTitleGenerator titleGenerator,
+		CancellationToken cancellationToken)
+	{
+		try
+		{
+			var articleTitles = evt.Articles.Select(a => a.Title).ToList();
+			var generated = await titleGenerator.GenerateTitleAsync(
+				updatedSummary, articleTitles, cancellationToken);
+			return string.IsNullOrWhiteSpace(generated) ? evt.Title : generated;
+		}
+		catch (Exception ex) when (ex is not OperationCanceledException)
+		{
+			_logger.LogWarning(ex, "Title regeneration failed for event {EventId}, keeping existing title", evt.Id);
+			return evt.Title;
+		}
 	}
 
 	private async Task UpdateEventEmbeddingAsync(
@@ -372,8 +417,10 @@ public class ArticleAnalysisWorker : BackgroundService
 				updatedSummary = await ctx.SummaryUpdater.UpdateSummaryAsync(evt, newFacts, cancellationToken);
 			}
 
-			await ctx.EventRepository.UpdateSummaryAndEmbeddingAsync(
-				evt.Id, updatedSummary, updatedEmbedding, cancellationToken);
+			var updatedTitle = await GenerateTitleForUpdatedEventAsync(evt, updatedSummary, ctx.TitleGenerator, cancellationToken);
+
+			await ctx.EventRepository.UpdateSummaryTitleAndEmbeddingAsync(
+				evt.Id, updatedTitle, updatedSummary, updatedEmbedding, cancellationToken);
 		}
 		catch (Exception ex)
 		{

@@ -113,6 +113,12 @@ public static class InfrastructureServiceExtensions
 			aiOptions.Anthropic.KeyFactsExtractorModel
 		));
 
+		services.AddScoped<IEventTitleGenerator>(sp => new HaikuEventTitleGenerator(
+			aiOptions.Anthropic.ApiKey,
+			aiOptions.Anthropic.TitleGeneratorModel,
+			sp.GetRequiredService<ILogger<HaikuEventTitleGenerator>>()
+		));
+
 		services.AddScoped<IEventClassifier>(_ => new ClaudeEventClassifier(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.ClassifierModel,

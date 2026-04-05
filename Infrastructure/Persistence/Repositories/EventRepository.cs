@@ -78,8 +78,9 @@ public class EventRepository : IEventRepository
 		return entity.ToDomain();
 	}
 
-	public async Task UpdateSummaryAndEmbeddingAsync(
+	public async Task UpdateSummaryTitleAndEmbeddingAsync(
 		Guid id,
+		string title,
 		string summary,
 		float[] embedding,
 		CancellationToken cancellationToken = default)
@@ -87,6 +88,7 @@ public class EventRepository : IEventRepository
 		await _context.Events
 			.Where(e => e.Id == id)
 			.ExecuteUpdateAsync(s => s
+				.SetProperty(e => e.Title, title)
 				.SetProperty(e => e.Summary, summary)
 				.SetProperty(e => e.Embedding, new Vector(embedding))
 				.SetProperty(e => e.ArticleCount, e => e.ArticleCount + 1)
@@ -154,11 +156,11 @@ public class EventRepository : IEventRepository
 		CancellationToken cancellationToken = default)
 	{
 		var entities = await _context.EventUpdates
+			.Include(eu => eu.Event)
+			.Include(eu => eu.Article)
 			.Where(eu => !eu.IsPublished)
 			.OrderBy(eu => eu.CreatedAt)
 			.Take(batchSize)
-			.Include(eu => eu.Event)
-			.Include(eu => eu.Article)
 			.ToListAsync(cancellationToken);
 
 		return entities.Select(eu => eu.ToDomain()).ToList();

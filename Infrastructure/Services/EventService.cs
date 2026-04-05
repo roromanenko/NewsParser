@@ -2,13 +2,16 @@
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
 public class EventService(
 	IEventRepository eventRepository,
 	IGeminiEmbeddingService embeddingService,
-	IEventSummaryUpdater summaryUpdater) : IEventService
+	IEventSummaryUpdater summaryUpdater,
+	IEventTitleGenerator titleGenerator,
+	ILogger<EventService> logger) : IEventService
 {
 	public async Task MergeAsync(
 		Guid sourceEventId,
@@ -25,7 +28,6 @@ public class EventService(
 			throw new InvalidOperationException(
 				$"Source event {sourceEventId} is already archived");
 
-		// Мёрджим в репозитории
 		await eventRepository.MergeAsync(sourceEventId, targetEventId, cancellationToken);
 
 		try
@@ -33,18 +35,26 @@ public class EventService(
 			var mergedSummary = await summaryUpdater.UpdateSummaryAsync(
 				target, [source.Summary], cancellationToken);
 
+			var mergedTitle = await titleGenerator.GenerateTitleAsync(
+				mergedSummary,
+				[source.Title, target.Title],
+				cancellationToken);
+			var finalTitle = string.IsNullOrWhiteSpace(mergedTitle) ? target.Title : mergedTitle;
+
 			var newEmbedding = await embeddingService.GenerateEmbeddingAsync(
 				mergedSummary, cancellationToken);
 
-			await eventRepository.UpdateSummaryAndEmbeddingAsync(
+			await eventRepository.UpdateSummaryTitleAndEmbeddingAsync(
 				targetEventId,
+				finalTitle,
 				mergedSummary,
 				newEmbedding,
 				cancellationToken);
 		}
-		catch
+		catch (Exception ex) when (ex is not OperationCanceledException)
 		{
-			// Не блокируем мёрдж если AI упал — это некритично
+			logger.LogWarning(ex, "AI enrichment failed after merging event {SourceId} into {TargetId}; merge succeeded",
+				sourceEventId, targetEventId);
 		}
 	}
 

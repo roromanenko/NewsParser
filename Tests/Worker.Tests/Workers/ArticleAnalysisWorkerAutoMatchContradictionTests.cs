@@ -1,4 +1,4 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Core.DomainModels.AI;
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
@@ -31,6 +31,8 @@ namespace Worker.Tests.Workers;
 ///   is called and a significant update triggers AddEventUpdateAsync.
 /// - Key-fact pre-filter: ClassifyAsync is NOT called when all key facts are already
 ///   present in the event summary.
+/// - Title generation: TitleGenerator.GenerateTitleAsync is called when updating an
+///   event embedding; an empty result falls back to the existing event title.
 /// </summary>
 [TestFixture]
 public class ArticleAnalysisWorkerAutoMatchContradictionTests
@@ -44,6 +46,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
     private Mock<IEventSummaryUpdater> _summaryUpdaterMock = null!;
     private Mock<IKeyFactsExtractor> _keyFactsExtractorMock = null!;
     private Mock<IContradictionDetector> _contradictionDetectorMock = null!;
+    private Mock<IEventTitleGenerator> _titleGeneratorMock = null!;
 
     private IOptions<ArticleProcessingOptions> _processingOptions = null!;
     private IOptions<AiOptions> _aiOptions = null!;
@@ -60,6 +63,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
         _summaryUpdaterMock = new Mock<IEventSummaryUpdater>();
         _keyFactsExtractorMock = new Mock<IKeyFactsExtractor>();
         _contradictionDetectorMock = new Mock<IContradictionDetector>();
+        _titleGeneratorMock = new Mock<IEventTitleGenerator>();
 
         _processingOptions = Options.Create(new ArticleProcessingOptions
         {
@@ -604,6 +608,110 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
     }
 
     // ------------------------------------------------------------------
+    // P0 — When UpdateEventEmbeddingAsync runs on the auto-match path,
+    //       TitleGenerator.GenerateTitleAsync is called once
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task UpdateEventEmbeddingAsync_WhenAutoMatchPathExecutes_CallsTitleGeneratorOnce()
+    {
+        // Arrange
+        var article = CreatePendingArticle();
+        var lightweightEvent = CreateActiveEvent();
+        var enrichedEvent = CreateEnrichedEvent(lightweightEvent.Id);
+
+        _articleRepoMock
+            .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([article]);
+
+        _eventRepoMock
+            .Setup(r => r.FindSimilarEventsAsync(
+                It.IsAny<float[]>(),
+                It.IsAny<double>(),
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([(lightweightEvent, 0.95)]);
+
+        _eventRepoMock
+            .Setup(r => r.GetWithContextAsync(lightweightEvent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(enrichedEvent);
+
+        _contradictionDetectorMock
+            .Setup(d => d.DetectAsync(It.IsAny<Article>(), It.IsAny<Event>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var sut = CreateWorker();
+
+        // Act
+        await RunOneIterationAsync(sut);
+
+        // Assert — title generator is called exactly once with non-null arguments
+        _titleGeneratorMock.Verify(
+            g => g.GenerateTitleAsync(
+                It.IsAny<string>(),
+                It.IsNotNull<List<string>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    // ------------------------------------------------------------------
+    // P1 — When TitleGenerator returns empty string, the existing event
+    //       title is used as the fallback passed to UpdateSummaryTitleAndEmbeddingAsync
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task UpdateEventEmbeddingAsync_WhenTitleGeneratorReturnsEmpty_PassesExistingEventTitleToRepository()
+    {
+        // Arrange
+        var article = CreatePendingArticle();
+        var lightweightEvent = CreateActiveEvent();
+        var enrichedEvent = CreateEnrichedEvent(lightweightEvent.Id);
+        const string existingEventTitle = "Existing Event";
+
+        _articleRepoMock
+            .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([article]);
+
+        _eventRepoMock
+            .Setup(r => r.FindSimilarEventsAsync(
+                It.IsAny<float[]>(),
+                It.IsAny<double>(),
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([(lightweightEvent, 0.95)]);
+
+        _eventRepoMock
+            .Setup(r => r.GetWithContextAsync(lightweightEvent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(enrichedEvent);
+
+        _contradictionDetectorMock
+            .Setup(d => d.DetectAsync(It.IsAny<Article>(), It.IsAny<Event>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        // Title generator returns empty — fallback to existing event title should be used
+        _titleGeneratorMock
+            .Setup(g => g.GenerateTitleAsync(It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(string.Empty);
+
+        var sut = CreateWorker();
+
+        // Act
+        await RunOneIterationAsync(sut);
+
+        // Assert — the title passed to UpdateSummaryTitleAndEmbeddingAsync must be the event's existing title
+        _eventRepoMock.Verify(
+            r => r.UpdateSummaryTitleAndEmbeddingAsync(
+                enrichedEvent.Id,
+                existingEventTitle,
+                It.IsAny<string>(),
+                It.IsAny<float[]>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
 
@@ -663,6 +771,10 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
         _contradictionDetectorMock
             .Setup(d => d.DetectAsync(It.IsAny<Article>(), It.IsAny<Event>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
+
+        _titleGeneratorMock
+            .Setup(g => g.GenerateTitleAsync(It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Тестовий заголовок події");
     }
 
     private void WireUpScopeFactory()
@@ -686,6 +798,8 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .Returns(_keyFactsExtractorMock.Object);
         serviceProviderMock.Setup(sp => sp.GetService(typeof(IContradictionDetector)))
             .Returns(_contradictionDetectorMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IEventTitleGenerator)))
+            .Returns(_titleGeneratorMock.Object);
 
         scopeMock.Setup(s => s.ServiceProvider).Returns(serviceProviderMock.Object);
         _scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
