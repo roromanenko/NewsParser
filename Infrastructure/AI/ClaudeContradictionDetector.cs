@@ -55,6 +55,11 @@ public class ClaudeContradictionDetector : IContradictionDetector
             ? "No known facts recorded."
             : string.Join("\n", targetEvent.EventUpdates.Select((u, i) => $"  [{i + 1}] {u.FactSummary}"));
 
+        var articlesList = targetEvent.Articles.Count == 0
+            ? "No articles recorded."
+            : string.Join("\n", targetEvent.Articles.Select(a =>
+                $"  - [{a.Id}] {a.Title} | Key facts: {string.Join("; ", a.KeyFacts)}"));
+
         return $"""
             NEW ARTICLE:
             Id: {article.Id}
@@ -68,6 +73,8 @@ public class ClaudeContradictionDetector : IContradictionDetector
             Summary: {targetEvent.Summary}
             Known Facts ({targetEvent.EventUpdates.Count}):
             {knownFacts}
+            Articles in this event ({targetEvent.Articles.Count}):
+            {articlesList}
             """;
     }
 

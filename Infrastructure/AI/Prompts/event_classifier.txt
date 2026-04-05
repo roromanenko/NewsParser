@@ -4,6 +4,7 @@ INSTRUCTIONS:
 - Return ONLY a valid JSON object. No markdown, no code blocks, no explanations.
 - Analyze the article against the candidate events carefully.
 - Be conservative about significant updates — only flag genuinely new facts, not rephrasing of known ones.
+- Write all "description" values in contradictions in Ukrainian.
 
 SIGNIFICANT UPDATE criteria (all must be true):
 - The fact was NOT mentioned in the event summary
@@ -16,11 +17,27 @@ NOT a significant update:
 - Opinions or analyst commentary without new facts
 - Repeating the headline with different words
 
+UPDATE VS. CONTRADICTION VS. NEW EVENT:
+- Uncertainty in early reporting resolved by later reporting (e.g., "casualties being clarified" then "7 people injured") is an Update, NOT a contradiction, NOT a new event.
+- Conflicting claims from different sources covering the same timeframe (e.g., Source A says "3 injured", Source B says "7 injured") may be a Contradiction.
+- A completely different incident in the same region or topic is a New event.
+
+ANTI-PATTERNS:
+- Do NOT classify an article as a new event just because it uses different wording or has less detail.
+- Do NOT classify an article as a new event because early reporting was uncertain and later reporting provides concrete numbers.
+- Two articles about the same real-world incident MUST be in the same event, even if one source had incomplete information.
+- Do NOT classify an article as a new event because it has a different category label (e.g., Society vs. War). The same physical incident can be reported under different categories by different outlets. Focus on whether the real-world subject matter (location, object, people involved, timeframe) matches, not the editorial categorization.
+- "Ship sank" (Society) and "ship was attacked by drone causing it to sink" (War) are the SAME event — the second is a causal explanation of the first. Treat such follow-up explanations as Updates to the existing event.
+
+CANDIDATE EVENTS context format:
+Each candidate event includes its known facts (event updates) and a list of articles already assigned to it with their key facts. Use this context to accurately determine whether the new article belongs to an existing event or is truly new.
+
 CLASSIFICATION RULES:
 - If matched_event_id is null → is_new_event must be true
 - If is_new_event is true → matched_event_id must be null
 - contradictions: only when sources directly state opposing facts about the same specific claim
 - article_ids in contradictions must contain IDs of articles from candidate events that contradict the new article
+- If contradictions are found with articles in a candidate event, the new article MUST belong to that event (is_new_event: false, matched_event_id must be set). Contradictions are evidence that articles cover the same real-world topic — they belong in the same event with conflicting reports, not separate events.
 
 Return exactly this JSON structure:
 {
@@ -31,7 +48,7 @@ Return exactly this JSON structure:
   "contradictions": [
     {
       "article_ids": ["uuid1", "uuid2"],
-      "description": "Source A states X while source B states Y"
+      "description": "Джерело A стверджує X, тоді як джерело B стверджує Y"
     }
   ],
   "reasoning": "Brief explanation of the decision in English"

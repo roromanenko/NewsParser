@@ -29,14 +29,7 @@ public class ClaudeEventClassifier : IEventClassifier
 
 		var candidatesText = candidateEvents.Count == 0
 			? "No candidate events found."
-			: string.Join("\n\n", candidateEvents.Select((e, i) => $"""
-                CANDIDATE EVENT [{i + 1}]:
-                Id: {e.Id}
-                Title: {e.Title}
-                Summary: {e.Summary}
-                Last Updated: {e.LastUpdatedAt:yyyy-MM-dd HH:mm UTC}
-                Known Facts Count: {e.EventUpdates.Count}
-                """));
+			: string.Join("\n\n", candidateEvents.Select((e, i) => BuildCandidateBlock(e, i)));
 
 		var userPrompt = $"""
             ARTICLE TO CLASSIFY:
@@ -68,6 +61,30 @@ public class ClaudeEventClassifier : IEventClassifier
 		var content = response.Content.FirstOrDefault()?.ToString() ?? string.Empty;
 
 		return ParseResult(content);
+	}
+
+	private static string BuildCandidateBlock(Event e, int index)
+	{
+		var knownFacts = e.EventUpdates.Count == 0
+			? "  (none)"
+			: string.Join("\n", e.EventUpdates.Select((u, i) => $"  [{i + 1}] {u.FactSummary}"));
+
+		var articles = e.Articles.Count == 0
+			? "  (none)"
+			: string.Join("\n", e.Articles.Select(a =>
+				$"  - {a.Title} | Key facts: {string.Join("; ", a.KeyFacts)}"));
+
+		return $"""
+            CANDIDATE EVENT [{index + 1}]:
+            Id: {e.Id}
+            Title: {e.Title}
+            Summary: {e.Summary}
+            Last Updated: {e.LastUpdatedAt:yyyy-MM-dd HH:mm UTC}
+            Known Facts:
+            {knownFacts}
+            Articles in this event:
+            {articles}
+            """;
 	}
 
 	private static EventClassificationResult ParseResult(string json)

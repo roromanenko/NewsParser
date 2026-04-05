@@ -1,4 +1,5 @@
-using Core.DomainModels;
+﻿using Core.DomainModels;
+using Core.DomainModels.AI;
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
 using FluentAssertions;
@@ -14,15 +15,17 @@ using Worker.Workers;
 namespace Worker.Tests.Workers;
 
 /// <summary>
-/// Tests focused on the duplicate-detection path inside
-/// ArticleAnalysisWorker.ProcessArticleAsync.
+/// Tests focused on the grey-zone branch inside
+/// ArticleAnalysisWorker.ClassifyIntoEventAsync when the top similarity
+/// score falls between AutoNewEventThreshold and AutoSameEventThreshold.
 ///
-/// When HasSimilarAsync returns true the worker must call
-/// RejectAsync(id, "duplicate_by_vector", ct) and stop — no embedding
-/// is persisted and the article is not classified into an event.
+/// In the grey-zone path the worker:
+///   1. Calls GetWithContextAsync for each candidate event to load an enriched version.
+///   2. Passes the enriched candidates to IEventClassifier.ClassifyAsync.
+///   3. Falls back to the lightweight candidate events if all GetWithContextAsync calls return null.
 /// </summary>
 [TestFixture]
-public class ArticleAnalysisWorkerDeduplicationTests
+public class ArticleAnalysisWorkerGreyZoneEnrichedTests
 {
     private Mock<IServiceScopeFactory> _scopeFactoryMock = null!;
     private Mock<IArticleRepository> _articleRepoMock = null!;
@@ -50,6 +53,8 @@ public class ArticleAnalysisWorkerDeduplicationTests
         _keyFactsExtractorMock = new Mock<IKeyFactsExtractor>();
         _contradictionDetectorMock = new Mock<IContradictionDetector>();
 
+        // AutoSameEventThreshold=0.90, AutoNewEventThreshold=0.70
+        // A grey-zone similarity is in (0.70, 0.90) — tests use 0.80
         _processingOptions = Options.Create(new ArticleProcessingOptions
         {
             AnalysisIntervalSeconds = 9999,
@@ -59,7 +64,10 @@ public class ArticleAnalysisWorkerDeduplicationTests
             DeduplicationWindowHours = 72,
             AutoSameEventThreshold = 0.90,
             AutoNewEventThreshold = 0.70,
-            SimilarityWindowHours = 24
+            SimilarityWindowHours = 24,
+            AnalyzeAutoMatchUpdates = true,
+            MaxUpdatesPerDay = 10,
+            MinUpdateIntervalMinutes = 30,
         });
 
         _aiOptions = Options.Create(new AiOptions
@@ -73,137 +81,102 @@ public class ArticleAnalysisWorkerDeduplicationTests
     }
 
     // ------------------------------------------------------------------
-    // P0 — When HasSimilarAsync returns true, RejectAsync is called
-    //       with the article id and the "duplicate_by_vector" reason
+    // P0 — When GetWithContextAsync returns an enriched candidate, ClassifyAsync
+    //       is called with that enriched candidate (which has non-empty Articles)
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task ProcessArticleAsync_WhenArticleIsDuplicate_CallsRejectAsyncWithDuplicateReason()
+    public async Task ProcessArticleAsync_WhenGetWithContextReturnsEnrichedCandidate_ClassifyAsyncReceivesCandidateWithNonEmptyArticles()
     {
         // Arrange
         var article = CreatePendingArticle();
+        var lightweightCandidate = CreateActiveEvent();
+        var enrichedCandidate = CreateEnrichedEvent(lightweightCandidate.Id);
 
         _articleRepoMock
             .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([article]);
 
-        _articleRepoMock
-            .Setup(r => r.HasSimilarAsync(
-                article.Id,
+        // Similarity 0.80 is in the grey zone (> 0.70 but < 0.90)
+        _eventRepoMock
+            .Setup(r => r.FindSimilarEventsAsync(
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync([(lightweightCandidate, 0.80)]);
+
+        _eventRepoMock
+            .Setup(r => r.GetWithContextAsync(lightweightCandidate.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(enrichedCandidate);
+
+        List<Event>? capturedCandidates = null;
+        _classifierMock
+            .Setup(c => c.ClassifyAsync(It.IsAny<Article>(), It.IsAny<List<Event>>(), It.IsAny<CancellationToken>()))
+            .Callback<Article, List<Event>, CancellationToken>((_, candidates, _) => capturedCandidates = candidates)
+            .ReturnsAsync(new EventClassificationResult { IsNewEvent = true });
 
         var sut = CreateWorker();
 
         // Act
         await RunOneIterationAsync(sut);
 
-        // Assert
-        _articleRepoMock.Verify(
-            r => r.RejectAsync(article.Id, "duplicate_by_vector", It.IsAny<CancellationToken>()),
+        // Assert — ClassifyAsync must receive the enriched candidate with non-empty Articles
+        capturedCandidates.Should().NotBeNull();
+        capturedCandidates.Should().HaveCount(1);
+        capturedCandidates![0].Articles.Should().NotBeEmpty(
+            "the grey-zone path must pass the enriched candidate (with Articles populated) to the classifier");
+    }
+
+    // ------------------------------------------------------------------
+    // P1 — When GetWithContextAsync returns null for all candidates, the classifier
+    //       is still called with the lightweight fallback candidates
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task ProcessArticleAsync_WhenGetWithContextReturnsNullForAllCandidates_ClassifierIsStillCalledWithLightweightFallback()
+    {
+        // Arrange
+        var article = CreatePendingArticle();
+        var lightweightCandidate = CreateActiveEvent();
+
+        _articleRepoMock
+            .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([article]);
+
+        _eventRepoMock
+            .Setup(r => r.FindSimilarEventsAsync(
+                It.IsAny<float[]>(),
+                It.IsAny<double>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([(lightweightCandidate, 0.80)]);
+
+        // GetWithContextAsync returns null → enrichedCandidates will be empty → fallback to lightweight
+        _eventRepoMock
+            .Setup(r => r.GetWithContextAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Event?)null);
+
+        List<Event>? capturedCandidates = null;
+        _classifierMock
+            .Setup(c => c.ClassifyAsync(It.IsAny<Article>(), It.IsAny<List<Event>>(), It.IsAny<CancellationToken>()))
+            .Callback<Article, List<Event>, CancellationToken>((_, candidates, _) => capturedCandidates = candidates)
+            .ReturnsAsync(new EventClassificationResult { IsNewEvent = true });
+
+        var sut = CreateWorker();
+
+        // Act
+        await RunOneIterationAsync(sut);
+
+        // Assert — ClassifyAsync must still be called, but receives the lightweight fallback candidate
+        _classifierMock.Verify(
+            c => c.ClassifyAsync(It.IsAny<Article>(), It.IsAny<List<Event>>(), It.IsAny<CancellationToken>()),
             Times.Once);
-    }
 
-    // ------------------------------------------------------------------
-    // P0 — When the article is a duplicate, UpdateEmbeddingAsync is NOT
-    //       called — the embedding must not be stored for rejected duplicates
-    // ------------------------------------------------------------------
-
-    [Test]
-    public async Task ProcessArticleAsync_WhenArticleIsDuplicate_DoesNotPersistEmbedding()
-    {
-        // Arrange
-        var article = CreatePendingArticle();
-
-        _articleRepoMock
-            .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([article]);
-
-        _articleRepoMock
-            .Setup(r => r.HasSimilarAsync(
-                article.Id,
-                It.IsAny<float[]>(),
-                It.IsAny<double>(),
-                It.IsAny<int>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        var sut = CreateWorker();
-
-        // Act
-        await RunOneIterationAsync(sut);
-
-        // Assert
-        _articleRepoMock.Verify(
-            r => r.UpdateEmbeddingAsync(It.IsAny<Guid>(), It.IsAny<float[]>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-    }
-
-    // ------------------------------------------------------------------
-    // P0 — When the article is a duplicate, it is NOT classified into an
-    //       event — AssignArticleToEventAsync must not be called
-    // ------------------------------------------------------------------
-
-    [Test]
-    public async Task ProcessArticleAsync_WhenArticleIsDuplicate_DoesNotClassifyIntoEvent()
-    {
-        // Arrange
-        var article = CreatePendingArticle();
-
-        _articleRepoMock
-            .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([article]);
-
-        _articleRepoMock
-            .Setup(r => r.HasSimilarAsync(
-                article.Id,
-                It.IsAny<float[]>(),
-                It.IsAny<double>(),
-                It.IsAny<int>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        var sut = CreateWorker();
-
-        // Act
-        await RunOneIterationAsync(sut);
-
-        // Assert
-        _eventRepoMock.Verify(
-            r => r.AssignArticleToEventAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<ArticleRole>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-    }
-
-    // ------------------------------------------------------------------
-    // P1 — When the article is NOT a duplicate, RejectAsync is NOT called
-    //       (ensures the duplicate path is taken only on a genuine match)
-    // ------------------------------------------------------------------
-
-    [Test]
-    public async Task ProcessArticleAsync_WhenArticleIsNotDuplicate_DoesNotCallRejectAsync()
-    {
-        // Arrange
-        var article = CreatePendingArticle();
-
-        _articleRepoMock
-            .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([article]);
-
-        // HasSimilarAsync already returns false via SetupDefaultRepositoryBehaviours
-
-        var sut = CreateWorker();
-
-        // Act
-        await RunOneIterationAsync(sut);
-
-        // Assert
-        _articleRepoMock.Verify(
-            r => r.RejectAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+        capturedCandidates.Should().NotBeNull();
+        capturedCandidates.Should().HaveCount(1);
+        capturedCandidates![0].Id.Should().Be(lightweightCandidate.Id,
+            "when all GetWithContextAsync calls return null the fallback must be the original lightweight event");
     }
 
     // ------------------------------------------------------------------
@@ -232,7 +205,7 @@ public class ArticleAnalysisWorkerDeduplicationTests
 
         _analyzerMock
             .Setup(a => a.AnalyzeAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Core.DomainModels.AI.ArticleAnalysisResult
+            .ReturnsAsync(new ArticleAnalysisResult
             {
                 Category = "Technology",
                 Tags = ["ai", "news"],
@@ -245,14 +218,6 @@ public class ArticleAnalysisWorkerDeduplicationTests
             .Setup(s => s.GenerateEmbeddingAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new float[384]);
 
-        _articleRepoMock
-            .Setup(r => r.HasSimilarAsync(
-                It.IsAny<Guid>(),
-                It.IsAny<float[]>(),
-                It.IsAny<double>(),
-                It.IsAny<int>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
 
         _keyFactsExtractorMock
             .Setup(e => e.ExtractAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
@@ -304,8 +269,57 @@ public class ArticleAnalysisWorkerDeduplicationTests
     private static Article CreatePendingArticle() => new()
     {
         Id = Guid.NewGuid(),
-        Title = "Duplicate Detection Test Article",
+        Title = "Grey Zone Test Article",
         Status = ArticleStatus.Pending,
-        ProcessedAt = DateTimeOffset.UtcNow
+        ProcessedAt = DateTimeOffset.UtcNow,
+        KeyFacts = [],
+    };
+
+    private static Event CreateActiveEvent() => new()
+    {
+        Id = Guid.NewGuid(),
+        Title = "Grey Zone Candidate Event",
+        Summary = "A candidate event in the grey zone similarity range.",
+        Status = EventStatus.Active,
+        FirstSeenAt = DateTimeOffset.UtcNow,
+        LastUpdatedAt = DateTimeOffset.UtcNow,
+        Embedding = new float[384],
+        ArticleCount = 1,
+        EventUpdates = [],
+        Articles = [],
+    };
+
+    private static Event CreateEnrichedEvent(Guid eventId) => new()
+    {
+        Id = eventId,
+        Title = "Grey Zone Candidate Event",
+        Summary = "A candidate event in the grey zone similarity range.",
+        Status = EventStatus.Active,
+        FirstSeenAt = DateTimeOffset.UtcNow,
+        LastUpdatedAt = DateTimeOffset.UtcNow,
+        Embedding = new float[384],
+        ArticleCount = 1,
+        EventUpdates =
+        [
+            new EventUpdate
+            {
+                Id = Guid.NewGuid(),
+                EventId = eventId,
+                ArticleId = Guid.NewGuid(),
+                FactSummary = "Initial fact for the event.",
+                CreatedAt = DateTimeOffset.UtcNow,
+            }
+        ],
+        Articles =
+        [
+            new Article
+            {
+                Id = Guid.NewGuid(),
+                Title = "Original article for this event",
+                KeyFacts = ["initial key fact"],
+                Status = ArticleStatus.AnalysisDone,
+                ProcessedAt = DateTimeOffset.UtcNow,
+            }
+        ],
     };
 }

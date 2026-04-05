@@ -104,7 +104,7 @@ public class ArticleAnalysisWorker : BackgroundService
 
 			await ExtractAndPersistKeyFactsAsync(article, ctx, cancellationToken);
 
-			var embeddingText = $"{article.Title}. {analysis.Summary}";
+			var embeddingText = analysis.Summary;
 			var embedding = await ctx.EmbeddingService.GenerateEmbeddingAsync(embeddingText, cancellationToken);
 
 			await ctx.ArticleRepository.UpdateEmbeddingAsync(article.Id, embedding, cancellationToken);
@@ -179,60 +179,144 @@ public class ArticleAnalysisWorker : BackgroundService
 
 			if (topSimilarity >= _options.AutoSameEventThreshold)
 			{
-				_logger.LogInformation("Article {Id} auto-matched to event {EventId} (similarity: {S:F3})",
-					article.Id, topEvent.Id, topSimilarity);
-				targetEvent = topEvent;
-
-				var contradictions = await ctx.ContradictionDetector.DetectAsync(article, targetEvent, cancellationToken);
-				role = contradictions.Count > 0 ? ArticleRole.Contradiction : ArticleRole.Update;
-
-				if (contradictions.Count > 0)
-					await SaveContradictionsAsync(contradictions, targetEvent, article, ctx.EventRepository, cancellationToken);
-
-				await UpdateEventEmbeddingAsync(
-					targetEvent, article.Summary ?? string.Empty, embedding, ctx, cancellationToken);
+				(targetEvent, role) = await HandleAutoMatchAsync(
+					article, topEvent, embedding, ctx, cancellationToken);
 			}
 			else
 			{
-				_logger.LogInformation("Article {Id} in grey zone (top similarity: {S:F3}), asking classifier",
-					article.Id, topSimilarity);
-
-				var candidates = similarEvents.Select(x => x.Event).ToList();
-				var result = await ctx.Classifier.ClassifyAsync(article, candidates, cancellationToken);
-
-				if (result.IsNewEvent || result.MatchedEventId is null)
-				{
-					targetEvent = await CreateNewEventAsync(article, embedding, ctx.EventRepository, cancellationToken);
-					role = ArticleRole.Initiator;
-				}
-				else
-				{
-					targetEvent = candidates.First(e => e.Id == result.MatchedEventId);
-					role = result.Contradictions.Count > 0 ? ArticleRole.Contradiction : ArticleRole.Update;
-				}
-
-				if (result.Contradictions.Count > 0 && !result.IsNewEvent)
-				{
-					await SaveContradictionsAsync(result.Contradictions, targetEvent, article, ctx.EventRepository, cancellationToken);
-				}
-
-				List<string> newFacts = [];
-
-				if (!result.IsNewEvent && result.IsSignificantUpdate && result.NewFacts.Count > 0)
-				{
-					newFacts = result.NewFacts;
-					await TrySaveEventUpdateAsync(targetEvent, article, newFacts, ctx.EventRepository, cancellationToken);
-				}
-
-				if (role != ArticleRole.Initiator)
-				{
-					await UpdateEventEmbeddingAsync(
-						targetEvent, article.Summary ?? string.Empty, embedding, ctx, cancellationToken);
-				}
+				(targetEvent, role) = await HandleGreyZoneAsync(
+					article, similarEvents, embedding, ctx, cancellationToken);
 			}
 		}
 
 		await ctx.EventRepository.AssignArticleToEventAsync(article.Id, targetEvent.Id, role, cancellationToken);
+	}
+
+	private async Task<(Event TargetEvent, ArticleRole Role)> HandleAutoMatchAsync(
+		Article article,
+		Event topEvent,
+		float[] embedding,
+		AnalysisContext ctx,
+		CancellationToken cancellationToken)
+	{
+		_logger.LogInformation("Article {Id} auto-matched to event {EventId} (similarity: {S})",
+			article.Id, topEvent.Id, topEvent.Id);
+
+		var enrichedEvent = await ctx.EventRepository.GetWithContextAsync(topEvent.Id, cancellationToken);
+		if (enrichedEvent is null)
+			_logger.LogWarning("GetWithContextAsync returned null for event {EventId}; falling back to lightweight event", topEvent.Id);
+		var targetEvent = enrichedEvent ?? topEvent;
+
+		var contradictions = await ctx.ContradictionDetector.DetectAsync(article, targetEvent, cancellationToken);
+		var role = contradictions.Count > 0 ? ArticleRole.Contradiction : ArticleRole.Update;
+
+		if (contradictions.Count > 0)
+			await SaveContradictionsAsync(contradictions, targetEvent, article, ctx.EventRepository, cancellationToken);
+
+		if (enrichedEvent is not null)
+			await AnalyzeAutoMatchUpdateAsync(article, targetEvent, ctx, cancellationToken);
+
+		await UpdateEventEmbeddingAsync(
+			targetEvent, article.Summary ?? string.Empty, embedding, ctx, cancellationToken);
+
+		return (targetEvent, role);
+	}
+
+	private async Task AnalyzeAutoMatchUpdateAsync(
+		Article article,
+		Event targetEvent,
+		AnalysisContext ctx,
+		CancellationToken cancellationToken)
+	{
+		if (!_options.AnalyzeAutoMatchUpdates)
+			return;
+
+		var hasNewKeyFact = article.KeyFacts.Any(fact =>
+			!targetEvent.Summary.Contains(fact, StringComparison.OrdinalIgnoreCase));
+
+		if (!hasNewKeyFact)
+			return;
+
+		var updateResult = await ctx.Classifier.ClassifyAsync(article, [targetEvent], cancellationToken);
+		if (updateResult is { IsSignificantUpdate: true, NewFacts.Count: > 0 })
+			await TrySaveEventUpdateAsync(targetEvent, article, updateResult.NewFacts, ctx.EventRepository, cancellationToken);
+	}
+
+	private async Task<(Event TargetEvent, ArticleRole Role)> HandleGreyZoneAsync(
+		Article article,
+		List<(Event Event, double Similarity)> similarEvents,
+		float[] embedding,
+		AnalysisContext ctx,
+		CancellationToken cancellationToken)
+	{
+		_logger.LogInformation("Article {Id} in grey zone, asking classifier", article.Id);
+
+		var enrichedCandidates = new List<Event>();
+		foreach (var (evt, _) in similarEvents)
+		{
+			var enriched = await ctx.EventRepository.GetWithContextAsync(evt.Id, cancellationToken);
+			if (enriched != null) enrichedCandidates.Add(enriched);
+		}
+
+		var candidates = enrichedCandidates.Count > 0
+			? enrichedCandidates
+			: similarEvents.Select(x => x.Event).ToList();
+
+		var result = await ctx.Classifier.ClassifyAsync(article, candidates, cancellationToken);
+
+		Event targetEvent;
+		ArticleRole role;
+
+		if (result.IsNewEvent || result.MatchedEventId is null)
+		{
+			// If the classifier could not match but detected contradictions pointing to a candidate event,
+			// the article is about the same topic — assign it there as a Contradiction instead of
+			// opening a new event (which would leave the contradiction orphaned or saved to the wrong event).
+			var contradictedEvent = FindEventByContradictedArticles(result.Contradictions, candidates);
+			if (contradictedEvent is not null)
+			{
+				_logger.LogInformation(
+					"Article {Id} classified as new event but has contradictions in event {EventId}; assigning as Contradiction",
+					article.Id, contradictedEvent.Id);
+				targetEvent = contradictedEvent;
+				role = ArticleRole.Contradiction;
+			}
+			else
+			{
+				targetEvent = await CreateNewEventAsync(article, embedding, ctx.EventRepository, cancellationToken);
+				role = ArticleRole.Initiator;
+			}
+		}
+		else
+		{
+			targetEvent = candidates.First(e => e.Id == result.MatchedEventId);
+			role = result.Contradictions.Count > 0 ? ArticleRole.Contradiction : ArticleRole.Update;
+		}
+
+		if (result.Contradictions.Count > 0 && role != ArticleRole.Initiator)
+			await SaveContradictionsAsync(result.Contradictions, targetEvent, article, ctx.EventRepository, cancellationToken);
+
+		if (role != ArticleRole.Initiator && result.IsSignificantUpdate && result.NewFacts.Count > 0)
+			await TrySaveEventUpdateAsync(targetEvent, article, result.NewFacts, ctx.EventRepository, cancellationToken);
+
+		if (role != ArticleRole.Initiator)
+		{
+			await UpdateEventEmbeddingAsync(
+				targetEvent, article.Summary ?? string.Empty, embedding, ctx, cancellationToken);
+		}
+
+		return (targetEvent, role);
+	}
+
+	private static Event? FindEventByContradictedArticles(
+		List<ContradictionInput> contradictions,
+		List<Event> candidates)
+	{
+		var contradictedArticleIds = contradictions
+			.SelectMany(c => c.ArticleIds)
+			.ToHashSet();
+
+		return candidates.FirstOrDefault(e => e.Articles.Any(a => contradictedArticleIds.Contains(a.Id)));
 	}
 
 	private static async Task<Event> CreateNewEventAsync(

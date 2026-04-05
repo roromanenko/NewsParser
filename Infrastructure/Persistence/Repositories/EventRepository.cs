@@ -231,6 +231,16 @@ public class EventRepository : IEventRepository
 		return entity?.ToDomain();
 	}
 
+	public async Task<Event?> GetWithContextAsync(Guid id, CancellationToken cancellationToken = default)
+	{
+		var entity = await _context.Events
+			.Include(e => e.Articles)
+			.Include(e => e.EventUpdates)
+			.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+
+		return entity?.ToDomain();
+	}
+
 	public async Task ResolveContradictionAsync(
 		Guid contradictionId,
 		CancellationToken cancellationToken = default)

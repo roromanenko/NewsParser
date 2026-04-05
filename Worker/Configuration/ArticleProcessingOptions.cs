@@ -11,9 +11,10 @@ public class ArticleProcessingOptions
 	// Event classification thresholds (merged from EventClassificationOptions)
 	public int SimilarityWindowHours { get; set; } = 24;
 	public double AutoSameEventThreshold { get; set; } = 0.90;
-	public double AutoNewEventThreshold { get; set; } = 0.70;
+	public double AutoNewEventThreshold { get; set; } = 0.30;
 	public int MinUpdateIntervalMinutes { get; set; } = 30;
 	public int MaxUpdatesPerDay { get; set; } = 10;
 	public double DeduplicationThreshold { get; set; } = 0.95;
 	public int DeduplicationWindowHours { get; set; } = 72;
+	public bool AnalyzeAutoMatchUpdates { get; set; } = true;
 }

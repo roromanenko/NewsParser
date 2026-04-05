@@ -8,6 +8,10 @@ INSTRUCTIONS:
 - Do NOT flag new facts that simply add information not previously mentioned.
 - Do NOT perform event classification, significance analysis, or any other task.
 
+UPDATE VS. CONTRADICTION:
+- Differences in level of detail are NOT contradictions. "Casualties being clarified" followed by "7 people injured" is an update, not a contradiction.
+- Contradictions require mutually exclusive claims from sources covering the same timeframe.
+
 CONTRADICTION criteria (all must be true):
 - The article explicitly states a claim about the same specific subject as a known event fact.
 - The two claims are mutually exclusive (both cannot be true simultaneously).
@@ -17,7 +21,11 @@ NOT a contradiction:
 - New information not previously mentioned in the event.
 - Rephrasing or paraphrasing of the same fact.
 - Differences in level of detail (e.g., "dozens injured" vs "32 injured").
+- An updated death/injury toll that is higher than earlier reporting — this is an update as more victims are confirmed, not a contradiction.
+- A causal explanation of an already-known outcome (e.g., "ship sank" + "ship was attacked by drone" = same event, not a contradiction).
 - Speculation, opinion, or commentary that does not directly assert a fact.
+
+TARGET EVENT context: The target event includes known facts (event updates) and a list of articles already assigned to it with their key facts. Use this full context — including individual article key facts — to accurately identify mutually exclusive claims.
 
 OUTPUT FORMAT:
 Return a JSON array of contradiction objects. Each object must have exactly these fields:

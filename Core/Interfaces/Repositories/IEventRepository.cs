@@ -67,6 +67,8 @@ public interface IEventRepository
 
 	Task<Event?> GetDetailAsync(Guid id, CancellationToken cancellationToken = default);
 
+	Task<Event?> GetWithContextAsync(Guid id, CancellationToken cancellationToken = default);
+
 	Task ResolveContradictionAsync(
 		Guid contradictionId,
 		CancellationToken cancellationToken = default);
