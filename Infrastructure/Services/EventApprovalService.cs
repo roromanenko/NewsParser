@@ -6,7 +6,6 @@ namespace Infrastructure.Services;
 
 public class EventApprovalService(
 	IEventRepository eventRepository,
-	IArticleRepository articleRepository,
 	IPublicationRepository publicationRepository,
 	IPublishTargetRepository publishTargetRepository) : IEventApprovalService
 {
@@ -49,11 +48,6 @@ public class EventApprovalService(
 		await publicationRepository.AddRangeAsync(initiatorArticle.Id, editorId, publications, cancellationToken);
 		await eventRepository.UpdateStatusAsync(eventId, EventStatus.Approved, cancellationToken);
 
-		foreach (var article in relatedEvent.Articles)
-		{
-			await articleRepository.UpdateStatusAsync(article.Id, ArticleStatus.Approved, cancellationToken);
-		}
-
 		relatedEvent.Status = EventStatus.Approved;
 		return relatedEvent;
 	}
@@ -68,11 +62,6 @@ public class EventApprovalService(
 			?? throw new KeyNotFoundException($"Event {eventId} not found");
 
 		await eventRepository.UpdateStatusAsync(eventId, EventStatus.Rejected, cancellationToken);
-
-		foreach (var article in relatedEvent.Articles)
-		{
-			await articleRepository.UpdateStatusAsync(article.Id, ArticleStatus.Rejected, cancellationToken);
-		}
 
 		relatedEvent.Status = EventStatus.Rejected;
 		return relatedEvent;

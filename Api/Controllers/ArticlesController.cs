@@ -15,7 +15,7 @@ public class ArticlesController(
 	IEventRepository eventRepository) : BaseController
 {
 	[HttpGet]
-	public async Task<ActionResult<PagedResult<ArticleListItemDto>>> GetPending(
+	public async Task<ActionResult<PagedResult<ArticleListItemDto>>> GetAnalysisDone(
 		[FromQuery] int page = 1,
 		[FromQuery] int pageSize = 20,
 		CancellationToken cancellationToken = default)
@@ -23,8 +23,8 @@ public class ArticlesController(
 		if (page < 1) page = 1;
 		if (pageSize is < 1 or > 100) pageSize = 20;
 
-		var articles = await articleRepository.GetPendingForApprovalAsync(page, pageSize, cancellationToken);
-		var total = await articleRepository.CountPendingForApprovalAsync(cancellationToken);
+		var articles = await articleRepository.GetAnalysisDoneAsync(page, pageSize, cancellationToken);
+		var total = await articleRepository.CountAnalysisDoneAsync(cancellationToken);
 
 		var items = articles.Select(a => a.ToListItemDto()).ToList();
 

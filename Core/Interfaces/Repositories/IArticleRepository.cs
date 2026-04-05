@@ -6,10 +6,10 @@ public interface IArticleRepository
 {
 	Task AddAsync(Article article, CancellationToken cancellationToken = default);
 	Task<Article?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-	Task<List<Article>> GetPendingForApprovalAsync(int page, int pageSize, CancellationToken cancellationToken = default);
-	Task<int> CountPendingForApprovalAsync(CancellationToken cancellationToken = default);
+	Task<List<Article>> GetAnalysisDoneAsync(int page, int pageSize, CancellationToken cancellationToken = default);
+	Task<int> CountAnalysisDoneAsync(CancellationToken cancellationToken = default);
 	Task UpdateStatusAsync(Guid id, ArticleStatus status, CancellationToken cancellationToken = default);
-	Task UpdateRejectionAsync(Guid id, Guid editorId, string reason, CancellationToken cancellationToken = default);
+	Task RejectAsync(Guid id, string reason, CancellationToken cancellationToken = default);
 	Task IncrementRetryAsync(Guid id, CancellationToken cancellationToken = default);
 
 	// Locking queries for race-condition-free processing

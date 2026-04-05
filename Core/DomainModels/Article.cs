@@ -14,7 +14,6 @@ public class Article
 
 	//Ai
 	public string Title { get; set; } = string.Empty;
-	public string Content { get; set; } = string.Empty;
 	public List<string> Tags { get; set; } = [];
 	public string Category { get; set; } = string.Empty;
 	public Sentiment Sentiment { get; set; }
@@ -28,7 +27,6 @@ public class Article
 
 	public string Language { get; set; } = string.Empty;
 
-	public Guid? RejectedByEditorId { get; set; }
 	public string? RejectionReason { get; set; }
 
 	public int RetryCount { get; set; }
@@ -51,7 +49,5 @@ public enum ArticleStatus
 	Pending,
 	Analyzing,
 	AnalysisDone,
-	Approved,
-	Rejected,
-	Published
+	Rejected
 }

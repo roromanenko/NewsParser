@@ -33,7 +33,7 @@ public class ArticleRepository : IArticleRepository
 		return entity?.ToDomain();
 	}
 
-	public async Task<List<Article>> GetPendingForApprovalAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+	public async Task<List<Article>> GetAnalysisDoneAsync(int page, int pageSize, CancellationToken cancellationToken = default)
 	{
 		var entities = await _context.Articles
 			.Where(a => a.Status == ArticleStatus.AnalysisDone.ToString())
@@ -45,7 +45,7 @@ public class ArticleRepository : IArticleRepository
 		return entities.Select(e => e.ToDomain()).ToList();
 	}
 
-	public async Task<int> CountPendingForApprovalAsync(CancellationToken cancellationToken = default)
+	public async Task<int> CountAnalysisDoneAsync(CancellationToken cancellationToken = default)
 	{
 		return await _context.Articles
 			.CountAsync(a => a.Status == ArticleStatus.AnalysisDone.ToString(), cancellationToken);
@@ -58,13 +58,12 @@ public class ArticleRepository : IArticleRepository
 			.ExecuteUpdateAsync(a => a.SetProperty(x => x.Status, status.ToString()), cancellationToken);
 	}
 
-	public async Task UpdateRejectionAsync(Guid id, Guid editorId, string reason, CancellationToken cancellationToken = default)
+	public async Task RejectAsync(Guid id, string reason, CancellationToken cancellationToken = default)
 	{
 		await _context.Articles
 			.Where(a => a.Id == id)
 			.ExecuteUpdateAsync(a => a
 				.SetProperty(x => x.Status, ArticleStatus.Rejected.ToString())
-				.SetProperty(x => x.RejectedByEditorId, editorId)
 				.SetProperty(x => x.RejectionReason, reason),
 			cancellationToken);
 	}

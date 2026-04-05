@@ -23,6 +23,7 @@ public class AnthropicOptions
 	public string GeneratorModel { get; set; } = "claude-sonnet-4-5";
 	public string ContentGeneratorModel { get; set; } = "claude-sonnet-4-5";
 	public string ClassifierModel { get; set; } = "claude-haiku-4-5-20251001";
+	public string ContradictionDetectorModel { get; set; } = "claude-haiku-4-5-20251001";
 	public string SummaryUpdaterModel { get; set; } = "claude-haiku-4-5-20251001";
 	public string KeyFactsExtractorModel { get; set; } = "claude-haiku-4-5-20251001";
 	public string OutputLanguage { get; set; } = "uk";

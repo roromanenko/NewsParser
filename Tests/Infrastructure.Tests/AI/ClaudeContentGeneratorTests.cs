@@ -210,7 +210,6 @@ public class ClaudeContentGeneratorTests
         {
             Id = Guid.NewGuid(),
             Title = "Article Title",
-            Content = "Article content.",
             Summary = summary,
             KeyFacts = keyFacts ?? [],
             Role = role

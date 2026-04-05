@@ -147,7 +147,7 @@ public class HaikuKeyFactsExtractorTests
     {
         Id = Guid.NewGuid(),
         Title = "Test Article",
-        Content = "Some article content for testing.",
+        OriginalContent = "Some article content for testing.",
         Summary = "A brief summary."
     };
 }

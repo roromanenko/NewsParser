@@ -29,7 +29,6 @@ export interface ApproveEventRequest {
 export interface ArticleDetailDto {
     'id'?: string;
     'title'?: string | null;
-    'content'?: string | null;
     'category'?: string | null;
     'tags'?: Array<string> | null;
     'sentiment'?: string | null;

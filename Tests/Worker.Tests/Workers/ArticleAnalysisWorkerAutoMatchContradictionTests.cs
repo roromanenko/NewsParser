@@ -1,4 +1,5 @@
 using Core.DomainModels;
+using Core.DomainModels.AI;
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
 using FluentAssertions;
@@ -14,15 +15,17 @@ using Worker.Workers;
 namespace Worker.Tests.Workers;
 
 /// <summary>
-/// Tests focused on the key-facts extraction phase (Phase A2) inside
-/// ArticleAnalysisWorker.ProcessArticleAsync → ExtractAndPersistKeyFactsAsync.
+/// Tests focused on the contradiction-detection branch inside
+/// ArticleAnalysisWorker.ClassifyIntoEventAsync when the article
+/// auto-matches an existing event (similarity >= AutoSameEventThreshold).
 ///
-/// The worker loops on Task.Delay; to keep tests fast the analysis interval
-/// is set to 9999 seconds so the loop body runs exactly once before StopAsync
-/// cancels the delay.
+/// When IContradictionDetector.DetectAsync returns contradictions the worker
+/// must assign ArticleRole.Contradiction and persist them via AddContradictionAsync.
+/// When DetectAsync returns an empty list the worker assigns ArticleRole.Update
+/// and must NOT call AddContradictionAsync.
 /// </summary>
 [TestFixture]
-public class ArticleAnalysisWorkerKeyFactsTests
+public class ArticleAnalysisWorkerAutoMatchContradictionTests
 {
     private Mock<IServiceScopeFactory> _scopeFactoryMock = null!;
     private Mock<IArticleRepository> _articleRepoMock = null!;
@@ -73,23 +76,37 @@ public class ArticleAnalysisWorkerKeyFactsTests
     }
 
     // ------------------------------------------------------------------
-    // P0 — Key facts are extracted and persisted after the analysis result
+    // P0 — When DetectAsync returns one contradiction, role is Contradiction
+    //       and AddContradictionAsync is called once
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task ProcessArticleAsync_WhenKeyFactsExtracted_PersistsKeyFactsViaRepository()
+    public async Task ProcessArticleAsync_WhenContradictionDetected_AssignsContradictionRoleAndPersistsContradiction()
     {
         // Arrange
         var article = CreatePendingArticle();
-        var extractedFacts = new List<string> { "Fact one.", "Fact two.", "Fact three." };
+        var autoMatchedEvent = CreateActiveEvent();
+        var contradictionInput = new ContradictionInput
+        {
+            ArticleIds = [article.Id],
+            Description = "Article claims 10 casualties, event summary says 3."
+        };
 
         _articleRepoMock
             .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([article]);
 
-        _keyFactsExtractorMock
-            .Setup(e => e.ExtractAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(extractedFacts);
+        _eventRepoMock
+            .Setup(r => r.FindSimilarEventsAsync(
+                It.IsAny<float[]>(),
+                It.IsAny<double>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([(autoMatchedEvent, 0.95)]); // above AutoSameEventThreshold of 0.90
+
+        _contradictionDetectorMock
+            .Setup(d => d.DetectAsync(It.IsAny<Article>(), It.IsAny<Event>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([contradictionInput]);
 
         var sut = CreateWorker();
 
@@ -97,63 +114,48 @@ public class ArticleAnalysisWorkerKeyFactsTests
         await RunOneIterationAsync(sut);
 
         // Assert
-        _keyFactsExtractorMock.Verify(
-            e => e.ExtractAsync(It.Is<Article>(a => a.Id == article.Id), It.IsAny<CancellationToken>()),
+        _eventRepoMock.Verify(
+            r => r.AssignArticleToEventAsync(
+                article.Id,
+                autoMatchedEvent.Id,
+                ArticleRole.Contradiction,
+                It.IsAny<CancellationToken>()),
             Times.Once);
-        _articleRepoMock.Verify(
-            r => r.UpdateKeyFactsAsync(article.Id, extractedFacts, It.IsAny<CancellationToken>()),
+
+        _eventRepoMock.Verify(
+            r => r.AddContradictionAsync(
+                It.IsAny<Contradiction>(),
+                It.IsAny<List<Guid>>(),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
     // ------------------------------------------------------------------
-    // P1 — IKeyFactsExtractor failure logs a warning but article continues
-    //       to the embedding phase
+    // P0 — When DetectAsync returns empty list, role is Update and
+    //       AddContradictionAsync is NOT called
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task ProcessArticleAsync_WhenKeyFactsExtractorThrows_ContinuesToEmbeddingPhase()
+    public async Task ProcessArticleAsync_WhenNoContradictionDetected_AssignsUpdateRoleAndDoesNotPersistContradiction()
     {
         // Arrange
         var article = CreatePendingArticle();
+        var autoMatchedEvent = CreateActiveEvent();
 
         _articleRepoMock
             .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([article]);
 
-        _keyFactsExtractorMock
-            .Setup(e => e.ExtractAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new HttpRequestException("AI service unavailable"));
+        _eventRepoMock
+            .Setup(r => r.FindSimilarEventsAsync(
+                It.IsAny<float[]>(),
+                It.IsAny<double>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([(autoMatchedEvent, 0.95)]);
 
-        var sut = CreateWorker();
-
-        // Act
-        await RunOneIterationAsync(sut);
-
-        // Assert — embedding phase proceeds; UpdateKeyFactsAsync is not called on failure
-        _embeddingServiceMock.Verify(
-            s => s.GenerateEmbeddingAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
-            Times.Once);
-        _articleRepoMock.Verify(
-            r => r.UpdateKeyFactsAsync(It.IsAny<Guid>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-    }
-
-    // ------------------------------------------------------------------
-    // P0 — UpdateKeyFactsAsync is called with the extracted list
-    // ------------------------------------------------------------------
-
-    [Test]
-    public async Task ProcessArticleAsync_WhenExtractorReturnsEmptyList_CallsUpdateKeyFactsWithEmptyList()
-    {
-        // Arrange
-        var article = CreatePendingArticle();
-
-        _articleRepoMock
-            .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([article]);
-
-        _keyFactsExtractorMock
-            .Setup(e => e.ExtractAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
+        _contradictionDetectorMock
+            .Setup(d => d.DetectAsync(It.IsAny<Article>(), It.IsAny<Event>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var sut = CreateWorker();
@@ -162,10 +164,59 @@ public class ArticleAnalysisWorkerKeyFactsTests
         await RunOneIterationAsync(sut);
 
         // Assert
-        _articleRepoMock.Verify(
-            r => r.UpdateKeyFactsAsync(
+        _eventRepoMock.Verify(
+            r => r.AssignArticleToEventAsync(
                 article.Id,
-                It.Is<List<string>>(l => l.Count == 0),
+                autoMatchedEvent.Id,
+                ArticleRole.Update,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        _eventRepoMock.Verify(
+            r => r.AddContradictionAsync(
+                It.IsAny<Contradiction>(),
+                It.IsAny<List<Guid>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    // ------------------------------------------------------------------
+    // P1 — DetectAsync is called with the auto-matched event (not any other)
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task ProcessArticleAsync_WhenAutoMatchOccurs_CallsDetectAsyncWithTheMatchedEvent()
+    {
+        // Arrange
+        var article = CreatePendingArticle();
+        var autoMatchedEvent = CreateActiveEvent();
+
+        _articleRepoMock
+            .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([article]);
+
+        _eventRepoMock
+            .Setup(r => r.FindSimilarEventsAsync(
+                It.IsAny<float[]>(),
+                It.IsAny<double>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([(autoMatchedEvent, 0.95)]);
+
+        _contradictionDetectorMock
+            .Setup(d => d.DetectAsync(It.IsAny<Article>(), It.IsAny<Event>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var sut = CreateWorker();
+
+        // Act
+        await RunOneIterationAsync(sut);
+
+        // Assert — DetectAsync must be called with the exact auto-matched event
+        _contradictionDetectorMock.Verify(
+            d => d.DetectAsync(
+                It.Is<Article>(a => a.Id == article.Id),
+                It.Is<Event>(e => e.Id == autoMatchedEvent.Id),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -190,14 +241,13 @@ public class ArticleAnalysisWorkerKeyFactsTests
 
     private void SetupDefaultRepositoryBehaviours()
     {
-        // Default: no pending articles
         _articleRepoMock
             .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         _analyzerMock
             .Setup(a => a.AnalyzeAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Core.DomainModels.AI.ArticleAnalysisResult
+            .ReturnsAsync(new ArticleAnalysisResult
             {
                 Category = "Technology",
                 Tags = ["ai", "news"],
@@ -269,8 +319,21 @@ public class ArticleAnalysisWorkerKeyFactsTests
     private static Article CreatePendingArticle() => new()
     {
         Id = Guid.NewGuid(),
-        Title = "Test Article for Key Facts",
+        Title = "Contradiction Detection Test Article",
         Status = ArticleStatus.Pending,
         ProcessedAt = DateTimeOffset.UtcNow
+    };
+
+    private static Event CreateActiveEvent() => new()
+    {
+        Id = Guid.NewGuid(),
+        Title = "Existing Event",
+        Summary = "An existing event with known facts.",
+        Status = EventStatus.Active,
+        FirstSeenAt = DateTimeOffset.UtcNow,
+        LastUpdatedAt = DateTimeOffset.UtcNow,
+        Embedding = new float[384],
+        ArticleCount = 2,
+        EventUpdates = []
     };
 }

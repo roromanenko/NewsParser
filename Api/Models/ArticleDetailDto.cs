@@ -3,7 +3,6 @@ namespace Api.Models;
 public record ArticleDetailDto(
 	Guid Id,
 	string Title,
-	string Content,
 	string Category,
 	List<string> Tags,
 	string Sentiment,

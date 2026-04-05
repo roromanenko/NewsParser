@@ -1,4 +1,5 @@
 using Core.DomainModels;
+using Core.DomainModels.AI;
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
 using Infrastructure.Configuration;
@@ -16,7 +17,8 @@ public class ArticleAnalysisWorker : BackgroundService
 		IGeminiEmbeddingService EmbeddingService,
 		IEventClassifier Classifier,
 		IEventSummaryUpdater SummaryUpdater,
-		IKeyFactsExtractor KeyFactsExtractor);
+		IKeyFactsExtractor KeyFactsExtractor,
+		IContradictionDetector ContradictionDetector);
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly ILogger<ArticleAnalysisWorker> _logger;
 	private readonly ArticleProcessingOptions _options;
@@ -53,7 +55,8 @@ public class ArticleAnalysisWorker : BackgroundService
 			EmbeddingService: scope.ServiceProvider.GetRequiredService<IGeminiEmbeddingService>(),
 			Classifier: scope.ServiceProvider.GetRequiredService<IEventClassifier>(),
 			SummaryUpdater: scope.ServiceProvider.GetRequiredService<IEventSummaryUpdater>(),
-			KeyFactsExtractor: scope.ServiceProvider.GetRequiredService<IKeyFactsExtractor>());
+			KeyFactsExtractor: scope.ServiceProvider.GetRequiredService<IKeyFactsExtractor>(),
+			ContradictionDetector: scope.ServiceProvider.GetRequiredService<IContradictionDetector>());
 
 		var articles = await ctx.ArticleRepository.GetPendingAsync(_options.BatchSize, cancellationToken);
 
@@ -115,8 +118,7 @@ public class ArticleAnalysisWorker : BackgroundService
 			if (isDuplicate)
 			{
 				_logger.LogInformation("Article {Id} is a near-duplicate, rejecting", article.Id);
-				await ctx.ArticleRepository.UpdateRejectionAsync(
-					article.Id, Guid.Empty, "duplicate_by_vector", cancellationToken);
+				await ctx.ArticleRepository.RejectAsync(article.Id, "duplicate_by_vector", cancellationToken);
 				return;
 			}
 
@@ -194,7 +196,12 @@ public class ArticleAnalysisWorker : BackgroundService
 				_logger.LogInformation("Article {Id} auto-matched to event {EventId} (similarity: {S:F3})",
 					article.Id, topEvent.Id, topSimilarity);
 				targetEvent = topEvent;
-				role = ArticleRole.Update;
+
+				var contradictions = await ctx.ContradictionDetector.DetectAsync(article, targetEvent, cancellationToken);
+				role = contradictions.Count > 0 ? ArticleRole.Contradiction : ArticleRole.Update;
+
+				if (contradictions.Count > 0)
+					await SaveContradictionsAsync(contradictions, targetEvent, article, ctx.EventRepository, cancellationToken);
 
 				await UpdateEventEmbeddingAsync(
 					targetEvent, article.Summary ?? string.Empty, embedding, ctx, cancellationToken);
@@ -218,9 +225,9 @@ public class ArticleAnalysisWorker : BackgroundService
 					role = result.Contradictions.Count > 0 ? ArticleRole.Contradiction : ArticleRole.Update;
 				}
 
-				if (result.Contradictions.Count > 0)
+				if (result.Contradictions.Count > 0 && !result.IsNewEvent)
 				{
-					await SaveContradictionsAsync(result, targetEvent, article, ctx.EventRepository, cancellationToken);
+					await SaveContradictionsAsync(result.Contradictions, targetEvent, article, ctx.EventRepository, cancellationToken);
 				}
 
 				List<string> newFacts = [];
@@ -337,13 +344,13 @@ public class ArticleAnalysisWorker : BackgroundService
 	}
 
 	private static async Task SaveContradictionsAsync(
-		Core.DomainModels.AI.EventClassificationResult result,
+		List<ContradictionInput> contradictions,
 		Event targetEvent,
 		Article article,
 		IEventRepository eventRepository,
 		CancellationToken cancellationToken)
 	{
-		foreach (var contradiction in result.Contradictions)
+		foreach (var contradiction in contradictions)
 		{
 			var articleIds = contradiction.ArticleIds.Count > 0
 				? contradiction.ArticleIds

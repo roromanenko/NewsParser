@@ -11,7 +11,6 @@ namespace Infrastructure.Tests.Services;
 public class EventApprovalServiceTests
 {
     private Mock<IEventRepository> _eventRepoMock = null!;
-    private Mock<IArticleRepository> _articleRepoMock = null!;
     private Mock<IPublicationRepository> _publicationRepoMock = null!;
     private Mock<IPublishTargetRepository> _publishTargetRepoMock = null!;
     private EventApprovalService _sut = null!;
@@ -20,13 +19,11 @@ public class EventApprovalServiceTests
     public void SetUp()
     {
         _eventRepoMock = new Mock<IEventRepository>();
-        _articleRepoMock = new Mock<IArticleRepository>();
         _publicationRepoMock = new Mock<IPublicationRepository>();
         _publishTargetRepoMock = new Mock<IPublishTargetRepository>();
 
         _sut = new EventApprovalService(
             _eventRepoMock.Object,
-            _articleRepoMock.Object,
             _publicationRepoMock.Object,
             _publishTargetRepoMock.Object);
     }
@@ -111,31 +108,30 @@ public class EventApprovalServiceTests
     }
 
     // ------------------------------------------------------------------
-    // P0 — ApproveAsync sets all articles to Approved status
+    // P0 — ApproveAsync does NOT change individual article statuses
+    //       (approval is now Event-level only)
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task ApproveAsync_WhenEventHasMultipleArticles_SetsAllArticlesToApproved()
+    public async Task ApproveAsync_WhenEventApproved_DoesNotUpdateIndividualArticleStatuses()
     {
         // Arrange
         var eventId = Guid.NewGuid();
         var targetId = Guid.NewGuid();
-        var article1 = CreateArticle(role: ArticleRole.Initiator);
-        var article2 = CreateArticle(role: ArticleRole.Update);
-        var relatedEvent = CreateEvent(eventId, [article1, article2]);
+        var article = CreateArticle(role: ArticleRole.Initiator);
+        var relatedEvent = CreateEvent(eventId, [article]);
 
         SetupHappyPath(eventId, relatedEvent, [(targetId, CreatePublishTarget(targetId))]);
 
-        // Act
-        await _sut.ApproveAsync(eventId, Guid.NewGuid(), [targetId], CancellationToken.None);
+        var originalArticleStatus = article.Status;
 
-        // Assert
-        _articleRepoMock.Verify(
-            r => r.UpdateStatusAsync(article1.Id, ArticleStatus.Approved, It.IsAny<CancellationToken>()),
-            Times.Once);
-        _articleRepoMock.Verify(
-            r => r.UpdateStatusAsync(article2.Id, ArticleStatus.Approved, It.IsAny<CancellationToken>()),
-            Times.Once);
+        // Act
+        var result = await _sut.ApproveAsync(
+            eventId, Guid.NewGuid(), [targetId], CancellationToken.None);
+
+        // Assert — articles in the returned event retain their original status
+        result.Articles.Should().AllSatisfy(a =>
+            a.Status.Should().Be(originalArticleStatus));
     }
 
     // ------------------------------------------------------------------
@@ -186,11 +182,12 @@ public class EventApprovalServiceTests
     }
 
     // ------------------------------------------------------------------
-    // P0 — RejectAsync sets event to Rejected and all articles to Rejected
+    // P0 — RejectAsync sets event status to Rejected
+    //       (article statuses are NOT touched — rejection is Event-level only)
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task RejectAsync_WhenEventExists_SetsEventAndAllArticlesToRejected()
+    public async Task RejectAsync_WhenEventExists_SetsEventStatusToRejected()
     {
         // Arrange
         var eventId = Guid.NewGuid();
@@ -208,13 +205,35 @@ public class EventApprovalServiceTests
         _eventRepoMock.Verify(
             r => r.UpdateStatusAsync(eventId, EventStatus.Rejected, It.IsAny<CancellationToken>()),
             Times.Once);
-        _articleRepoMock.Verify(
-            r => r.UpdateStatusAsync(article1.Id, ArticleStatus.Rejected, It.IsAny<CancellationToken>()),
-            Times.Once);
-        _articleRepoMock.Verify(
-            r => r.UpdateStatusAsync(article2.Id, ArticleStatus.Rejected, It.IsAny<CancellationToken>()),
-            Times.Once);
         result.Status.Should().Be(EventStatus.Rejected);
+    }
+
+    // ------------------------------------------------------------------
+    // P0 — RejectAsync does NOT change individual article statuses
+    //       (rejection is now Event-level only)
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task RejectAsync_WhenEventRejected_DoesNotUpdateIndividualArticleStatuses()
+    {
+        // Arrange
+        var eventId = Guid.NewGuid();
+        var article1 = CreateArticle();
+        var article2 = CreateArticle();
+        var relatedEvent = CreateEvent(eventId, [article1, article2]);
+
+        _eventRepoMock.Setup(r => r.GetDetailAsync(eventId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(relatedEvent);
+
+        var originalStatus1 = article1.Status;
+        var originalStatus2 = article2.Status;
+
+        // Act
+        var result = await _sut.RejectAsync(eventId, Guid.NewGuid(), "Outdated", CancellationToken.None);
+
+        // Assert — articles in the returned event retain their original status
+        result.Articles[0].Status.Should().Be(originalStatus1);
+        result.Articles[1].Status.Should().Be(originalStatus2);
     }
 
     // ------------------------------------------------------------------
@@ -270,7 +289,6 @@ public class EventApprovalServiceTests
     {
         Id = Guid.NewGuid(),
         Title = "Test Article",
-        Content = "Content.",
         Status = ArticleStatus.AnalysisDone,
         Role = role
     };

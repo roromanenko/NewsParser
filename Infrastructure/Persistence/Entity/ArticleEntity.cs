@@ -17,7 +17,6 @@ public class ArticleEntity
 	public Vector? Embedding { get; set; }
 
 	public string Title { get; set; } = string.Empty;
-	public string Content { get; set; } = string.Empty;
 	public List<string> Tags { get; set; } = [];
 	public string Category { get; set; } = string.Empty;
 	public string Sentiment { get; set; } = string.Empty;
@@ -27,7 +26,6 @@ public class ArticleEntity
 	public string Language { get; set; } = string.Empty;
 	public string? Summary { get; set; }
 	public List<string> KeyFacts { get; set; } = [];
-	public Guid? RejectedByEditorId { get; set; }
 	public string? RejectionReason { get; set; }
 	public int RetryCount { get; set; }
 	public Guid? EventId { get; set; }

@@ -31,7 +31,7 @@ public class HaikuKeyFactsExtractor : IKeyFactsExtractor
 
             SUMMARY: {article.Summary ?? string.Empty}
 
-            CONTENT: {article.Content}
+            CONTENT: {article.OriginalContent ?? string.Empty}
             """;
 
 		var request = new MessageParameters

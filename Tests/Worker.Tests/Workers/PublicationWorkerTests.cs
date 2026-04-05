@@ -249,7 +249,6 @@ public class PublicationWorkerTests
     {
         Id = Guid.NewGuid(),
         Title = "Initiator Article",
-        Content = "Content.",
         Role = ArticleRole.Initiator
     };
 
@@ -272,8 +271,7 @@ public class PublicationWorkerTests
             Article = new Article
             {
                 Id = Guid.NewGuid(),
-                Title = "Article",
-                Content = "Content."
+                Title = "Article"
             },
             PublishTarget = target,
             PublishTargetId = target.Id,

@@ -7,7 +7,6 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **id** | **string** |  | [optional] [default to undefined]
 **title** | **string** |  | [optional] [default to undefined]
-**content** | **string** |  | [optional] [default to undefined]
 **category** | **string** |  | [optional] [default to undefined]
 **tags** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **sentiment** | **string** |  | [optional] [default to undefined]
@@ -28,7 +27,6 @@ import { ArticleDetailDto } from './api';
 const instance: ArticleDetailDto = {
     id,
     title,
-    content,
     category,
     tags,
     sentiment,

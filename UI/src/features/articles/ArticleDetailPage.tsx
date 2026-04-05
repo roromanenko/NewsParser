@@ -178,23 +178,6 @@ export function ArticleDetailPage() {
             </div>
           )}
 
-          {/* Full Content */}
-          {article.content && (
-            <div
-              className="border p-5"
-              style={{ background: 'rgba(61,15,15,0.4)', borderColor: 'rgba(255,255,255,0.1)' }}
-            >
-              <p className="font-caps text-[10px] tracking-widest mb-3" style={{ color: '#6b7280' }}>
-                FULL CONTENT
-              </p>
-              <div
-                className="font-mono text-sm leading-relaxed whitespace-pre-wrap"
-                style={{ color: '#9ca3af' }}
-              >
-                {article.content}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Right: Sidebar */}

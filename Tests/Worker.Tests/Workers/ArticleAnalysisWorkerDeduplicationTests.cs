@@ -14,15 +14,15 @@ using Worker.Workers;
 namespace Worker.Tests.Workers;
 
 /// <summary>
-/// Tests focused on the key-facts extraction phase (Phase A2) inside
-/// ArticleAnalysisWorker.ProcessArticleAsync → ExtractAndPersistKeyFactsAsync.
+/// Tests focused on the duplicate-detection path inside
+/// ArticleAnalysisWorker.ProcessArticleAsync.
 ///
-/// The worker loops on Task.Delay; to keep tests fast the analysis interval
-/// is set to 9999 seconds so the loop body runs exactly once before StopAsync
-/// cancels the delay.
+/// When HasSimilarAsync returns true the worker must call
+/// RejectAsync(id, "duplicate_by_vector", ct) and stop — no embedding
+/// is persisted and the article is not classified into an event.
 /// </summary>
 [TestFixture]
-public class ArticleAnalysisWorkerKeyFactsTests
+public class ArticleAnalysisWorkerDeduplicationTests
 {
     private Mock<IServiceScopeFactory> _scopeFactoryMock = null!;
     private Mock<IArticleRepository> _articleRepoMock = null!;
@@ -73,23 +73,28 @@ public class ArticleAnalysisWorkerKeyFactsTests
     }
 
     // ------------------------------------------------------------------
-    // P0 — Key facts are extracted and persisted after the analysis result
+    // P0 — When HasSimilarAsync returns true, RejectAsync is called
+    //       with the article id and the "duplicate_by_vector" reason
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task ProcessArticleAsync_WhenKeyFactsExtracted_PersistsKeyFactsViaRepository()
+    public async Task ProcessArticleAsync_WhenArticleIsDuplicate_CallsRejectAsyncWithDuplicateReason()
     {
         // Arrange
         var article = CreatePendingArticle();
-        var extractedFacts = new List<string> { "Fact one.", "Fact two.", "Fact three." };
 
         _articleRepoMock
             .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([article]);
 
-        _keyFactsExtractorMock
-            .Setup(e => e.ExtractAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(extractedFacts);
+        _articleRepoMock
+            .Setup(r => r.HasSimilarAsync(
+                article.Id,
+                It.IsAny<float[]>(),
+                It.IsAny<double>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         var sut = CreateWorker();
 
@@ -97,21 +102,18 @@ public class ArticleAnalysisWorkerKeyFactsTests
         await RunOneIterationAsync(sut);
 
         // Assert
-        _keyFactsExtractorMock.Verify(
-            e => e.ExtractAsync(It.Is<Article>(a => a.Id == article.Id), It.IsAny<CancellationToken>()),
-            Times.Once);
         _articleRepoMock.Verify(
-            r => r.UpdateKeyFactsAsync(article.Id, extractedFacts, It.IsAny<CancellationToken>()),
+            r => r.RejectAsync(article.Id, "duplicate_by_vector", It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
     // ------------------------------------------------------------------
-    // P1 — IKeyFactsExtractor failure logs a warning but article continues
-    //       to the embedding phase
+    // P0 — When the article is a duplicate, UpdateEmbeddingAsync is NOT
+    //       called — the embedding must not be stored for rejected duplicates
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task ProcessArticleAsync_WhenKeyFactsExtractorThrows_ContinuesToEmbeddingPhase()
+    public async Task ProcessArticleAsync_WhenArticleIsDuplicate_DoesNotPersistEmbedding()
     {
         // Arrange
         var article = CreatePendingArticle();
@@ -120,30 +122,33 @@ public class ArticleAnalysisWorkerKeyFactsTests
             .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([article]);
 
-        _keyFactsExtractorMock
-            .Setup(e => e.ExtractAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new HttpRequestException("AI service unavailable"));
+        _articleRepoMock
+            .Setup(r => r.HasSimilarAsync(
+                article.Id,
+                It.IsAny<float[]>(),
+                It.IsAny<double>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         var sut = CreateWorker();
 
         // Act
         await RunOneIterationAsync(sut);
 
-        // Assert — embedding phase proceeds; UpdateKeyFactsAsync is not called on failure
-        _embeddingServiceMock.Verify(
-            s => s.GenerateEmbeddingAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+        // Assert
         _articleRepoMock.Verify(
-            r => r.UpdateKeyFactsAsync(It.IsAny<Guid>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()),
+            r => r.UpdateEmbeddingAsync(It.IsAny<Guid>(), It.IsAny<float[]>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
     // ------------------------------------------------------------------
-    // P0 — UpdateKeyFactsAsync is called with the extracted list
+    // P0 — When the article is a duplicate, it is NOT classified into an
+    //       event — AssignArticleToEventAsync must not be called
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task ProcessArticleAsync_WhenExtractorReturnsEmptyList_CallsUpdateKeyFactsWithEmptyList()
+    public async Task ProcessArticleAsync_WhenArticleIsDuplicate_DoesNotClassifyIntoEvent()
     {
         // Arrange
         var article = CreatePendingArticle();
@@ -152,9 +157,43 @@ public class ArticleAnalysisWorkerKeyFactsTests
             .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([article]);
 
-        _keyFactsExtractorMock
-            .Setup(e => e.ExtractAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
+        _articleRepoMock
+            .Setup(r => r.HasSimilarAsync(
+                article.Id,
+                It.IsAny<float[]>(),
+                It.IsAny<double>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var sut = CreateWorker();
+
+        // Act
+        await RunOneIterationAsync(sut);
+
+        // Assert
+        _eventRepoMock.Verify(
+            r => r.AssignArticleToEventAsync(
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<ArticleRole>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    // ------------------------------------------------------------------
+    // P1 — When the article is NOT a duplicate, RejectAsync is NOT called
+    //       (ensures the duplicate path is taken only on a genuine match)
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task ProcessArticleAsync_WhenArticleIsNotDuplicate_DoesNotCallRejectAsync()
+    {
+        // Arrange
+        var article = CreatePendingArticle();
+
+        _articleRepoMock
+            .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([article]);
+
+        // HasSimilarAsync already returns false via SetupDefaultRepositoryBehaviours
 
         var sut = CreateWorker();
 
@@ -163,11 +202,8 @@ public class ArticleAnalysisWorkerKeyFactsTests
 
         // Assert
         _articleRepoMock.Verify(
-            r => r.UpdateKeyFactsAsync(
-                article.Id,
-                It.Is<List<string>>(l => l.Count == 0),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
+            r => r.RejectAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     // ------------------------------------------------------------------
@@ -190,7 +226,6 @@ public class ArticleAnalysisWorkerKeyFactsTests
 
     private void SetupDefaultRepositoryBehaviours()
     {
-        // Default: no pending articles
         _articleRepoMock
             .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
@@ -269,7 +304,7 @@ public class ArticleAnalysisWorkerKeyFactsTests
     private static Article CreatePendingArticle() => new()
     {
         Id = Guid.NewGuid(),
-        Title = "Test Article for Key Facts",
+        Title = "Duplicate Detection Test Article",
         Status = ArticleStatus.Pending,
         ProcessedAt = DateTimeOffset.UtcNow
     };

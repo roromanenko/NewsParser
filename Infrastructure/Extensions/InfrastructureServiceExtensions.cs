@@ -97,13 +97,6 @@ public static class InfrastructureServiceExtensions
 			promptsOptions.EventSummaryUpdater
 		));
 
-		services.AddScoped<IArticleGenerator>(_ => new ClaudeArticleGenerator(
-			aiOptions.Anthropic.ApiKey,
-			aiOptions.Anthropic.GeneratorModel,
-			promptsOptions.Generator,
-			aiOptions.Anthropic.OutputLanguage
-		));
-
 		var contentGeneratorPrompts = new Dictionary<Platform, string>
 		{
 			{ Platform.Telegram, promptsOptions.Telegram }
@@ -126,13 +119,17 @@ public static class InfrastructureServiceExtensions
 			promptsOptions.EventClassifier
 		));
 
+		services.AddScoped<IContradictionDetector>(_ => new ClaudeContradictionDetector(
+			aiOptions.Anthropic.ApiKey,
+			aiOptions.Anthropic.ContradictionDetectorModel,
+			promptsOptions.ContradictionDetector
+		));
+
 		services.AddScoped<IGeminiEmbeddingService>(provider => new GeminiEmbeddingService(
 			aiOptions.Gemini.ApiKey,
 			aiOptions.Gemini.EmbeddingModel,
 			provider.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(GeminiEmbeddingService))
 		));
-
-
 
 		return services;
 	}
