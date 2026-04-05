@@ -91,7 +91,6 @@ public class ArticleAnalysisWorker : BackgroundService
 				analysis.Language,
 				analysis.Summary,
 				_aiOptions.Gemini.AnalyzerModel,
-				ArticleStatus.AnalysisDone,
 				cancellationToken);
 
 			article.Category = analysis.Category;
@@ -105,26 +104,12 @@ public class ArticleAnalysisWorker : BackgroundService
 			var embeddingText = $"{article.Title}. {analysis.Summary}";
 			var embedding = await ctx.EmbeddingService.GenerateEmbeddingAsync(embeddingText, cancellationToken);
 
-			var isDuplicate = await ctx.ArticleRepository.HasSimilarAsync(
-				article.Id,
-				embedding,
-				_options.DeduplicationThreshold,
-				_options.DeduplicationWindowHours,
-				cancellationToken);
-
-			if (isDuplicate)
-			{
-				_logger.LogInformation("Article {Id} is a near-duplicate, rejecting", article.Id);
-				await ctx.ArticleRepository.UpdateRejectionAsync(
-					article.Id, Guid.Empty, "duplicate_by_vector", cancellationToken);
-				return;
-			}
-
 			await ctx.ArticleRepository.UpdateEmbeddingAsync(article.Id, embedding, cancellationToken);
 			article.Embedding = embedding;
 
 			await ClassifyIntoEventAsync(article, ctx, cancellationToken);
 
+			await ctx.ArticleRepository.UpdateStatusAsync(article.Id, ArticleStatus.AnalysisDone, cancellationToken);
 			_logger.LogInformation("Successfully processed article {Id}", article.Id);
 		}
 		catch (Exception ex)

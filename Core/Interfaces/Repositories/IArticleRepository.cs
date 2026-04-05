@@ -19,13 +19,12 @@ public interface IArticleRepository
 	// Analysis result update
 	Task UpdateKeyFactsAsync(Guid id, List<string> keyFacts, CancellationToken cancellationToken = default);
 	Task UpdateAnalysisResultAsync(Guid id, string category, List<string> tags, string sentiment,
-		string language, string summary, string modelVersion, ArticleStatus status,
+		string language, string summary, string modelVersion,
 		CancellationToken cancellationToken = default);
 
 	// Embedding and deduplication
 	Task UpdateEmbeddingAsync(Guid id, float[] embedding, CancellationToken cancellationToken = default);
 	Task<bool> ExistsAsync(Guid sourceId, string externalId, CancellationToken cancellationToken = default);
 	Task<bool> ExistsByUrlAsync(string url, CancellationToken cancellationToken = default);
-	Task<bool> HasSimilarAsync(Guid currentId, float[] embedding, double threshold, int windowHours, CancellationToken cancellationToken = default);
 	Task<List<string>> GetRecentTitlesForDeduplicationAsync(int windowHours, CancellationToken cancellationToken = default);
 }

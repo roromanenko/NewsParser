@@ -109,7 +109,7 @@ public class ArticleRepository : IArticleRepository
 
 	public async Task UpdateAnalysisResultAsync(
 		Guid id, string category, List<string> tags, string sentiment,
-		string language, string summary, string modelVersion, ArticleStatus status,
+		string language, string summary, string modelVersion,
 		CancellationToken cancellationToken = default)
 	{
 		await _context.Articles
@@ -120,8 +120,7 @@ public class ArticleRepository : IArticleRepository
 				.SetProperty(x => x.Sentiment, sentiment)
 				.SetProperty(x => x.Language, language)
 				.SetProperty(x => x.Summary, summary)
-				.SetProperty(x => x.ModelVersion, modelVersion)
-				.SetProperty(x => x.Status, status.ToString()),
+				.SetProperty(x => x.ModelVersion, modelVersion),
 			cancellationToken);
 	}
 
@@ -145,24 +144,6 @@ public class ArticleRepository : IArticleRepository
 			.AnyAsync(a => a.OriginalUrl == url
 				&& a.Status != ArticleStatus.Rejected.ToString(),
 			cancellationToken);
-	}
-
-	public async Task<bool> HasSimilarAsync(
-		Guid currentId,
-		float[] embedding,
-		double threshold,
-		int windowHours,
-		CancellationToken cancellationToken = default)
-	{
-		var vector = new Vector(embedding);
-		var since = DateTimeOffset.UtcNow.AddHours(-windowHours);
-
-		return await _context.Articles
-			.Where(a => a.Id != currentId
-				&& a.PublishedAt >= since
-				&& a.Embedding != null
-				&& a.Status != ArticleStatus.Rejected.ToString())
-			.AnyAsync(a => 1 - a.Embedding!.CosineDistance(vector) >= threshold, cancellationToken);
 	}
 
 	public async Task<List<string>> GetRecentTitlesForDeduplicationAsync(int windowHours, CancellationToken cancellationToken = default)
