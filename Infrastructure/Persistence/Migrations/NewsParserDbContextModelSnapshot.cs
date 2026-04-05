@@ -38,12 +38,18 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Vector>("Embedding")
+                        .HasColumnType("vector(768)");
 
                     b.Property<Guid?>("EventId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("ExternalId")
+                        .HasColumnType("text");
+
+                    b.PrimitiveCollection<string>("KeyFacts")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
 
                     b.Property<string>("Language")
                         .IsRequired()
@@ -53,14 +59,17 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("OriginalContent")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginalUrl")
+                        .HasColumnType("text");
+
                     b.Property<DateTimeOffset>("ProcessedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("RawArticleId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("RejectedByEditorId")
-                        .HasColumnType("uuid");
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("RejectionReason")
                         .HasColumnType("text");
@@ -74,6 +83,9 @@ namespace Infrastructure.Migrations
                     b.Property<string>("Sentiment")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<Guid?>("SourceId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -95,14 +107,20 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Embedding");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Embedding"), "hnsw");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Embedding"), new[] { "vector_cosine_ops" });
+
                     b.HasIndex("EventId");
 
                     b.HasIndex("ProcessedAt");
 
-                    b.HasIndex("RawArticleId")
-                        .IsUnique();
-
                     b.HasIndex("Status");
+
+                    b.HasIndex("SourceId", "ExternalId")
+                        .IsUnique()
+                        .HasFilter("source_id IS NOT NULL AND external_id IS NOT NULL");
 
                     b.ToTable("articles", (string)null);
                 });
@@ -155,6 +173,9 @@ namespace Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<int>("ArticleCount")
+                        .HasColumnType("integer");
 
                     b.Property<Vector>("Embedding")
                         .HasColumnType("vector(768)");
@@ -342,67 +363,6 @@ namespace Infrastructure.Migrations
                     b.ToTable("publish_targets", (string)null);
                 });
 
-            modelBuilder.Entity("Infrastructure.Persistence.Entity.RawArticleEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.PrimitiveCollection<List<string>>("Category")
-                        .IsRequired()
-                        .HasColumnType("text[]");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Vector>("Embedding")
-                        .HasColumnType("vector(768)");
-
-                    b.Property<string>("ExternalId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Language")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<string>("OriginalUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("PublishedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("RetryCount")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("SourceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Embedding");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Embedding"), "hnsw");
-                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Embedding"), new[] { "vector_cosine_ops" });
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("SourceId", "ExternalId")
-                        .IsUnique();
-
-                    b.ToTable("raw_articles", (string)null);
-                });
-
             modelBuilder.Entity("Infrastructure.Persistence.Entity.SourceEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -478,15 +438,13 @@ namespace Infrastructure.Migrations
                         .HasForeignKey("EventId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("Infrastructure.Persistence.Entity.RawArticleEntity", "RawArticle")
-                        .WithOne("Article")
-                        .HasForeignKey("Infrastructure.Persistence.Entity.ArticleEntity", "RawArticleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.HasOne("Infrastructure.Persistence.Entity.SourceEntity", "Source")
+                        .WithMany("Articles")
+                        .HasForeignKey("SourceId");
 
                     b.Navigation("Event");
 
-                    b.Navigation("RawArticle");
+                    b.Navigation("Source");
                 });
 
             modelBuilder.Entity("Infrastructure.Persistence.Entity.ContradictionArticleEntity", b =>
@@ -550,6 +508,11 @@ namespace Infrastructure.Migrations
                         .WithMany("Publications")
                         .HasForeignKey("EditorId");
 
+                    b.HasOne("Infrastructure.Persistence.Entity.EventEntity", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Infrastructure.Persistence.Entity.PublicationEntity", "ParentPublication")
                         .WithMany()
                         .HasForeignKey("ParentPublicationId")
@@ -565,6 +528,8 @@ namespace Infrastructure.Migrations
 
                     b.Navigation("Editor");
 
+                    b.Navigation("Event");
+
                     b.Navigation("ParentPublication");
 
                     b.Navigation("PublishTarget");
@@ -579,17 +544,6 @@ namespace Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Publication");
-                });
-
-            modelBuilder.Entity("Infrastructure.Persistence.Entity.RawArticleEntity", b =>
-                {
-                    b.HasOne("Infrastructure.Persistence.Entity.SourceEntity", "Source")
-                        .WithMany("RawArticles")
-                        .HasForeignKey("SourceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Source");
                 });
 
             modelBuilder.Entity("Infrastructure.Persistence.Entity.ArticleEntity", b =>
@@ -621,14 +575,9 @@ namespace Infrastructure.Migrations
                     b.Navigation("Publications");
                 });
 
-            modelBuilder.Entity("Infrastructure.Persistence.Entity.RawArticleEntity", b =>
-                {
-                    b.Navigation("Article");
-                });
-
             modelBuilder.Entity("Infrastructure.Persistence.Entity.SourceEntity", b =>
                 {
-                    b.Navigation("RawArticles");
+                    b.Navigation("Articles");
                 });
 
             modelBuilder.Entity("Infrastructure.Persistence.Entity.UserEntity", b =>

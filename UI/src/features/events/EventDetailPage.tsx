@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useEventDetail } from './useEventDetail'
 import { useEventMutations } from './useEventMutations'
+import { ApproveEventModal } from './ApproveEventModal'
+import { RejectEventModal } from './RejectEventModal'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { ContradictionDto, EventArticleDto } from '@/api/generated'
@@ -17,7 +19,11 @@ function formatDate(iso?: string) {
 }
 
 function statusColor(status?: string | null): string {
-  return status === 'Active' ? 'var(--crimson)' : '#4b5563'
+  if (status === 'Active') return 'var(--crimson)'
+  if (status === 'Approved') return 'var(--caramel)'
+  if (status === 'Rejected') return 'var(--rust)'
+  if (status === 'Archived') return '#4b5563'
+  return '#6b7280'
 }
 
 function roleColor(role?: string | null): string {
@@ -290,6 +296,8 @@ export function EventDetailPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>('timeline')
   const [archiveOpen, setArchiveOpen] = useState(false)
+  const [approveOpen, setApproveOpen] = useState(false)
+  const [rejectOpen, setRejectOpen] = useState(false)
 
   if (isLoading) {
     return (
@@ -351,23 +359,59 @@ export function EventDetailPage() {
               {event.status?.toUpperCase() ?? 'UNKNOWN'}
             </span>
           </div>
-          {isAdmin && event.status !== 'Archived' && (
-            <button
-              onClick={() => setArchiveOpen(true)}
-              className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors"
-              style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'var(--rust)'
-                e.currentTarget.style.color = 'var(--rust)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
-                e.currentTarget.style.color = '#9ca3af'
-              }}
-            >
-              ARCHIVE EVENT
-            </button>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {(isAdmin || isEditor) && event.status === 'Active' && (
+              <>
+                <button
+                  onClick={() => setApproveOpen(true)}
+                  className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors"
+                  style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'var(--caramel)'
+                    e.currentTarget.style.color = 'var(--caramel)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+                    e.currentTarget.style.color = '#9ca3af'
+                  }}
+                >
+                  APPROVE EVENT
+                </button>
+                <button
+                  onClick={() => setRejectOpen(true)}
+                  className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors"
+                  style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'var(--rust)'
+                    e.currentTarget.style.color = 'var(--rust)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+                    e.currentTarget.style.color = '#9ca3af'
+                  }}
+                >
+                  REJECT EVENT
+                </button>
+              </>
+            )}
+            {isAdmin && event.status !== 'Archived' && (
+              <button
+                onClick={() => setArchiveOpen(true)}
+                className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors"
+                style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'var(--rust)'
+                  e.currentTarget.style.color = 'var(--rust)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+                  e.currentTarget.style.color = '#9ca3af'
+                }}
+              >
+                ARCHIVE EVENT
+              </button>
+            )}
+          </div>
         </div>
 
         <h1 className="font-display text-4xl mb-3" style={{ color: '#E8E8E8' }}>
@@ -488,6 +532,20 @@ export function EventDetailPage() {
           />
         )}
       </div>
+
+      {/* Approve modal */}
+      <ApproveEventModal
+        isOpen={approveOpen}
+        onClose={() => setApproveOpen(false)}
+        eventId={id!}
+      />
+
+      {/* Reject modal */}
+      <RejectEventModal
+        isOpen={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+        eventId={id!}
+      />
 
       {/* Archive confirm */}
       <ConfirmDialog

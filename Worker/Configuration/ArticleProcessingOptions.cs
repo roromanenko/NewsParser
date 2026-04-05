@@ -1,12 +1,21 @@
-﻿namespace Worker.Configuration;
+namespace Worker.Configuration;
 
 public class ArticleProcessingOptions
 {
 	public const string SectionName = "ArticleProcessing";
-	public int AnalyzerIntervalSeconds { get; set; } = 60;
-	public int GeneratorIntervalSeconds { get; set; } = 60;
-	public int PublicationGenerationIntervalSeconds { get; set; } = 60;
+	public int AnalysisIntervalSeconds { get; set; } = 60;
 	public int PublicationWorkerIntervalSeconds { get; set; } = 30;
 	public int BatchSize { get; set; } = 10;
 	public int MaxRetryCount { get; set; } = 5;
+
+	public int SimilarityWindowHours { get; set; } = 24;
+	public double AutoSameEventThreshold { get; set; } = 0.90;
+	public double AutoNewEventThreshold { get; set; } = 0.30;
+	public int MinUpdateIntervalMinutes { get; set; } = 30;
+	public int MaxUpdatesPerDay { get; set; } = 10;
+	public double DeduplicationThreshold { get; set; } = 0.95;
+	public int DeduplicationWindowHours { get; set; } = 72;
+	public bool AnalyzeAutoMatchUpdates { get; set; } = true;
+	public int MaxSimilarEvents { get; set; } = 10;
+	public int CountUpdatesFromHours { get; set; } = 24;
 }

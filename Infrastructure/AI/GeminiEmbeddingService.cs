@@ -28,6 +28,7 @@ public class GeminiEmbeddingService : IGeminiEmbeddingService
 			{
 				parts = new[] { new { text } }
 			},
+			taskType = "SEMANTIC_SIMILARITY",
 			outputDimensionality = 768
 		});
 

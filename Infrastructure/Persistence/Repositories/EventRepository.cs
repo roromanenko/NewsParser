@@ -45,12 +45,13 @@ public class EventRepository : IEventRepository
 		float[] embedding,
 		double threshold,
 		int windowHours,
-		CancellationToken cancellationToken = default)
+        int maxTake,
+        CancellationToken cancellationToken = default)
 	{
 		var vector = new Vector(embedding);
 		var windowStart = DateTimeOffset.UtcNow.AddHours(-windowHours);
 
-		var results = await _context.Events
+		var query = _context.Events
 			.Where(e =>
 				e.Status == EventStatus.Active.ToString() &&
 				e.LastUpdatedAt >= windowStart &&
@@ -62,9 +63,9 @@ public class EventRepository : IEventRepository
 			})
 			.Where(x => x.Similarity >= threshold)
 			.OrderByDescending(x => x.Similarity)
-			.ToListAsync(cancellationToken);
+			.Take(maxTake);
 
-		return results
+		return (await query.ToListAsync(cancellationToken))
 			.Select(x => (x.Entity.ToDomain(), x.Similarity))
 			.ToList();
 	}
@@ -88,6 +89,7 @@ public class EventRepository : IEventRepository
 			.ExecuteUpdateAsync(s => s
 				.SetProperty(e => e.Summary, summary)
 				.SetProperty(e => e.Embedding, new Vector(embedding))
+				.SetProperty(e => e.ArticleCount, e => e.ArticleCount + 1)
 				.SetProperty(e => e.LastUpdatedAt, DateTimeOffset.UtcNow),
 			cancellationToken);
 	}
@@ -107,7 +109,7 @@ public class EventRepository : IEventRepository
 	public async Task AssignArticleToEventAsync(
 		Guid articleId,
 		Guid eventId,
-		EventArticleRole role,
+		ArticleRole role,
 		CancellationToken cancellationToken = default)
 	{
 		await _context.Articles
@@ -173,15 +175,15 @@ public class EventRepository : IEventRepository
 			cancellationToken);
 	}
 
-	public async Task<int> CountTodayUpdatesAsync(
+	public async Task<int> CountUpdatesFromAsync(
 		Guid eventId,
-		CancellationToken cancellationToken = default)
+        DateTimeOffset from,
+        CancellationToken cancellationToken = default)
 	{
-		var startOfDay = DateTimeOffset.UtcNow.Date;
 		return await _context.EventUpdates
 			.CountAsync(eu =>
 				eu.EventId == eventId &&
-				eu.CreatedAt >= startOfDay,
+				eu.CreatedAt >= from,
 			cancellationToken);
 	}
 
@@ -230,6 +232,16 @@ public class EventRepository : IEventRepository
 		return entity?.ToDomain();
 	}
 
+	public async Task<Event?> GetWithContextAsync(Guid id, CancellationToken cancellationToken = default)
+	{
+		var entity = await _context.Events
+			.Include(e => e.Articles)
+			.Include(e => e.EventUpdates)
+			.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+
+		return entity?.ToDomain();
+	}
+
 	public async Task ResolveContradictionAsync(
 		Guid contradictionId,
 		CancellationToken cancellationToken = default)
@@ -246,35 +258,30 @@ public class EventRepository : IEventRepository
 		Guid targetEventId,
 		CancellationToken cancellationToken = default)
 	{
-		// Переносим все Articles из source в target
 		await _context.Articles
 			.Where(a => a.EventId == sourceEventId)
 			.ExecuteUpdateAsync(s => s
 				.SetProperty(a => a.EventId, targetEventId),
 			cancellationToken);
 
-		// Переносим EventUpdate
 		await _context.EventUpdates
 			.Where(eu => eu.EventId == sourceEventId)
 			.ExecuteUpdateAsync(s => s
 				.SetProperty(eu => eu.EventId, targetEventId),
 			cancellationToken);
 
-		// Переносим Contradiction
 		await _context.Contradictions
 			.Where(c => c.EventId == sourceEventId)
 			.ExecuteUpdateAsync(s => s
 				.SetProperty(c => c.EventId, targetEventId),
 			cancellationToken);
 
-		// Архивируем source событие
 		await _context.Events
 			.Where(e => e.Id == sourceEventId)
 			.ExecuteUpdateAsync(s => s
 				.SetProperty(e => e.Status, EventStatus.Archived.ToString()),
 			cancellationToken);
 
-		// Обновляем LastUpdatedAt target
 		await _context.Events
 			.Where(e => e.Id == targetEventId)
 			.ExecuteUpdateAsync(s => s
@@ -284,7 +291,7 @@ public class EventRepository : IEventRepository
 
 	public async Task UpdateArticleRoleAsync(
 		Guid articleId,
-		EventArticleRole role,
+		ArticleRole role,
 		CancellationToken cancellationToken = default)
 	{
 		await _context.Articles

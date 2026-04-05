@@ -7,7 +7,8 @@ namespace Infrastructure.Services;
 
 public class EventService(
 	IEventRepository eventRepository,
-	IGeminiEmbeddingService embeddingService) : IEventService
+	IGeminiEmbeddingService embeddingService,
+	IEventSummaryUpdater summaryUpdater) : IEventService
 {
 	public async Task MergeAsync(
 		Guid sourceEventId,
@@ -27,24 +28,23 @@ public class EventService(
 		// Мёрджим в репозитории
 		await eventRepository.MergeAsync(sourceEventId, targetEventId, cancellationToken);
 
-		// Перегенерируем embedding target события на основе объединённого summary
-		var mergedSummary = $"{target.Summary} {source.Summary}".Trim();
-		var embeddingText = $"{target.Title}. {mergedSummary}";
-
 		try
 		{
+			var mergedSummary = await summaryUpdater.UpdateSummaryAsync(
+				target, [source.Summary], cancellationToken);
+
 			var newEmbedding = await embeddingService.GenerateEmbeddingAsync(
-				embeddingText, cancellationToken);
+				mergedSummary, cancellationToken);
 
 			await eventRepository.UpdateSummaryAndEmbeddingAsync(
 				targetEventId,
-				target.Summary, // summary не меняем — редактор сам обновит если нужно
+				mergedSummary,
 				newEmbedding,
 				cancellationToken);
 		}
 		catch
 		{
-			// Не блокируем мёрдж если embedding упал — это некритично
+			// Не блокируем мёрдж если AI упал — это некритично
 		}
 	}
 
@@ -52,7 +52,7 @@ public class EventService(
 	Guid currentEventId,
 	Guid articleId,
 	Guid targetEventId,
-	EventArticleRole role,
+	ArticleRole role,
 	CancellationToken cancellationToken = default)
 	{
 		var evt = await eventRepository.GetByIdAsync(currentEventId, cancellationToken)

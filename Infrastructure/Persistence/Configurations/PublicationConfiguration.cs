@@ -32,6 +32,13 @@ public class PublicationConfiguration : IEntityTypeConfiguration<PublicationEnti
 			.HasForeignKey(p => p.ParentPublicationId)
 			.OnDelete(DeleteBehavior.Restrict);
 
+		builder
+			.HasOne(p => p.Event)
+			.WithMany()
+			.HasForeignKey(p => p.EventId)
+			.IsRequired(false)
+			.OnDelete(DeleteBehavior.SetNull);
+
 		builder.HasIndex(p => p.EventId);
 		builder.HasIndex(p => p.ParentPublicationId);
 	}

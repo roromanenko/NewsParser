@@ -1,4 +1,4 @@
-﻿using Anthropic.SDK;
+using Anthropic.SDK;
 using Anthropic.SDK.Messaging;
 using Core.DomainModels;
 using Core.Interfaces.AI;
@@ -23,10 +23,10 @@ public class ClaudeContentGenerator : IContentGenerator
 	}
 
 	public async Task<string> GenerateForPlatformAsync(
-	Article article,
-	PublishTarget target,
-	CancellationToken cancellationToken = default,
-	string? updateContext = null)
+		Event evt,
+		PublishTarget target,
+		CancellationToken cancellationToken = default,
+		string? updateContext = null)
 	{
 		if (!_basePrompts.TryGetValue(target.Platform, out var basePrompt))
 			throw new InvalidOperationException(
@@ -39,28 +39,8 @@ public class ClaudeContentGenerator : IContentGenerator
 		var client = new AnthropicClient(new APIAuthentication(_apiKey));
 
 		var userPrompt = updateContext is not null
-			? $"""
-            CHANNEL: {target.Name}
-            THIS IS AN UPDATE to an existing published story.
-            FORMAT: Short reply message, 1-3 sentences max.
-            NEW FACT TO PUBLISH:
-            {updateContext}
-            ORIGINAL ARTICLE CONTEXT:
-            Title: {article.Title}
-            Category: {article.Category}
-            Tags: {string.Join(", ", article.Tags)}
-            """
-			: $"""
-            CHANNEL: {target.Name}
-            ARTICLE METADATA:
-            Category: {article.Category}
-            Tags: {string.Join(", ", article.Tags)}
-            Sentiment: {article.Sentiment}
-            Source URL: {article.RawArticle.OriginalUrl}
-            ARTICLE:
-            Title: {article.Title}
-            Content: {article.Content}
-            """;
+			? BuildUpdatePrompt(evt, target, updateContext)
+			: BuildEventPrompt(evt, target);
 
 		var request = new MessageParameters
 		{
@@ -73,6 +53,65 @@ public class ClaudeContentGenerator : IContentGenerator
 		var response = await client.Messages.GetClaudeMessageAsync(request, cancellationToken);
 		var raw = response.Content.FirstOrDefault()?.ToString() ?? string.Empty;
 		return ParseContent(raw, target.Platform);
+	}
+
+	private static string BuildEventPrompt(Event evt, PublishTarget target)
+	{
+		var articlesSection = BuildArticlesSection(evt.Articles);
+
+		return $"""
+            CHANNEL: {target.Name}
+            EVENT TITLE: {evt.Title}
+            EVENT SUMMARY: {evt.Summary}
+            SOURCES:
+            {articlesSection}
+            """;
+	}
+
+	private static string BuildUpdatePrompt(Event evt, PublishTarget target, string updateContext)
+	{
+		var initiator = evt.Articles.FirstOrDefault(a => a.Role == ArticleRole.Initiator)
+			?? evt.Articles.FirstOrDefault()
+			?? new Article();
+
+		var combinedTags = evt.Articles
+			.SelectMany(a => a.Tags)
+			.Distinct()
+			.ToList();
+
+		return $"""
+            CHANNEL: {target.Name}
+            THIS IS AN UPDATE to an existing published story.
+            FORMAT: Short reply message, 1-3 sentences max.
+            NEW FACT TO PUBLISH:
+            {updateContext}
+            ORIGINAL EVENT CONTEXT:
+            Title: {evt.Title}
+            Category: {initiator.Category}
+            Tags: {string.Join(", ", combinedTags)}
+            """;
+	}
+
+	private static string BuildArticlesSection(List<Article> articles)
+	{
+		if (articles.Count == 0)
+			return "(no articles)";
+
+		var parts = articles.Select((article, index) =>
+		{
+			var keyFactsText = article.KeyFacts.Count > 0
+				? string.Join("\n", article.KeyFacts.Select(f => $"  - {f}"))
+				: "  (none)";
+
+			return $"""
+                [{index + 1}]
+                Summary: {article.Summary ?? "(no summary)"}
+                Key Facts:
+                {keyFactsText}
+                """;
+		});
+
+		return string.Join("\n\n", parts);
 	}
 
 	private static string ParseContent(string json, Platform platform)

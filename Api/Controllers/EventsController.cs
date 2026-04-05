@@ -14,7 +14,8 @@ namespace Api.Controllers;
 [Authorize(Roles = nameof(UserRole.Editor) + "," + nameof(UserRole.Admin))]
 public class EventsController(
 	IEventRepository eventRepository,
-	IEventService eventService) : BaseController
+	IEventService eventService,
+	IEventApprovalService approvalService) : BaseController
 {
 	[HttpGet]
 	public async Task<ActionResult<PagedResult<EventListItemDto>>> GetAll(
@@ -85,9 +86,9 @@ public class EventsController(
 		[FromBody] ReclassifyArticleRequest request,
 		CancellationToken cancellationToken = default)
 	{
-		if (!Enum.TryParse<EventArticleRole>(request.Role, ignoreCase: true, out var role))
+		if (!Enum.TryParse<ArticleRole>(request.Role, ignoreCase: true, out var role))
 			return BadRequest($"Invalid role: {request.Role}. Valid values: " +
-				$"{string.Join(", ", Enum.GetNames<EventArticleRole>())}");
+				$"{string.Join(", ", Enum.GetNames<ArticleRole>())}");
 
 		await eventService.ReclassifyArticleAsync(
 			id, request.ArticleId, request.TargetEventId, role, cancellationToken);
@@ -113,5 +114,41 @@ public class EventsController(
 		await eventRepository.UpdateStatusAsync(id, eventStatus, cancellationToken);
 
 		return NoContent();
+	}
+
+	[HttpPost("{id:guid}/approve")]
+	public async Task<ActionResult<EventListItemDto>> Approve(
+		Guid id,
+		[FromBody] ApproveEventRequest request,
+		CancellationToken cancellationToken = default)
+	{
+		if (request.PublishTargetIds is null || request.PublishTargetIds.Count == 0)
+			return BadRequest("At least one publish target must be specified");
+
+		if (UserId is null)
+			return Unauthorized();
+
+		var relatedEvent = await approvalService.ApproveAsync(
+			id, UserId.Value, request.PublishTargetIds, cancellationToken);
+
+		return Ok(relatedEvent.ToListItemDto());
+	}
+
+	[HttpPost("{id:guid}/reject")]
+	public async Task<ActionResult<EventListItemDto>> Reject(
+		Guid id,
+		[FromBody] RejectEventRequest request,
+		CancellationToken cancellationToken = default)
+	{
+		if (string.IsNullOrWhiteSpace(request.Reason))
+			return BadRequest("Rejection reason is required");
+
+		if (UserId is null)
+			return Unauthorized();
+
+		var relatedEvent = await approvalService.RejectAsync(
+			id, UserId.Value, request.Reason, cancellationToken);
+
+		return Ok(relatedEvent.ToListItemDto());
 	}
 }

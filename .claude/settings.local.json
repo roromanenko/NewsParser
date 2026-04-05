@@ -9,7 +9,10 @@
       "Bash(dotnet tool:*)",
       "Bash(ls:*)",
       "Bash(dotnet sln:*)",
-      "Bash(dotnet test:*)"
+      "Bash(dotnet test:*)",
+      "Bash(rm:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

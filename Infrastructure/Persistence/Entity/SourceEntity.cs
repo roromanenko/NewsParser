@@ -8,5 +8,5 @@ public class SourceEntity
 	public string Type { get; set; } = string.Empty;
 	public bool IsActive { get; set; }
 	public DateTimeOffset? LastFetchedAt { get; set; }
-	public List<RawArticleEntity> RawArticles { get; set; } = [];
+	public List<ArticleEntity> Articles { get; set; } = [];
 }

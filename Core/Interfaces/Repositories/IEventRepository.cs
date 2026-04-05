@@ -8,11 +8,11 @@ public interface IEventRepository
 
 	Task<List<Event>> GetActiveEventsAsync(CancellationToken cancellationToken = default);
 
-	// Векторный поиск похожих событий в окне времени
 	Task<List<(Event Event, double Similarity)>> FindSimilarEventsAsync(
 		float[] embedding,
 		double threshold,
 		int windowHours,
+		int maxTake,
 		CancellationToken cancellationToken = default);
 
 	Task<Event> CreateAsync(Event evt, CancellationToken cancellationToken = default);
@@ -31,7 +31,7 @@ public interface IEventRepository
 	Task AssignArticleToEventAsync(
 		Guid articleId,
 		Guid eventId,
-		EventArticleRole role,
+		ArticleRole role,
 		CancellationToken cancellationToken = default);
 
 	Task AddEventUpdateAsync(
@@ -43,7 +43,6 @@ public interface IEventRepository
 		List<Guid> articleIds,
 		CancellationToken cancellationToken = default);
 
-	// Для EventUpdateWorker
 	Task<List<EventUpdate>> GetUnpublishedUpdatesAsync(
 		int batchSize,
 		CancellationToken cancellationToken = default);
@@ -52,12 +51,11 @@ public interface IEventRepository
 		Guid eventUpdateId,
 		CancellationToken cancellationToken = default);
 
-	// Для лимита апдейтов в сутки
-	Task<int> CountTodayUpdatesAsync(
+	Task<int> CountUpdatesFromAsync(
 		Guid eventId,
-		CancellationToken cancellationToken = default);
+		DateTimeOffset from,
+        CancellationToken cancellationToken = default);
 
-	// Для минимального интервала между апдейтами
 	Task<DateTimeOffset?> GetLastUpdateTimeAsync(
 		Guid eventId,
 		CancellationToken cancellationToken = default);
@@ -71,6 +69,8 @@ public interface IEventRepository
 
 	Task<Event?> GetDetailAsync(Guid id, CancellationToken cancellationToken = default);
 
+	Task<Event?> GetWithContextAsync(Guid id, CancellationToken cancellationToken = default);
+
 	Task ResolveContradictionAsync(
 		Guid contradictionId,
 		CancellationToken cancellationToken = default);
@@ -82,7 +82,7 @@ public interface IEventRepository
 
 	Task UpdateArticleRoleAsync(
 		Guid articleId,
-		EventArticleRole role,
+		ArticleRole role,
 		CancellationToken cancellationToken = default);
 
 	Task UpdateStatusAsync(

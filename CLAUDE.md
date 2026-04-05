@@ -109,4 +109,9 @@ See `UI/CLAUDE.md`.
     <description>Reviews implemented code for quality and convention violations. Produces a BLOCKER / WARNING / SUGGESTION report and a "Ready to commit" / "Committable with warnings" / "Do not commit" verdict. Call after implementation, before committing. Does NOT write or modify code.</description>
     <location>.claude/agents/reviewer.md</location>
   </agent>
+  <agent>
+    <name>implementer</name>
+    <description>Implements an approved tasklist from docs/tasks/active/, writing production .NET code across Core, Infrastructure, Api, and Worker. Uses context7 for external library docs. Delegates tests to test-writer. Call after a tasklist exists and is approved.</description>
+    <location>.claude/agents/implementer.md</location>
+  </agent>
 </available_agents>

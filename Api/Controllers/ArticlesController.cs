@@ -1,9 +1,7 @@
-﻿using Api.Mappers;
+using Api.Mappers;
 using Api.Models;
 using Core.DomainModels;
 using Core.Interfaces.Repositories;
-using Core.Interfaces.Services;
-using Infrastructure.Persistence.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,11 +12,10 @@ namespace Api.Controllers;
 [Authorize(Roles = nameof(UserRole.Editor) + "," + nameof(UserRole.Admin))]
 public class ArticlesController(
 	IArticleRepository articleRepository,
-	IArticleApprovalService approvalService,
 	IEventRepository eventRepository) : BaseController
 {
 	[HttpGet]
-	public async Task<ActionResult<PagedResult<ArticleListItemDto>>> GetPending(
+	public async Task<ActionResult<PagedResult<ArticleListItemDto>>> GetAnalysisDone(
 		[FromQuery] int page = 1,
 		[FromQuery] int pageSize = 20,
 		CancellationToken cancellationToken = default)
@@ -26,8 +23,8 @@ public class ArticlesController(
 		if (page < 1) page = 1;
 		if (pageSize is < 1 or > 100) pageSize = 20;
 
-		var articles = await articleRepository.GetPendingForApprovalAsync(page, pageSize, cancellationToken);
-		var total = await articleRepository.CountPendingForApprovalAsync(cancellationToken);
+		var articles = await articleRepository.GetAnalysisDoneAsync(page, pageSize, cancellationToken);
+		var total = await articleRepository.CountAnalysisDoneAsync(cancellationToken);
 
 		var items = articles.Select(a => a.ToListItemDto()).ToList();
 
@@ -43,49 +40,10 @@ public class ArticlesController(
 		if (article is null)
 			return NotFound();
 
-		// Ищем связанное событие
-		Event? evt = null;
+		Event? relatedEvent = null;
 		if (article.EventId is not null)
-			evt = await eventRepository.GetByIdAsync(article.EventId.Value, cancellationToken);
+			relatedEvent = await eventRepository.GetByIdAsync(article.EventId.Value, cancellationToken);
 
-		return Ok(article.ToDetailDto(evt));
-	}
-
-	[HttpPost("{id:guid}/approve")]
-	public async Task<ActionResult<ArticleListItemDto>> Approve(
-	Guid id,
-	[FromBody] ApproveArticleRequest request,
-	CancellationToken cancellationToken = default)
-	{
-		if (request.PublishTargetIds is null || request.PublishTargetIds.Count == 0)
-			return BadRequest("At least one publish target must be specified");
-
-		if (UserId is null)
-			return Unauthorized();
-
-		var article = await approvalService.ApproveAsync(
-			id,
-			UserId.Value,
-			request.PublishTargetIds,
-			cancellationToken);
-
-		return Ok(article.ToListItemDto());
-	}
-
-	[HttpPost("{id:guid}/reject")]
-	public async Task<ActionResult<ArticleListItemDto>> Reject(
-		Guid id,
-		[FromBody] RejectArticleRequest request,
-		CancellationToken cancellationToken = default)
-	{
-		if (string.IsNullOrWhiteSpace(request.Reason))
-			return BadRequest("Rejection reason is required");
-
-		if (UserId is null)
-			return Unauthorized();
-
-		var article = await approvalService.RejectAsync(id, UserId.Value, request.Reason, cancellationToken);
-
-		return Ok(article.ToListItemDto());
+		return Ok(article.ToDetailDto(relatedEvent));
 	}
 }

@@ -15,8 +15,10 @@ function formatDate(iso?: string) {
 
 function statusColor(status?: string | null): string {
   if (status === 'Active') return 'var(--crimson)'
+  if (status === 'Approved') return 'var(--caramel)'
+  if (status === 'Rejected') return 'var(--rust)'
   if (status === 'Archived') return '#4b5563'
-  return 'var(--rust)'
+  return '#6b7280'
 }
 
 export function EventsPage() {

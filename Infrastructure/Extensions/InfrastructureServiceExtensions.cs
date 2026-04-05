@@ -54,7 +54,6 @@ public static class InfrastructureServiceExtensions
 	private static IServiceCollection AddRepositories(this IServiceCollection services)
 	{
 		services.AddScoped<ISourceRepository, SourceRepository>();
-		services.AddScoped<IRawArticleRepository, RawArticleRepository>();
 		services.AddScoped<IArticleRepository, ArticleRepository>();
 		services.AddScoped<IPublicationRepository, PublicationRepository>();
 		services.AddScoped<IUserRepository, UserRepository>();
@@ -98,21 +97,6 @@ public static class InfrastructureServiceExtensions
 			promptsOptions.EventSummaryUpdater
 		));
 
-		/*
-		services.AddScoped<IArticleAnalyzer>(_ => new ClaudeArticleAnalyzer(
-			aiOptions.Anthropic.ApiKey,
-			aiOptions.Anthropic.AnalyzerModel,
-			promptsOptions.Analyzer
-		));
-		*/
-
-		services.AddScoped<IArticleGenerator>(_ => new ClaudeArticleGenerator(
-			aiOptions.Anthropic.ApiKey,
-			aiOptions.Anthropic.GeneratorModel,
-			promptsOptions.Generator,
-			aiOptions.Anthropic.OutputLanguage
-		));
-
 		var contentGeneratorPrompts = new Dictionary<Platform, string>
 		{
 			{ Platform.Telegram, promptsOptions.Telegram }
@@ -124,10 +108,21 @@ public static class InfrastructureServiceExtensions
 			contentGeneratorPrompts
 		));
 
+		services.AddScoped<IKeyFactsExtractor>(_ => new HaikuKeyFactsExtractor(
+			aiOptions.Anthropic.ApiKey,
+			aiOptions.Anthropic.KeyFactsExtractorModel
+		));
+
 		services.AddScoped<IEventClassifier>(_ => new ClaudeEventClassifier(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.ClassifierModel,
 			promptsOptions.EventClassifier
+		));
+
+		services.AddScoped<IContradictionDetector>(_ => new ClaudeContradictionDetector(
+			aiOptions.Anthropic.ApiKey,
+			aiOptions.Anthropic.ContradictionDetectorModel,
+			promptsOptions.ContradictionDetector
 		));
 
 		services.AddScoped<IGeminiEmbeddingService>(provider => new GeminiEmbeddingService(
@@ -135,8 +130,6 @@ public static class InfrastructureServiceExtensions
 			aiOptions.Gemini.EmbeddingModel,
 			provider.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(GeminiEmbeddingService))
 		));
-
-
 
 		return services;
 	}
@@ -162,13 +155,13 @@ public static class InfrastructureServiceExtensions
 
 	private static IServiceCollection AddServices(this IServiceCollection services, IConfiguration configuration)
 	{
-		services.AddScoped<IArticleApprovalService, ArticleApprovalService>();
+		services.AddScoped<IEventApprovalService, EventApprovalService>();
 		services.AddScoped<IUserService, UserService>();
 		services.AddScoped<IJwtService, JwtService>();
 		services.AddScoped<ISourceService, SourceService>();
 		services.AddScoped<IPublishTargetService, PublishTargetService>();
 		services.Configure<ValidationOptions>(configuration.GetSection(ValidationOptions.SectionName));
-		services.AddScoped<IRawArticleValidator, RawArticleValidator>();
+		services.AddScoped<IArticleValidator, ArticleValidator>();
 		services.AddScoped<IEventService, EventService>();
 
 		return services;

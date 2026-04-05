@@ -17,6 +17,7 @@ public class Publication
 	public Platform Platform => PublishTarget.Platform;
 
 	public Guid? EventId { get; set; }
+	public Event? Event { get; set; }
 	public Guid? ParentPublicationId { get; set; }
 	public Publication? ParentPublication { get; set; }
 

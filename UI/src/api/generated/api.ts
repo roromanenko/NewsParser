@@ -23,21 +23,22 @@ import type { RequestArgs } from './base';
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, BaseAPI, RequiredError, operationServerMap } from './base';
 
-export interface ApproveArticleRequest {
+export interface ApproveEventRequest {
     'publishTargetIds'?: Array<string> | null;
 }
 export interface ArticleDetailDto {
     'id'?: string;
     'title'?: string | null;
-    'content'?: string | null;
     'category'?: string | null;
     'tags'?: Array<string> | null;
     'sentiment'?: string | null;
     'language'?: string | null;
     'summary'?: string | null;
+    'keyFacts'?: Array<string> | null;
     'processedAt'?: string;
     'modelVersion'?: string | null;
-    'source'?: RawArticleDto;
+    'originalUrl'?: string | null;
+    'publishedAt'?: string | null;
     'event'?: ArticleEventDto;
 }
 export interface ArticleEventDto {
@@ -94,6 +95,7 @@ export interface EventArticleDto {
     'articleId'?: string;
     'title'?: string | null;
     'summary'?: string | null;
+    'keyFacts'?: Array<string> | null;
     'role'?: string | null;
     'addedAt'?: string;
 }
@@ -156,13 +158,6 @@ export interface PublishTargetDto {
     'systemPrompt'?: string | null;
     'isActive'?: boolean;
 }
-export interface RawArticleDto {
-    'id'?: string;
-    'title'?: string | null;
-    'originalUrl'?: string | null;
-    'publishedAt'?: string;
-    'language'?: string | null;
-}
 export interface ReclassifyArticleRequest {
     'articleId'?: string;
     'targetEventId'?: string;
@@ -174,7 +169,7 @@ export interface RegisterRequest {
     'lastName'?: string | null;
     'password'?: string | null;
 }
-export interface RejectArticleRequest {
+export interface RejectEventRequest {
     'reason'?: string | null;
 }
 export interface ResolveContradictionRequest {
@@ -262,45 +257,6 @@ export const ArticlesApiAxiosParamCreator = function (configuration?: Configurat
         /**
          * 
          * @param {string} id 
-         * @param {ApproveArticleRequest} [approveArticleRequest] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        articlesIdApprovePost: async (id: string, approveArticleRequest?: ApproveArticleRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'id' is not null or undefined
-            assertParamExists('articlesIdApprovePost', 'id', id)
-            const localVarPath = `/articles/{id}/approve`
-                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            // authentication Bearer required
-            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
-
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-            localVarHeaderParameter['Accept'] = 'text/plain,application/json,text/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(approveArticleRequest, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -334,45 +290,6 @@ export const ArticlesApiAxiosParamCreator = function (configuration?: Configurat
                 options: localVarRequestOptions,
             };
         },
-        /**
-         * 
-         * @param {string} id 
-         * @param {RejectArticleRequest} [rejectArticleRequest] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        articlesIdRejectPost: async (id: string, rejectArticleRequest?: RejectArticleRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'id' is not null or undefined
-            assertParamExists('articlesIdRejectPost', 'id', id)
-            const localVarPath = `/articles/{id}/reject`
-                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            // authentication Bearer required
-            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
-
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-            localVarHeaderParameter['Accept'] = 'text/plain,application/json,text/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(rejectArticleRequest, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
     }
 };
 
@@ -398,19 +315,6 @@ export const ArticlesApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @param {string} id 
-         * @param {ApproveArticleRequest} [approveArticleRequest] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async articlesIdApprovePost(id: string, approveArticleRequest?: ApproveArticleRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ArticleListItemDto>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.articlesIdApprovePost(id, approveArticleRequest, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['ArticlesApi.articlesIdApprovePost']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -418,19 +322,6 @@ export const ArticlesApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.articlesIdGet(id, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ArticlesApi.articlesIdGet']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @param {string} id 
-         * @param {RejectArticleRequest} [rejectArticleRequest] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async articlesIdRejectPost(id: string, rejectArticleRequest?: RejectArticleRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ArticleListItemDto>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.articlesIdRejectPost(id, rejectArticleRequest, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['ArticlesApi.articlesIdRejectPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
     }
@@ -455,31 +346,11 @@ export const ArticlesApiFactory = function (configuration?: Configuration, baseP
         /**
          * 
          * @param {string} id 
-         * @param {ApproveArticleRequest} [approveArticleRequest] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        articlesIdApprovePost(id: string, approveArticleRequest?: ApproveArticleRequest, options?: RawAxiosRequestConfig): AxiosPromise<ArticleListItemDto> {
-            return localVarFp.articlesIdApprovePost(id, approveArticleRequest, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         articlesIdGet(id: string, options?: RawAxiosRequestConfig): AxiosPromise<ArticleDetailDto> {
             return localVarFp.articlesIdGet(id, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @param {string} id 
-         * @param {RejectArticleRequest} [rejectArticleRequest] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        articlesIdRejectPost(id: string, rejectArticleRequest?: RejectArticleRequest, options?: RawAxiosRequestConfig): AxiosPromise<ArticleListItemDto> {
-            return localVarFp.articlesIdRejectPost(id, rejectArticleRequest, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -500,28 +371,10 @@ export interface ArticlesApiInterface {
     /**
      * 
      * @param {string} id 
-     * @param {ApproveArticleRequest} [approveArticleRequest] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    articlesIdApprovePost(id: string, approveArticleRequest?: ApproveArticleRequest, options?: RawAxiosRequestConfig): AxiosPromise<ArticleListItemDto>;
-
-    /**
-     * 
-     * @param {string} id 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     articlesIdGet(id: string, options?: RawAxiosRequestConfig): AxiosPromise<ArticleDetailDto>;
-
-    /**
-     * 
-     * @param {string} id 
-     * @param {RejectArticleRequest} [rejectArticleRequest] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    articlesIdRejectPost(id: string, rejectArticleRequest?: RejectArticleRequest, options?: RawAxiosRequestConfig): AxiosPromise<ArticleListItemDto>;
 
 }
 
@@ -543,33 +396,11 @@ export class ArticlesApi extends BaseAPI implements ArticlesApiInterface {
     /**
      * 
      * @param {string} id 
-     * @param {ApproveArticleRequest} [approveArticleRequest] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public articlesIdApprovePost(id: string, approveArticleRequest?: ApproveArticleRequest, options?: RawAxiosRequestConfig) {
-        return ArticlesApiFp(this.configuration).articlesIdApprovePost(id, approveArticleRequest, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @param {string} id 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     public articlesIdGet(id: string, options?: RawAxiosRequestConfig) {
         return ArticlesApiFp(this.configuration).articlesIdGet(id, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @param {string} id 
-     * @param {RejectArticleRequest} [rejectArticleRequest] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public articlesIdRejectPost(id: string, rejectArticleRequest?: RejectArticleRequest, options?: RawAxiosRequestConfig) {
-        return ArticlesApiFp(this.configuration).articlesIdRejectPost(id, rejectArticleRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -812,6 +643,45 @@ export const EventsApiAxiosParamCreator = function (configuration?: Configuratio
         /**
          * 
          * @param {string} id 
+         * @param {ApproveEventRequest} [approveEventRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        eventsIdApprovePost: async (id: string, approveEventRequest?: ApproveEventRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('eventsIdApprovePost', 'id', id)
+            const localVarPath = `/events/{id}/approve`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'text/plain,application/json,text/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(approveEventRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -877,6 +747,45 @@ export const EventsApiAxiosParamCreator = function (configuration?: Configuratio
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
             localVarRequestOptions.data = serializeDataIfNeeded(reclassifyArticleRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} id 
+         * @param {RejectEventRequest} [rejectEventRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        eventsIdRejectPost: async (id: string, rejectEventRequest?: RejectEventRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('eventsIdRejectPost', 'id', id)
+            const localVarPath = `/events/{id}/reject`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'text/plain,application/json,text/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(rejectEventRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -1018,6 +927,19 @@ export const EventsApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @param {string} id 
+         * @param {ApproveEventRequest} [approveEventRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async eventsIdApprovePost(id: string, approveEventRequest?: ApproveEventRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<EventListItemDto>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.eventsIdApprovePost(id, approveEventRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['EventsApi.eventsIdApprovePost']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -1038,6 +960,19 @@ export const EventsApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.eventsIdReclassifyPost(id, reclassifyArticleRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['EventsApi.eventsIdReclassifyPost']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} id 
+         * @param {RejectEventRequest} [rejectEventRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async eventsIdRejectPost(id: string, rejectEventRequest?: RejectEventRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<EventListItemDto>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.eventsIdRejectPost(id, rejectEventRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['EventsApi.eventsIdRejectPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -1100,6 +1035,16 @@ export const EventsApiFactory = function (configuration?: Configuration, basePat
         /**
          * 
          * @param {string} id 
+         * @param {ApproveEventRequest} [approveEventRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        eventsIdApprovePost(id: string, approveEventRequest?: ApproveEventRequest, options?: RawAxiosRequestConfig): AxiosPromise<EventListItemDto> {
+            return localVarFp.eventsIdApprovePost(id, approveEventRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -1115,6 +1060,16 @@ export const EventsApiFactory = function (configuration?: Configuration, basePat
          */
         eventsIdReclassifyPost(id: string, reclassifyArticleRequest?: ReclassifyArticleRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.eventsIdReclassifyPost(id, reclassifyArticleRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {string} id 
+         * @param {RejectEventRequest} [rejectEventRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        eventsIdRejectPost(id: string, rejectEventRequest?: RejectEventRequest, options?: RawAxiosRequestConfig): AxiosPromise<EventListItemDto> {
+            return localVarFp.eventsIdRejectPost(id, rejectEventRequest, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1164,6 +1119,15 @@ export interface EventsApiInterface {
     /**
      * 
      * @param {string} id 
+     * @param {ApproveEventRequest} [approveEventRequest] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    eventsIdApprovePost(id: string, approveEventRequest?: ApproveEventRequest, options?: RawAxiosRequestConfig): AxiosPromise<EventListItemDto>;
+
+    /**
+     * 
+     * @param {string} id 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -1177,6 +1141,15 @@ export interface EventsApiInterface {
      * @throws {RequiredError}
      */
     eventsIdReclassifyPost(id: string, reclassifyArticleRequest?: ReclassifyArticleRequest, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+
+    /**
+     * 
+     * @param {string} id 
+     * @param {RejectEventRequest} [rejectEventRequest] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    eventsIdRejectPost(id: string, rejectEventRequest?: RejectEventRequest, options?: RawAxiosRequestConfig): AxiosPromise<EventListItemDto>;
 
     /**
      * 
@@ -1224,6 +1197,17 @@ export class EventsApi extends BaseAPI implements EventsApiInterface {
     /**
      * 
      * @param {string} id 
+     * @param {ApproveEventRequest} [approveEventRequest] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public eventsIdApprovePost(id: string, approveEventRequest?: ApproveEventRequest, options?: RawAxiosRequestConfig) {
+        return EventsApiFp(this.configuration).eventsIdApprovePost(id, approveEventRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} id 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -1240,6 +1224,17 @@ export class EventsApi extends BaseAPI implements EventsApiInterface {
      */
     public eventsIdReclassifyPost(id: string, reclassifyArticleRequest?: ReclassifyArticleRequest, options?: RawAxiosRequestConfig) {
         return EventsApiFp(this.configuration).eventsIdReclassifyPost(id, reclassifyArticleRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} id 
+     * @param {RejectEventRequest} [rejectEventRequest] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public eventsIdRejectPost(id: string, rejectEventRequest?: RejectEventRequest, options?: RawAxiosRequestConfig) {
+        return EventsApiFp(this.configuration).eventsIdRejectPost(id, rejectEventRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

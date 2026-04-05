@@ -10,10 +10,6 @@ public static class ArticleMapper
         article.Sentiment.ToString(), article.Language, article.Summary, article.ProcessedAt
     );
 
-    public static RawArticleDto ToDto(this RawArticle raw) => new(
-        raw.Id, raw.Title, raw.OriginalUrl, raw.PublishedAt, raw.Language
-    );
-
     public static ArticleDetailDto ToDetailDto(this Article article, Event? evt = null)
     {
         ArticleEventDto? eventDto = null;
@@ -28,10 +24,11 @@ public static class ArticleMapper
         }
 
         return new ArticleDetailDto(
-            article.Id, article.Title, article.Content, article.Category,
+            article.Id, article.Title, article.Category,
             article.Tags, article.Sentiment.ToString(), article.Language,
-            article.Summary, article.ProcessedAt, article.ModelVersion,
-            article.RawArticle.ToDto(),
+            article.Summary, article.KeyFacts ?? [],
+            article.ProcessedAt, article.ModelVersion,
+            article.OriginalUrl, article.PublishedAt,
             eventDto
         );
     }

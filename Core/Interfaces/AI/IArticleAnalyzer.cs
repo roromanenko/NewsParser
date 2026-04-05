@@ -5,5 +5,5 @@ namespace Core.Interfaces.AI;
 
 public interface IArticleAnalyzer
 {
-	Task<ArticleAnalysisResult> AnalyzeAsync(RawArticle rawArticle, CancellationToken cancellationToken = default);
+	Task<ArticleAnalysisResult> AnalyzeAsync(Article article, CancellationToken cancellationToken = default);
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useArticles } from './useArticles'
 import { Pagination } from '@/components/shared/Pagination'
 import type { ArticleListItemDto } from '@/api/generated'
@@ -152,8 +152,6 @@ export function ArticlesPage() {
                   key={article.id}
                   article={article}
                   onClick={() => article.id && navigate(`/articles/${article.id}`)}
-                  onApprove={() => article.id && navigate(`/articles/${article.id}`)}
-                  onReject={() => article.id && navigate(`/articles/${article.id}`)}
                 />
               ))}
             </div>
@@ -180,11 +178,9 @@ export function ArticlesPage() {
 interface ArticleCardProps {
   article: ArticleListItemDto
   onClick: () => void
-  onApprove: () => void
-  onReject: () => void
 }
 
-function ArticleCard({ article, onClick, onApprove, onReject }: ArticleCardProps) {
+function ArticleCard({ article, onClick }: ArticleCardProps) {
   const color = sentimentColor(article.sentiment)
 
   return (
@@ -266,43 +262,26 @@ function ArticleCard({ article, onClick, onApprove, onReject }: ArticleCardProps
         </div>
       )}
 
-      {/* Footer actions */}
+      {/* Footer */}
       <div
-        className="flex items-center justify-between pt-4 border-t"
+        className="flex items-center justify-end pt-4 border-t"
         style={{ borderColor: 'rgba(255,255,255,0.1)' }}
       >
-        <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4" style={{ color: '#6b7280' }} />
-          <span className="font-mono text-xs" style={{ color: '#6b7280' }}>
-            AI Summary ready
-          </span>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={e => { e.stopPropagation(); onApprove() }}
-            className="px-4 py-2 font-caps text-xs tracking-wider text-white flex items-center gap-1 transition-opacity hover:opacity-90"
-            style={{ background: 'var(--crimson)' }}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            APPROVE
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onReject() }}
-            className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors flex items-center gap-1"
-            style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.borderColor = '#ef4444'
-              e.currentTarget.style.color = '#ef4444'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
-              e.currentTarget.style.color = '#9ca3af'
-            }}
-          >
-            <XCircle className="w-4 h-4" />
-            REJECT
-          </button>
-        </div>
+        <button
+          onClick={e => { e.stopPropagation(); onClick() }}
+          className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors"
+          style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
+          onMouseEnter={e => {
+            e.currentTarget.style.borderColor = 'var(--caramel)'
+            e.currentTarget.style.color = 'var(--caramel)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+            e.currentTarget.style.color = '#9ca3af'
+          }}
+        >
+          VIEW ARTICLE
+        </button>
       </div>
     </article>
   )

@@ -11,7 +11,6 @@ public class NewsParserDbContext : DbContext
 
 	}
 
-	public DbSet<RawArticleEntity> RawArticles { get; set; }
 	public DbSet<ArticleEntity> Articles { get; set; }
 	public DbSet<PublicationEntity> Publications { get; set; }
 	public DbSet<UserEntity> Users { get; set; }
