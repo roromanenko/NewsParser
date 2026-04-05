@@ -96,8 +96,10 @@ public class ClaudeEventClassifier : IEventClassifier
 
 		var result = JsonSerializer.Deserialize<EventClassificationResult>(json, new JsonSerializerOptions
 		{
-			PropertyNameCaseInsensitive = true
-		}) ?? throw new InvalidOperationException("Claude returned null classification result");
+			PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+
+        }) ?? throw new InvalidOperationException("Claude returned null classification result");
 
 		return result;
 	}

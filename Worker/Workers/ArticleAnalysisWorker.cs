@@ -162,7 +162,8 @@ public class ArticleAnalysisWorker : BackgroundService
 			embedding,
 			_options.AutoNewEventThreshold,
 			_options.SimilarityWindowHours,
-			cancellationToken);
+			_options.MaxSimilarEvents,
+            cancellationToken);
 
 		Event targetEvent;
 		ArticleRole role;
@@ -388,8 +389,9 @@ public class ArticleAnalysisWorker : BackgroundService
 		IEventRepository eventRepository,
 		CancellationToken cancellationToken)
 	{
-		var todayCount = await eventRepository.CountTodayUpdatesAsync(targetEvent.Id, cancellationToken);
-		if (todayCount >= _options.MaxUpdatesPerDay) return;
+		var fromDate = DateTimeOffset.UtcNow.AddHours(-_options.CountUpdatesFromHours);
+        var eventCount = await eventRepository.CountUpdatesFromAsync(targetEvent.Id, fromDate, cancellationToken);
+		if (eventCount >= _options.MaxUpdatesPerDay) return;
 
 		var lastUpdateTime = await eventRepository.GetLastUpdateTimeAsync(targetEvent.Id, cancellationToken);
 		if (lastUpdateTime.HasValue)

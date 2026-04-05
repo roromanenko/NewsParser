@@ -12,6 +12,7 @@ public interface IEventRepository
 		float[] embedding,
 		double threshold,
 		int windowHours,
+		int maxTake,
 		CancellationToken cancellationToken = default);
 
 	Task<Event> CreateAsync(Event evt, CancellationToken cancellationToken = default);
@@ -50,9 +51,10 @@ public interface IEventRepository
 		Guid eventUpdateId,
 		CancellationToken cancellationToken = default);
 
-	Task<int> CountTodayUpdatesAsync(
+	Task<int> CountUpdatesFromAsync(
 		Guid eventId,
-		CancellationToken cancellationToken = default);
+		DateTimeOffset from,
+        CancellationToken cancellationToken = default);
 
 	Task<DateTimeOffset?> GetLastUpdateTimeAsync(
 		Guid eventId,

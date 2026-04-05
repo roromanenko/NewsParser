@@ -45,12 +45,13 @@ public class EventRepository : IEventRepository
 		float[] embedding,
 		double threshold,
 		int windowHours,
-		CancellationToken cancellationToken = default)
+        int maxTake,
+        CancellationToken cancellationToken = default)
 	{
 		var vector = new Vector(embedding);
 		var windowStart = DateTimeOffset.UtcNow.AddHours(-windowHours);
 
-		var results = await _context.Events
+		var query = _context.Events
 			.Where(e =>
 				e.Status == EventStatus.Active.ToString() &&
 				e.LastUpdatedAt >= windowStart &&
@@ -62,9 +63,9 @@ public class EventRepository : IEventRepository
 			})
 			.Where(x => x.Similarity >= threshold)
 			.OrderByDescending(x => x.Similarity)
-			.ToListAsync(cancellationToken);
+			.Take(maxTake);
 
-		return results
+		return (await query.ToListAsync(cancellationToken))
 			.Select(x => (x.Entity.ToDomain(), x.Similarity))
 			.ToList();
 	}
@@ -174,15 +175,15 @@ public class EventRepository : IEventRepository
 			cancellationToken);
 	}
 
-	public async Task<int> CountTodayUpdatesAsync(
+	public async Task<int> CountUpdatesFromAsync(
 		Guid eventId,
-		CancellationToken cancellationToken = default)
+        DateTimeOffset from,
+        CancellationToken cancellationToken = default)
 	{
-		var startOfDay = DateTimeOffset.UtcNow.Date;
 		return await _context.EventUpdates
 			.CountAsync(eu =>
 				eu.EventId == eventId &&
-				eu.CreatedAt >= startOfDay,
+				eu.CreatedAt >= from,
 			cancellationToken);
 	}
 

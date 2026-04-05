@@ -8,7 +8,6 @@ public class ArticleProcessingOptions
 	public int BatchSize { get; set; } = 10;
 	public int MaxRetryCount { get; set; } = 5;
 
-	// Event classification thresholds (merged from EventClassificationOptions)
 	public int SimilarityWindowHours { get; set; } = 24;
 	public double AutoSameEventThreshold { get; set; } = 0.90;
 	public double AutoNewEventThreshold { get; set; } = 0.30;
@@ -17,4 +16,6 @@ public class ArticleProcessingOptions
 	public double DeduplicationThreshold { get; set; } = 0.95;
 	public int DeduplicationWindowHours { get; set; } = 72;
 	public bool AnalyzeAutoMatchUpdates { get; set; } = true;
+	public int MaxSimilarEvents { get; set; } = 10;
+	public int CountUpdatesFromHours { get; set; } = 24;
 }
