@@ -219,6 +219,7 @@ public class ArticleAnalysisWorkerKeyFactsTests
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
+                It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 

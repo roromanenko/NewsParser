@@ -12,7 +12,8 @@
       "Bash(dotnet test:*)",
       "Bash(rm:*)",
       "Bash(npm run:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(dotnet-script)"
     ]
   }
 }

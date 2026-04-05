@@ -27,8 +27,8 @@ public class EventsControllerTests
     private Mock<IEventApprovalService> _approvalServiceMock = null!;
     private Mock<IEventService> _eventServiceMock = null!;
 
-    // JWT config matches appsettings.Development.json
-    private const string JwtSecretKey = "83f581ddc991c716b5897b44bd8ca4eff6ab75ea18448c9e43e0ba59fbdd4ef5";
+    // JWT config — must match the values supplied via UseSetting in OneTimeSetUp
+    private const string JwtSecretKey = "65j781ddc991c216b5897b44bdsca4eff6ab75ea18448c9e43e0baasfbds4ef5";
     private const string JwtIssuer = "https://localhost:7054";
     private const string JwtAudience = "https://localhost:7054";
 
@@ -53,6 +53,16 @@ public class EventsControllerTests
                     services.AddSingleton(_approvalServiceMock.Object);
                     services.AddSingleton(_eventServiceMock.Object);
                 });
+
+                // appsettings.Development.json ships with an empty SecretKey.
+                // Override JWT settings here so the server validates tokens with the
+                // same secret key, issuer, and audience that GenerateJwtToken() uses.
+                // Without this, SymmetricSecurityKey throws ArgumentException (key
+                // length is zero) on every request, which ExceptionMiddleware catches
+                // and maps to 400 — masking the real controller response.
+                builder.UseSetting("Jwt:SecretKey", JwtSecretKey);
+                builder.UseSetting("Jwt:Issuer", JwtIssuer);
+                builder.UseSetting("Jwt:Audience", JwtAudience);
 
                 builder.UseSetting("ConnectionStrings:NewsParserDbContext",
                     "Host=localhost;Database=test_placeholder;Username=sa;Password=sa");

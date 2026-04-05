@@ -103,6 +103,7 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
+                It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([(lightweightCandidate, 0.80)]);
 
@@ -148,6 +149,7 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
             .Setup(r => r.FindSimilarEventsAsync(
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
+                It.IsAny<int>(),
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([(lightweightCandidate, 0.80)]);
@@ -227,6 +229,7 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
             .Setup(r => r.FindSimilarEventsAsync(
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
+                It.IsAny<int>(),
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);

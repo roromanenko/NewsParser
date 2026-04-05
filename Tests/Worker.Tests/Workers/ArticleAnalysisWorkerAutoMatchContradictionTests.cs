@@ -112,6 +112,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
+                It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([(autoMatchedEvent, 0.95)]); // above AutoSameEventThreshold of 0.90
 
@@ -162,6 +163,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
+                It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([(autoMatchedEvent, 0.95)]);
 
@@ -211,6 +213,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
+                It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([(autoMatchedEvent, 0.95)]);
 
@@ -253,6 +256,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .Setup(r => r.FindSimilarEventsAsync(
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
+                It.IsAny<int>(),
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([(lightweightEvent, 0.95)]);
@@ -298,6 +302,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .Setup(r => r.FindSimilarEventsAsync(
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
+                It.IsAny<int>(),
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([(lightweightEvent, 0.95)]);
@@ -354,6 +359,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
+                It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([(lightweightEvent, 0.95)]);
 
@@ -396,6 +402,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .Setup(r => r.FindSimilarEventsAsync(
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
+                It.IsAny<int>(),
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([(lightweightEvent, 0.95)]);
@@ -452,6 +459,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .Setup(r => r.FindSimilarEventsAsync(
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
+                It.IsAny<int>(),
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([(lightweightEvent, 0.95)]);
@@ -514,6 +522,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
+                It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([(lightweightEvent, 0.95)]);
 
@@ -559,6 +568,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .Setup(r => r.FindSimilarEventsAsync(
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
+                It.IsAny<int>(),
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([(lightweightEvent, 0.95)]);
@@ -641,6 +651,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .Setup(r => r.FindSimilarEventsAsync(
                 It.IsAny<float[]>(),
                 It.IsAny<double>(),
+                It.IsAny<int>(),
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
