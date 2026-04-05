@@ -210,15 +210,6 @@ public class ArticleAnalysisWorkerKeyFactsTests
             .Setup(s => s.GenerateEmbeddingAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new float[384]);
 
-        _articleRepoMock
-            .Setup(r => r.HasSimilarAsync(
-                It.IsAny<Guid>(),
-                It.IsAny<float[]>(),
-                It.IsAny<double>(),
-                It.IsAny<int>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-
         _keyFactsExtractorMock
             .Setup(e => e.ExtractAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);

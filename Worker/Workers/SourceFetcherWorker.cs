@@ -111,8 +111,7 @@ public class SourceFetcherWorker : BackgroundService
 			if (recentTitles.Count > 0)
 			{
 				var bestScore = recentTitles
-					.Select(t => FuzzySharp.Fuzz.TokenSetRatio(article.Title, t))
-					.Max();
+					.Max(t => FuzzySharp.Fuzz.TokenSetRatio(article.Title, t));
 
 				if (bestScore >= _validationOptions.TitleSimilarityThreshold)
 				{
