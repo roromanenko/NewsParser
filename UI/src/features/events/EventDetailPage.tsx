@@ -313,6 +313,23 @@ export function EventDetailPage() {
   const [approveOpen, setApproveOpen] = useState(false)
   const [rejectOpen, setRejectOpen] = useState(false)
 
+  const articles = event?.articles ?? []
+  const updates = event?.updates ?? []
+  const contradictions = event?.contradictions ?? []
+
+  const mediaItems = useMemo(() => {
+    const seen = new Set<string>()
+    const out: MediaItem[] = []
+    for (const a of articles) {
+      for (const m of a.media ?? []) {
+        if (!m.id || seen.has(m.id)) continue
+        seen.add(m.id)
+        out.push({ id: m.id, url: m.url!, kind: m.kind as 'Image' | 'Video', contentType: m.contentType! })
+      }
+    }
+    return out
+  }, [articles])
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -331,24 +348,9 @@ export function EventDetailPage() {
     )
   }
 
-  const articles = event.articles ?? []
-  const updates = event.updates ?? []
-  const contradictions = event.contradictions ?? []
   const unresolvedCount = contradictions.filter(c => !c.isResolved).length
   const color = statusColor(event.status)
-
-  const mediaItems = useMemo(() => {
-    const seen = new Set<string>()
-    const out: MediaItem[] = []
-    for (const a of articles) {
-      for (const m of a.media ?? []) {
-        if (!m.id || seen.has(m.id)) continue
-        seen.add(m.id)
-        out.push({ id: m.id, url: m.url!, kind: m.kind as 'Image' | 'Video', contentType: m.contentType! })
-      }
-    }
-    return out
-  }, [articles])
+  const heroImage = mediaItems.find(m => m.kind === 'Image')
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: 'timeline', label: 'TIMELINE', count: articles.length },
@@ -373,14 +375,31 @@ export function EventDetailPage() {
 
       {/* Header card */}
       <div
-        className="relative border p-6 mb-6"
+        className="relative border mb-6 overflow-hidden"
         style={{
           background: 'rgba(61,15,15,0.4)',
           borderColor: 'rgba(255,255,255,0.1)',
         }}
       >
-        <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: color }} />
+        <div className="absolute left-0 top-0 bottom-0 w-1 z-10" style={{ backgroundColor: color }} />
 
+        {/* Hero image */}
+        {heroImage && (
+          <div className="relative w-full" style={{ maxHeight: '280px', overflow: 'hidden' }}>
+            <img
+              src={heroImage.url}
+              alt=""
+              className="w-full object-cover"
+              style={{ maxHeight: '280px', opacity: 0.8 }}
+            />
+            <div
+              className="absolute inset-0"
+              style={{ background: 'linear-gradient(to bottom, rgba(61,15,15,0) 30%, rgba(61,15,15,0.97) 100%)' }}
+            />
+          </div>
+        )}
+
+        <div className="p-6">
         <div className="flex items-start justify-between gap-4 flex-wrap mb-3">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="font-caps text-xs tracking-widest" style={{ color }}>
@@ -494,6 +513,7 @@ export function EventDetailPage() {
               </span>
             </div>
           )}
+        </div>
         </div>
       </div>
 

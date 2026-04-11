@@ -54,6 +54,8 @@ export function ArticleDetailPage() {
     contentType: m.contentType!,
   }))
 
+  const heroImage = mediaItems.find(m => m.kind === 'Image')
+
   return (
     <div className="max-w-5xl">
       {/* Back */}
@@ -70,74 +72,92 @@ export function ArticleDetailPage() {
 
       {/* Header card */}
       <div
-        className="relative border p-6 mb-6"
+        className="relative border mb-6 overflow-hidden"
         style={{ background: 'rgba(61,15,15,0.4)', borderColor: 'rgba(255,255,255,0.1)' }}
       >
-        <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: 'var(--caramel)' }} />
+        <div className="absolute left-0 top-0 bottom-0 w-1 z-10" style={{ backgroundColor: 'var(--caramel)' }} />
 
-        {/* Top row: source date + external link */}
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <span className="font-mono text-xs" style={{ color: '#6b7280' }}>
-            {formatDate(article.publishedAt ?? article.processedAt)}
-          </span>
-          {article.originalUrl && (
-            <a
-              href={article.originalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 font-mono text-xs transition-colors"
-              style={{ color: '#6b7280' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--caramel)')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#6b7280')}
-            >
-              SOURCE
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          )}
-        </div>
+        {/* Hero image */}
+        {heroImage && (
+          <div className="relative w-full" style={{ maxHeight: '360px', overflow: 'hidden' }}>
+            <img
+              src={heroImage.url}
+              alt=""
+              className="w-full object-cover"
+              style={{ maxHeight: '360px', opacity: 0.85 }}
+            />
+            <div
+              className="absolute inset-0"
+              style={{ background: 'linear-gradient(to bottom, rgba(61,15,15,0) 40%, rgba(61,15,15,0.95) 100%)' }}
+            />
+          </div>
+        )}
 
-        <h1 className="font-display text-4xl mb-4" style={{ color: '#E8E8E8' }}>
-          {article.title}
-        </h1>
-
-        {/* Stats row */}
-        <div
-          className="flex gap-3 pt-4 border-t flex-wrap"
-          style={{ borderColor: 'rgba(255,255,255,0.1)' }}
-        >
-          {article.category && (
-            <div className="px-3 py-1.5" style={{ background: 'var(--near-black)' }}>
-              <span className="font-caps text-[10px] tracking-widest" style={{ color: '#6b7280' }}>
-                CATEGORY{' '}
-              </span>
-              <span className="font-mono text-sm" style={{ color: '#E8E8E8' }}>
-                {article.category}
-              </span>
-            </div>
-          )}
-          {article.language && (
-            <div className="px-3 py-1.5" style={{ background: 'var(--near-black)' }}>
-              <span className="font-caps text-[10px] tracking-widest" style={{ color: '#6b7280' }}>
-                LANG{' '}
-              </span>
-              <span className="font-mono text-sm uppercase" style={{ color: '#E8E8E8' }}>
-                {article.language}
-              </span>
-            </div>
-          )}
-          {article.sentiment && (
-            <div className="px-3 py-1.5" style={{ background: 'var(--near-black)' }}>
-              <span className="font-caps text-[10px] tracking-widest" style={{ color: '#6b7280' }}>
-                SENTIMENT{' '}
-              </span>
-              <span
-                className="font-caps text-xs tracking-widest"
-                style={{ color: sentimentColor(article.sentiment) }}
+        <div className="p-6">
+          {/* Top row: source date + external link */}
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <span className="font-mono text-xs" style={{ color: '#6b7280' }}>
+              {formatDate(article.publishedAt ?? article.processedAt)}
+            </span>
+            {article.originalUrl && (
+              <a
+                href={article.originalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 font-mono text-xs transition-colors"
+                style={{ color: '#6b7280' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--caramel)')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#6b7280')}
               >
-                {article.sentiment.toUpperCase()}
-              </span>
-            </div>
-          )}
+                SOURCE
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
+
+          <h1 className="font-display text-4xl mb-4" style={{ color: '#E8E8E8' }}>
+            {article.title}
+          </h1>
+
+          {/* Stats row */}
+          <div
+            className="flex gap-3 pt-4 border-t flex-wrap"
+            style={{ borderColor: 'rgba(255,255,255,0.1)' }}
+          >
+            {article.category && (
+              <div className="px-3 py-1.5" style={{ background: 'var(--near-black)' }}>
+                <span className="font-caps text-[10px] tracking-widest" style={{ color: '#6b7280' }}>
+                  CATEGORY{' '}
+                </span>
+                <span className="font-mono text-sm" style={{ color: '#E8E8E8' }}>
+                  {article.category}
+                </span>
+              </div>
+            )}
+            {article.language && (
+              <div className="px-3 py-1.5" style={{ background: 'var(--near-black)' }}>
+                <span className="font-caps text-[10px] tracking-widest" style={{ color: '#6b7280' }}>
+                  LANG{' '}
+                </span>
+                <span className="font-mono text-sm uppercase" style={{ color: '#E8E8E8' }}>
+                  {article.language}
+                </span>
+              </div>
+            )}
+            {article.sentiment && (
+              <div className="px-3 py-1.5" style={{ background: 'var(--near-black)' }}>
+                <span className="font-caps text-[10px] tracking-widest" style={{ color: '#6b7280' }}>
+                  SENTIMENT{' '}
+                </span>
+                <span
+                  className="font-caps text-xs tracking-widest"
+                  style={{ color: sentimentColor(article.sentiment) }}
+                >
+                  {article.sentiment.toUpperCase()}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -157,6 +177,11 @@ export function ArticleDetailPage() {
                 {article.summary}
               </p>
             </div>
+          )}
+
+          {/* Media gallery */}
+          {mediaItems.length > 0 && (
+            <MediaGallery items={mediaItems} />
           )}
 
           {/* Key Facts */}
@@ -185,8 +210,6 @@ export function ArticleDetailPage() {
               </ul>
             </div>
           )}
-
-          <MediaGallery items={mediaItems} />
 
         </div>
 
