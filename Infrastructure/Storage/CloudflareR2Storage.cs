@@ -18,7 +18,9 @@ public class CloudflareR2Storage : IMediaStorage
 		{
 			ServiceURL = $"https://{options.AccountId}.r2.cloudflarestorage.com",
 			ForcePathStyle = true,
-			AuthenticationRegion = "auto"
+			AuthenticationRegion = "auto",
+			RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED,
+			ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED
 		};
 		_client = new AmazonS3Client(credentials, config);
 		_bucketName = options.BucketName;
@@ -38,6 +40,7 @@ public class CloudflareR2Storage : IMediaStorage
 			Key = key,
 			InputStream = content,
 			ContentType = contentType,
+			DisablePayloadSigning = true
 		};
 
 		await _client.PutObjectAsync(request, cancellationToken);
