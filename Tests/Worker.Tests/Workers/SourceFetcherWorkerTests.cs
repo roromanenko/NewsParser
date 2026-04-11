@@ -1,6 +1,7 @@
 using Core.DomainModels;
 using Core.Interfaces.Parsers;
 using Core.Interfaces.Repositories;
+using Core.Interfaces.Services;
 using Core.Interfaces.Validators;
 using Infrastructure.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +21,7 @@ public class SourceFetcherWorkerTests
 	private Mock<IArticleRepository> _articleRepoMock = null!;
 	private Mock<IArticleValidator> _validatorMock = null!;
 	private Mock<ISourceParser> _parserMock = null!;
+	private Mock<IMediaIngestionService> _mediaIngestionServiceMock = null!;
 	private Mock<IServiceScopeFactory> _scopeFactoryMock = null!;
 
 	private Source _testSource = null!;
@@ -33,6 +35,7 @@ public class SourceFetcherWorkerTests
 		_articleRepoMock = new Mock<IArticleRepository>();
 		_validatorMock = new Mock<IArticleValidator>();
 		_parserMock = new Mock<ISourceParser>();
+		_mediaIngestionServiceMock = new Mock<IMediaIngestionService>();
 		_scopeFactoryMock = new Mock<IServiceScopeFactory>();
 
 		// Use a very long interval so the loop only completes one iteration before cancellation
@@ -300,6 +303,10 @@ public class SourceFetcherWorkerTests
 		serviceProviderMock
 			.Setup(sp => sp.GetService(typeof(IArticleValidator)))
 			.Returns(_validatorMock.Object);
+
+		serviceProviderMock
+			.Setup(sp => sp.GetService(typeof(IMediaIngestionService)))
+			.Returns(_mediaIngestionServiceMock.Object);
 
 		// GetServices<ISourceParser>() is resolved via IEnumerable<ISourceParser>
 		serviceProviderMock

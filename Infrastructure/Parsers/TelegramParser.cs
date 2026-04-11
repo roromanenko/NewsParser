@@ -1,42 +1,72 @@
 using Core.DomainModels;
 using Core.Interfaces.Parsers;
-using Infrastructure.Services;
+using Infrastructure.Models;
+using Infrastructure.Storage;
+using TL;
 
 namespace Infrastructure.Parsers;
 
-public class TelegramParser : ISourceParser
+public class TelegramParser(ITelegramChannelReader channelReader) : ISourceParser
 {
-	private readonly TelegramClientService _clientService;
-
-	public TelegramParser(TelegramClientService clientService)
-	{
-		_clientService = clientService;
-	}
-
 	public SourceType SourceType => SourceType.Telegram;
 
 	public async Task<List<Article>> ParseAsync(Source source, CancellationToken cancellationToken = default)
 	{
-		if (!_clientService.IsReady) return [];
+		if (!channelReader.IsReady) return [];
 
 		var username = ExtractUsername(source.Url);
 		if (string.IsNullOrEmpty(username)) return [];
 
-		var messages = await _clientService.GetChannelMessagesAsync(username, source.Id, cancellationToken);
+		var messages = await channelReader.GetChannelMessagesAsync(username, source.Id, cancellationToken);
 
-		return messages.Select(msg => new Article
+		return messages.Select(item => new Article
 		{
 			Id = Guid.NewGuid(),
 			SourceId = source.Id,
-			ExternalId = msg.id.ToString(),
-			Title = BuildTitle(msg.message),
-			OriginalContent = msg.message,
-			OriginalUrl = $"https://t.me/{username}/{msg.id}",
-			PublishedAt = new DateTimeOffset(msg.date, TimeSpan.Zero),
+			ExternalId = item.Message.id.ToString(),
+			Title = BuildTitle(item.Message.message),
+			OriginalContent = item.Message.message,
+			OriginalUrl = $"https://t.me/{username}/{item.Message.id}",
+			PublishedAt = new DateTimeOffset(item.Message.date, TimeSpan.Zero),
 			Language = string.Empty,
 			Status = ArticleStatus.Pending,
 			ProcessedAt = DateTimeOffset.UtcNow,
+			MediaReferences = ExtractMediaReferences(item, username),
 		}).ToList();
+	}
+
+	private static List<MediaReference> ExtractMediaReferences(TelegramChannelMessage item, string username)
+	{
+		var msg = item.Message;
+		var baseUrl = $"https://t.me/{username}/{msg.id}";
+
+		return msg.media switch
+		{
+			MessageMediaPhoto => [new MediaReference(
+				Url: $"{baseUrl}#media-0",
+				Kind: MediaKind.Image,
+				DeclaredContentType: "image/jpeg",
+				SourceKind: MediaSourceKind.Telegram,
+				ExternalHandle: TelegramMediaHandle.Encode(item.ChannelId, item.ChannelAccessHash, msg.id, 0))],
+
+			MessageMediaDocument { document: Document doc } when doc.mime_type.StartsWith("image/") =>
+			[new MediaReference(
+				Url: $"{baseUrl}#media-0",
+				Kind: MediaKind.Image,
+				DeclaredContentType: doc.mime_type,
+				SourceKind: MediaSourceKind.Telegram,
+				ExternalHandle: TelegramMediaHandle.Encode(item.ChannelId, item.ChannelAccessHash, msg.id, 0))],
+
+			MessageMediaDocument { document: Document doc } when doc.mime_type.StartsWith("video/") =>
+			[new MediaReference(
+				Url: $"{baseUrl}#media-0",
+				Kind: MediaKind.Video,
+				DeclaredContentType: doc.mime_type,
+				SourceKind: MediaSourceKind.Telegram,
+				ExternalHandle: TelegramMediaHandle.Encode(item.ChannelId, item.ChannelAccessHash, msg.id, 0))],
+
+			_ => []
+		};
 	}
 
 	private static string ExtractUsername(string url)

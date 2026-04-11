@@ -21,6 +21,7 @@ public class NewsParserDbContext : DbContext
 	public DbSet<EventUpdateEntity> EventUpdates { get; set; }
 	public DbSet<ContradictionEntity> Contradictions { get; set; }
 	public DbSet<ContradictionArticleEntity> ContradictionArticles { get; set; }
+	public DbSet<MediaFileEntity> MediaFiles { get; set; }
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{

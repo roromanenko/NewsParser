@@ -31,6 +31,8 @@ public class Article
 
 	public int RetryCount { get; set; }
 
+	public List<MediaReference> MediaReferences { get; set; } = [];
+
 	public Guid? EventId { get; set; }
 	public ArticleRole? Role { get; set; }
 	public bool WasReclassified { get; set; }

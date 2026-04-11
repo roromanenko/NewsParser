@@ -4,6 +4,7 @@ using Core.Interfaces.Parsers;
 using Core.Interfaces.Publishers;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
+using Core.Interfaces.Storage;
 using Core.Interfaces.Validators;
 using Infrastructure.AI;
 using Infrastructure.Configuration;
@@ -12,12 +13,14 @@ using Infrastructure.Persistence.DataBase;
 using Infrastructure.Persistence.Repositories;
 using Infrastructure.Publishers;
 using Infrastructure.Services;
+using Infrastructure.Storage;
 using Microsoft.Extensions.Hosting;
 using Infrastructure.Validators;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Infrastructure.Extensions;
 
@@ -33,7 +36,8 @@ public static class InfrastructureServiceExtensions
 			.AddParsers(configuration)
 			.AddAiServices(configuration)
 			.AddPublishers(configuration)
-			.AddServices(configuration);
+			.AddServices(configuration)
+			.AddStorage(configuration);
 		return services;
 	}
 
@@ -68,6 +72,8 @@ public static class InfrastructureServiceExtensions
 		services.Configure<TelegramOptions>(configuration.GetSection(TelegramOptions.SectionName));
 		services.AddSingleton<TelegramClientService>();
 		services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<TelegramClientService>());
+		services.AddSingleton<ITelegramMediaGateway>(sp => sp.GetRequiredService<TelegramClientService>());
+		services.AddSingleton<ITelegramChannelReader>(sp => sp.GetRequiredService<TelegramClientService>());
 		services.AddScoped<ISourceParser, RssParser>();
 		services.AddScoped<ISourceParser, TelegramParser>();
 		return services;
@@ -170,6 +176,26 @@ public static class InfrastructureServiceExtensions
 		services.AddScoped<IArticleValidator, ArticleValidator>();
 		services.AddScoped<IEventService, EventService>();
 
+		return services;
+	}
+
+	private static IServiceCollection AddStorage(
+		this IServiceCollection services,
+		IConfiguration configuration)
+	{
+		services.Configure<CloudflareR2Options>(configuration.GetSection(CloudflareR2Options.SectionName));
+		services.AddScoped<IMediaStorage>(sp =>
+			new CloudflareR2Storage(sp.GetRequiredService<IOptions<CloudflareR2Options>>().Value));
+		services.AddScoped<IMediaFileRepository, MediaFileRepository>();
+		services.AddScoped<IMediaIngestionService, MediaIngestionService>();
+		services.AddScoped<IMediaContentDownloader, HttpMediaContentDownloader>();
+		services.AddScoped<IMediaContentDownloader, TelegramMediaContentDownloader>();
+		services.AddHttpClient("MediaDownloader")
+			.ConfigureHttpClient((sp, client) =>
+			{
+				client.Timeout = TimeSpan.FromSeconds(
+					sp.GetRequiredService<IOptions<CloudflareR2Options>>().Value.DownloadTimeoutSeconds);
+			});
 		return services;
 	}
 }

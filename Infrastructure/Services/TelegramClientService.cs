@@ -1,5 +1,9 @@
 using System.Collections.Concurrent;
+using Core.Interfaces.Storage;
 using Infrastructure.Configuration;
+using Infrastructure.Models;
+using Infrastructure.Parsers;
+using Infrastructure.Storage;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -7,7 +11,7 @@ using TL;
 
 namespace Infrastructure.Services;
 
-public class TelegramClientService : IHostedService, IAsyncDisposable
+public class TelegramClientService : IHostedService, IAsyncDisposable, ITelegramChannelReader, ITelegramMediaGateway
 {
 	private WTelegram.Client? _client;
 	private FileStream? _sessionStream;
@@ -54,7 +58,7 @@ public class TelegramClientService : IHostedService, IAsyncDisposable
 		_ => null
 	};
 
-	public async Task<List<Message>> GetChannelMessagesAsync(string username, Guid sourceId, CancellationToken cancellationToken)
+	public async Task<List<TelegramChannelMessage>> GetChannelMessagesAsync(string username, Guid sourceId, CancellationToken cancellationToken)
 	{
 		if (_client is null) return [];
 
@@ -71,12 +75,60 @@ public class TelegramClientService : IHostedService, IAsyncDisposable
 		var messages = history.Messages
 			.OfType<Message>()
 			.Where(m => !string.IsNullOrWhiteSpace(m.message))
+			.Select(m => new TelegramChannelMessage(m, channel.id, channel.access_hash))
 			.ToList();
 
 		if (messages.Count > 0)
-			_lastMessageIds[sourceId] = messages.Max(m => m.id);
+			_lastMessageIds[sourceId] = messages.Max(m => m.Message.id);
 
 		return messages;
+	}
+
+	public async Task<TelegramMediaDownloadResult?> DownloadMediaAsync(
+		string externalHandle,
+		Stream destination,
+		CancellationToken cancellationToken = default)
+	{
+		if (_client is null) return null;
+
+		if (!TelegramMediaHandle.TryDecode(externalHandle, out var channelId, out var accessHash, out var messageId, out _))
+			return null;
+
+		try
+		{
+			var inputChannel = new InputChannel(channelId, accessHash);
+			var result = await _client.Channels_GetMessages(inputChannel, new InputMessageID { id = messageId });
+			var message = result.Messages.OfType<Message>().FirstOrDefault();
+			if (message is null) return null;
+
+			return message.media switch
+			{
+				MessageMediaPhoto { photo: Photo p } =>
+					await DownloadPhotoAsync(p, destination),
+
+				MessageMediaDocument { document: Document d } when d.mime_type.StartsWith("image/") || d.mime_type.StartsWith("video/") =>
+					await DownloadDocumentAsync(d, destination),
+
+				_ => null
+			};
+		}
+		catch (WTelegram.WTException ex)
+		{
+			_logger.LogWarning(ex, "Telegram media download failed for handle {Handle}", externalHandle);
+			return null;
+		}
+	}
+
+	private async Task<TelegramMediaDownloadResult> DownloadPhotoAsync(Photo photo, Stream destination)
+	{
+		await _client!.DownloadFileAsync(photo, destination);
+		return new TelegramMediaDownloadResult("image/jpeg", destination.Length);
+	}
+
+	private async Task<TelegramMediaDownloadResult> DownloadDocumentAsync(Document document, Stream destination)
+	{
+		await _client!.DownloadFileAsync(document, destination);
+		return new TelegramMediaDownloadResult(document.mime_type, document.size);
 	}
 
 	public Task StopAsync(CancellationToken cancellationToken) => DisposeAsync().AsTask();

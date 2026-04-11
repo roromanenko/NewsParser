@@ -1,6 +1,7 @@
 using Core.DomainModels;
 using Core.Interfaces.Parsers;
 using Core.Interfaces.Repositories;
+using Core.Interfaces.Services;
 using Core.Interfaces.Validators;
 using Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
@@ -44,6 +45,7 @@ public class SourceFetcherWorker : BackgroundService
 		var validator = scope.ServiceProvider.GetRequiredService<IArticleValidator>();
 		var parsers = scope.ServiceProvider.GetServices<ISourceParser>()
 		                   .ToDictionary(p => p.SourceType);
+		var mediaIngestionService = scope.ServiceProvider.GetRequiredService<IMediaIngestionService>();
 
 		foreach (var (sourceType, parser) in parsers)
 		{
@@ -54,7 +56,7 @@ public class SourceFetcherWorker : BackgroundService
 			{
 				try
 				{
-					await ProcessSourceAsync(source, parser, articleRepository, validator, cancellationToken);
+					await ProcessSourceAsync(source, parser, articleRepository, validator, mediaIngestionService, cancellationToken);
 					await sourceRepository.UpdateLastFetchedAtAsync(source.Id, DateTimeOffset.UtcNow, cancellationToken);
 				}
 				catch (Exception ex)
@@ -70,6 +72,7 @@ public class SourceFetcherWorker : BackgroundService
 		ISourceParser parser,
 		IArticleRepository articleRepository,
 		IArticleValidator validator,
+		IMediaIngestionService mediaIngestionService,
 		CancellationToken cancellationToken)
 	{
 		var articles = await parser.ParseAsync(source, cancellationToken);
@@ -122,6 +125,17 @@ public class SourceFetcherWorker : BackgroundService
 			}
 
 			await articleRepository.AddAsync(article, cancellationToken);
+
+			try
+			{
+				await mediaIngestionService.IngestForArticleAsync(
+					article.Id, article.MediaReferences, cancellationToken);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Media ingestion failed for article {ArticleId}", article.Id);
+			}
+
 			recentTitles.Add(article.Title); // intra-batch dedup
 			saved++;
 		}
