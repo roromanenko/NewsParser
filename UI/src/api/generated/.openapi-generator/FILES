@@ -23,6 +23,7 @@ docs/EventUpdateDto.md
 docs/EventsApi.md
 docs/LoginRequest.md
 docs/LoginResponse.md
+docs/MediaFileDto.md
 docs/MergeEventsRequest.md
 docs/PublishTargetDto.md
 docs/PublishTargetsApi.md

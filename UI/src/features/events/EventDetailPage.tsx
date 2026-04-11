@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useEventDetail } from './useEventDetail'
@@ -7,9 +7,11 @@ import { ApproveEventModal } from './ApproveEventModal'
 import { RejectEventModal } from './RejectEventModal'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { usePermissions } from '@/hooks/usePermissions'
+import { MediaGallery } from '@/components/shared/MediaGallery'
+import type { MediaItem } from '@/components/shared/MediaGallery'
 import type { ContradictionDto, EventArticleDto } from '@/api/generated'
 
-type Tab = 'timeline' | 'updates' | 'contradictions'
+type Tab = 'timeline' | 'updates' | 'contradictions' | 'media'
 
 const ROLES = ['Initiator', 'Update', 'Contradiction'] as const
 
@@ -286,6 +288,18 @@ function ContradictionsTab({
   )
 }
 
+// ---- Media tab ----
+function MediaTab({ items }: { items: MediaItem[] }) {
+  if (items.length === 0) {
+    return (
+      <p className="font-mono text-sm text-center py-8" style={{ color: '#9ca3af' }}>
+        No media attached to this event.
+      </p>
+    )
+  }
+  return <MediaGallery items={items} title="" />
+}
+
 // ---- Main page ----
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -323,10 +337,24 @@ export function EventDetailPage() {
   const unresolvedCount = contradictions.filter(c => !c.isResolved).length
   const color = statusColor(event.status)
 
+  const mediaItems = useMemo(() => {
+    const seen = new Set<string>()
+    const out: MediaItem[] = []
+    for (const a of articles) {
+      for (const m of a.media ?? []) {
+        if (!m.id || seen.has(m.id)) continue
+        seen.add(m.id)
+        out.push({ id: m.id, url: m.url!, kind: m.kind as 'Image' | 'Video', contentType: m.contentType! })
+      }
+    }
+    return out
+  }, [articles])
+
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: 'timeline', label: 'TIMELINE', count: articles.length },
     { key: 'updates', label: 'UPDATES', count: updates.length },
     { key: 'contradictions', label: 'CONTRADICTIONS', count: unresolvedCount || undefined },
+    { key: 'media', label: 'MEDIA', count: mediaItems.length || undefined },
   ]
 
   return (
@@ -531,6 +559,7 @@ export function EventDetailPage() {
             isPending={resolveContradiction.isPending}
           />
         )}
+        {activeTab === 'media' && <MediaTab items={mediaItems} />}
       </div>
 
       {/* Approve modal */}

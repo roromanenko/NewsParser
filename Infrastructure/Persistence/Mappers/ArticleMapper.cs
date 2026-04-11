@@ -32,6 +32,7 @@ public static class ArticleMapper
 		Role = entity.Role != null ? Enum.Parse<ArticleRole>(entity.Role) : null,
 		WasReclassified = entity.WasReclassified,
 		AddedToEventAt = entity.AddedToEventAt,
+		MediaFiles = entity.MediaFiles?.Select(m => m.ToDomain()).ToList() ?? [],
 	};
 
 	public static ArticleEntity ToEntity(this Article domain) => new()

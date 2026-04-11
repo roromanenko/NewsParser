@@ -1,6 +1,8 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { useArticleDetail } from './useArticleDetail'
+import { MediaGallery } from '@/components/shared/MediaGallery'
+import type { MediaItem } from '@/components/shared/MediaGallery'
 
 function sentimentColor(s?: string | null): string {
   const lower = s?.toLowerCase()
@@ -45,6 +47,12 @@ export function ArticleDetailPage() {
 
   const keyFacts = article.keyFacts ?? []
   const tags = article.tags ?? []
+  const mediaItems: MediaItem[] = (article.media ?? []).map(m => ({
+    id: m.id!,
+    url: m.url!,
+    kind: m.kind as 'Image' | 'Video',
+    contentType: m.contentType!,
+  }))
 
   return (
     <div className="max-w-5xl">
@@ -177,6 +185,8 @@ export function ArticleDetailPage() {
               </ul>
             </div>
           )}
+
+          <MediaGallery items={mediaItems} />
 
         </div>
 

@@ -16,26 +16,27 @@ public static class EventMapper
         evt.Contradictions.Count(c => !c.IsResolved)
     );
 
-    public static EventDetailDto ToDetailDto(this Event evt) => new(
+    public static EventDetailDto ToDetailDto(this Event evt, string publicBaseUrl) => new(
         evt.Id,
         evt.Title,
         evt.Summary,
         evt.Status.ToString(),
         evt.FirstSeenAt,
         evt.LastUpdatedAt,
-        evt.Articles.Select(a => a.ToEventArticleDto()).ToList(),
+        evt.Articles.Select(a => a.ToEventArticleDto(publicBaseUrl)).ToList(),
         evt.EventUpdates.Select(eu => eu.ToDto()).OrderBy(u => u.CreatedAt).ToList(),
         evt.Contradictions.Select(c => c.ToDto()).ToList(),
         evt.Articles.Count(a => a.WasReclassified)
     );
 
-    public static EventArticleDto ToEventArticleDto(this Article article) => new(
+    public static EventArticleDto ToEventArticleDto(this Article article, string publicBaseUrl) => new(
         article.Id,
         article.Title,
         article.Summary,
         article.KeyFacts ?? [],
         article.Role?.ToString() ?? string.Empty,
-        article.AddedToEventAt ?? article.ProcessedAt
+        article.AddedToEventAt ?? article.ProcessedAt,
+        article.MediaFiles.Select(m => m.ToDto(publicBaseUrl)).ToList()
     );
 
     public static EventUpdateDto ToDto(this EventUpdate eu) => new(

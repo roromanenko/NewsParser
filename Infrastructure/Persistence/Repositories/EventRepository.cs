@@ -226,6 +226,7 @@ public class EventRepository : IEventRepository
 	{
 		var entity = await _context.Events
 			.Include(e => e.Articles)
+				.ThenInclude(a => a.MediaFiles)
 			.Include(e => e.EventUpdates)
 			.Include(e => e.Contradictions)
 				.ThenInclude(c => c.ContradictionArticles)

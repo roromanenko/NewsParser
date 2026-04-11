@@ -27,6 +27,12 @@ public class ArticleConfiguration : IEntityTypeConfiguration<ArticleEntity>
 			.IsRequired(false)
 			.OnDelete(DeleteBehavior.SetNull);
 
+		builder
+			.HasMany(a => a.MediaFiles)
+			.WithOne()
+			.HasForeignKey(m => m.ArticleId)
+			.OnDelete(DeleteBehavior.Cascade);
+
 		builder.HasIndex(a => a.Status);
 		builder.HasIndex(a => a.ProcessedAt);
 		builder.HasIndex(a => a.EventId);

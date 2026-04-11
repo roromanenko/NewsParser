@@ -28,6 +28,7 @@ public class ArticleRepository : IArticleRepository
 	public async Task<Article?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
 	{
 		var entity = await _context.Articles
+			.Include(a => a.MediaFiles)
 			.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
 		return entity?.ToDomain();

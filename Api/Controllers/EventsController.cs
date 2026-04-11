@@ -4,8 +4,10 @@ using Api.Models;
 using Core.DomainModels;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
+using Infrastructure.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Api.Controllers;
 
@@ -15,8 +17,11 @@ namespace Api.Controllers;
 public class EventsController(
 	IEventRepository eventRepository,
 	IEventService eventService,
-	IEventApprovalService approvalService) : BaseController
+	IEventApprovalService approvalService,
+	IOptions<CloudflareR2Options> r2Options) : BaseController
 {
+	private readonly string _publicBaseUrl = r2Options.Value.PublicBaseUrl;
+
 	[HttpGet]
 	public async Task<ActionResult<PagedResult<EventListItemDto>>> GetAll(
 		[FromQuery] int page = 1,
@@ -43,7 +48,7 @@ public class EventsController(
 		if (evt is null)
 			return NotFound();
 
-		return Ok(evt.ToDetailDto());
+		return Ok(evt.ToDetailDto(_publicBaseUrl));
 	}
 
 	[HttpPost("{id:guid}/resolve-contradiction")]

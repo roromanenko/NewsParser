@@ -66,6 +66,11 @@ public class EventsControllerTests
 
                 builder.UseSetting("ConnectionStrings:NewsParserDbContext",
                     "Host=localhost;Database=test_placeholder;Username=sa;Password=sa");
+
+                // EventsController primary constructor now requires IOptions<CloudflareR2Options>.
+                // Supplying a non-empty PublicBaseUrl prevents the Options binder from throwing
+                // at startup when the controller is instantiated by the test host.
+                builder.UseSetting("CloudflareR2:PublicBaseUrl", "https://cdn.test.example.com");
             });
 
         var editorToken = GenerateJwtToken(role: nameof(UserRole.Editor));

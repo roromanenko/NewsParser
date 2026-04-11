@@ -30,7 +30,8 @@ public record EventArticleDto(
 	string? Summary,
 	List<string> KeyFacts,
 	string Role,
-	DateTimeOffset AddedAt
+	DateTimeOffset AddedAt,
+	List<MediaFileDto> Media
 );
 
 public record EventUpdateDto(

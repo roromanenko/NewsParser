@@ -40,6 +40,7 @@ export interface ArticleDetailDto {
     'originalUrl'?: string | null;
     'publishedAt'?: string | null;
     'event'?: ArticleEventDto;
+    'media'?: Array<MediaFileDto> | null;
 }
 export interface ArticleEventDto {
     'eventId'?: string;
@@ -98,6 +99,7 @@ export interface EventArticleDto {
     'keyFacts'?: Array<string> | null;
     'role'?: string | null;
     'addedAt'?: string;
+    'media'?: Array<MediaFileDto> | null;
 }
 export interface EventDetailDto {
     'id'?: string;
@@ -145,6 +147,14 @@ export interface LoginResponse {
     'email'?: string | null;
     'role'?: string | null;
     'token'?: string | null;
+}
+export interface MediaFileDto {
+    'id'?: string;
+    'articleId'?: string;
+    'url'?: string | null;
+    'kind'?: string | null;
+    'contentType'?: string | null;
+    'sizeBytes'?: number;
 }
 export interface MergeEventsRequest {
     'sourceEventId'?: string;

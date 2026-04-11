@@ -210,7 +210,7 @@ public class EventRepositoryGetWithContextTests
 /// with a portable configuration compatible with the EF InMemory provider.
 ///
 /// Relationship navigation properties are fully configured so that EF InMemory
-/// can resolve Include() chains (Articles, EventUpdates, Contradictions).
+/// can resolve Include() chains (Articles, EventUpdates, Contradictions, MediaFiles).
 /// The pgvector-typed Embedding properties on EventEntity and ArticleEntity are
 /// explicitly ignored because the Pgvector.Vector type has no default constructor
 /// and cannot be instantiated by the EF InMemory metadata resolver.
@@ -250,6 +250,16 @@ internal sealed class TestNewsParserDbContext : NewsParserDbContext
                 .WithMany(e => e.Articles)
                 .HasForeignKey(a => a.EventId)
                 .IsRequired(false);
+            b.HasMany(a => a.MediaFiles)
+                .WithOne()
+                .HasForeignKey(m => m.ArticleId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // MediaFile
+        modelBuilder.Entity<MediaFileEntity>(b =>
+        {
+            b.HasKey(m => m.Id);
         });
 
         // EventUpdate

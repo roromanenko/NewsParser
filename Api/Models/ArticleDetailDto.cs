@@ -1,5 +1,14 @@
 namespace Api.Models;
 
+public record MediaFileDto(
+	Guid Id,
+	Guid ArticleId,
+	string Url,
+	string Kind,
+	string ContentType,
+	long SizeBytes
+);
+
 public record ArticleDetailDto(
 	Guid Id,
 	string Title,
@@ -13,7 +22,8 @@ public record ArticleDetailDto(
 	string ModelVersion,
 	string? OriginalUrl,
 	DateTimeOffset? PublishedAt,
-	ArticleEventDto? Event
+	ArticleEventDto? Event,
+	List<MediaFileDto> Media
 );
 
 public record ArticleEventDto(

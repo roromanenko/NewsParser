@@ -18,6 +18,7 @@ Name | Type | Description | Notes
 **originalUrl** | **string** |  | [optional] [default to undefined]
 **publishedAt** | **string** |  | [optional] [default to undefined]
 **event** | [**ArticleEventDto**](ArticleEventDto.md) |  | [optional] [default to undefined]
+**media** | [**Array&lt;MediaFileDto&gt;**](MediaFileDto.md) |  | [optional] [default to undefined]
 
 ## Example
 
@@ -38,6 +39,7 @@ const instance: ArticleDetailDto = {
     originalUrl,
     publishedAt,
     event,
+    media,
 };
 ```
 

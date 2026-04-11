@@ -33,4 +33,5 @@ public class ArticleEntity
 	public string? Role { get; set; }
 	public bool WasReclassified { get; set; }
 	public DateTimeOffset? AddedToEventAt { get; set; }
+	public List<MediaFileEntity> MediaFiles { get; set; } = [];
 }

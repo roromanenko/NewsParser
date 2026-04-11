@@ -10,7 +10,10 @@ public static class ArticleMapper
         article.Sentiment.ToString(), article.Language, article.Summary, article.ProcessedAt
     );
 
-    public static ArticleDetailDto ToDetailDto(this Article article, Event? evt = null)
+    public static ArticleDetailDto ToDetailDto(
+        this Article article,
+        string publicBaseUrl,
+        Event? evt = null)
     {
         ArticleEventDto? eventDto = null;
         if (evt is not null)
@@ -29,7 +32,8 @@ public static class ArticleMapper
             article.Summary, article.KeyFacts ?? [],
             article.ProcessedAt, article.ModelVersion,
             article.OriginalUrl, article.PublishedAt,
-            eventDto
+            eventDto,
+            article.MediaFiles.Select(m => m.ToDto(publicBaseUrl)).ToList()
         );
     }
 }

@@ -11,6 +11,7 @@ Name | Type | Description | Notes
 **keyFacts** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **role** | **string** |  | [optional] [default to undefined]
 **addedAt** | **string** |  | [optional] [default to undefined]
+**media** | [**Array&lt;MediaFileDto&gt;**](MediaFileDto.md) |  | [optional] [default to undefined]
 
 ## Example
 
@@ -24,6 +25,7 @@ const instance: EventArticleDto = {
     keyFacts,
     role,
     addedAt,
+    media,
 };
 ```
 

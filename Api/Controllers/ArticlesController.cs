@@ -2,8 +2,10 @@ using Api.Mappers;
 using Api.Models;
 using Core.DomainModels;
 using Core.Interfaces.Repositories;
+using Infrastructure.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Api.Controllers;
 
@@ -12,8 +14,11 @@ namespace Api.Controllers;
 [Authorize(Roles = nameof(UserRole.Editor) + "," + nameof(UserRole.Admin))]
 public class ArticlesController(
 	IArticleRepository articleRepository,
-	IEventRepository eventRepository) : BaseController
+	IEventRepository eventRepository,
+	IOptions<CloudflareR2Options> r2Options) : BaseController
 {
+	private readonly string _publicBaseUrl = r2Options.Value.PublicBaseUrl;
+
 	[HttpGet]
 	public async Task<ActionResult<PagedResult<ArticleListItemDto>>> GetAnalysisDone(
 		[FromQuery] int page = 1,
@@ -44,6 +49,6 @@ public class ArticlesController(
 		if (article.EventId is not null)
 			relatedEvent = await eventRepository.GetByIdAsync(article.EventId.Value, cancellationToken);
 
-		return Ok(article.ToDetailDto(relatedEvent));
+		return Ok(article.ToDetailDto(_publicBaseUrl, relatedEvent));
 	}
 }
