@@ -3,15 +3,15 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useEventDetail } from './useEventDetail'
 import { useEventMutations } from './useEventMutations'
-import { ApproveEventModal } from './ApproveEventModal'
-import { RejectEventModal } from './RejectEventModal'
+import { GenerateContentModal } from '@/features/publications/GenerateContentModal'
+import { usePublications } from '@/features/publications/usePublications'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { usePermissions } from '@/hooks/usePermissions'
 import { MediaGallery } from '@/components/shared/MediaGallery'
 import type { MediaItem } from '@/components/shared/MediaGallery'
 import type { ContradictionDto, EventArticleDto } from '@/api/generated'
 
-type Tab = 'timeline' | 'updates' | 'contradictions' | 'media'
+type Tab = 'timeline' | 'updates' | 'contradictions' | 'media' | 'publications'
 
 const ROLES = ['Initiator', 'Update', 'Contradiction'] as const
 
@@ -22,8 +22,6 @@ function formatDate(iso?: string) {
 
 function statusColor(status?: string | null): string {
   if (status === 'Active') return 'var(--crimson)'
-  if (status === 'Approved') return 'var(--caramel)'
-  if (status === 'Rejected') return 'var(--rust)'
   if (status === 'Archived') return '#4b5563'
   return '#6b7280'
 }
@@ -300,6 +298,53 @@ function MediaTab({ items }: { items: MediaItem[] }) {
   return <MediaGallery items={items} title="" />
 }
 
+// ---- Publications tab ----
+function PublicationsTab({ eventId }: { eventId: string }) {
+  const { publications, isLoading } = usePublications(eventId)
+
+  if (isLoading) {
+    return (
+      <p className="font-mono text-sm text-center py-8" style={{ color: '#9ca3af' }}>
+        Loading publications…
+      </p>
+    )
+  }
+
+  if (publications.length === 0) {
+    return (
+      <p className="font-mono text-sm text-center py-8" style={{ color: '#9ca3af' }}>
+        No publications yet. Click "Generate Content" to create one.
+      </p>
+    )
+  }
+
+  return (
+    <ul className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+      {publications.map(pub => (
+        <li key={pub.id} className="py-4 flex items-center justify-between gap-4">
+          <div>
+            <Link
+              to={`/publications/${pub.id}`}
+              className="font-mono text-sm transition-colors"
+              style={{ color: '#E8E8E8' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--caramel)')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#E8E8E8')}
+            >
+              {pub.targetName} · {pub.platform}
+            </Link>
+            <p className="font-mono text-xs mt-1" style={{ color: '#6b7280' }}>
+              {formatDate(pub.createdAt)}
+            </p>
+          </div>
+          <span className="font-caps text-xs tracking-widest shrink-0" style={{ color: '#9ca3af' }}>
+            {pub.status.toUpperCase()}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 // ---- Main page ----
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -310,8 +355,7 @@ export function EventDetailPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>('timeline')
   const [archiveOpen, setArchiveOpen] = useState(false)
-  const [approveOpen, setApproveOpen] = useState(false)
-  const [rejectOpen, setRejectOpen] = useState(false)
+  const [generateOpen, setGenerateOpen] = useState(false)
 
   const articles = event?.articles ?? []
   const updates = event?.updates ?? []
@@ -357,6 +401,7 @@ export function EventDetailPage() {
     { key: 'updates', label: 'UPDATES', count: updates.length },
     { key: 'contradictions', label: 'CONTRADICTIONS', count: unresolvedCount || undefined },
     { key: 'media', label: 'MEDIA', count: mediaItems.length || undefined },
+    { key: 'publications', label: 'PUBLICATIONS' },
   ]
 
   return (
@@ -408,38 +453,21 @@ export function EventDetailPage() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {(isAdmin || isEditor) && event.status === 'Active' && (
-              <>
-                <button
-                  onClick={() => setApproveOpen(true)}
-                  className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors"
-                  style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--caramel)'
-                    e.currentTarget.style.color = 'var(--caramel)'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
-                    e.currentTarget.style.color = '#9ca3af'
-                  }}
-                >
-                  APPROVE EVENT
-                </button>
-                <button
-                  onClick={() => setRejectOpen(true)}
-                  className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors"
-                  style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--rust)'
-                    e.currentTarget.style.color = 'var(--rust)'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
-                    e.currentTarget.style.color = '#9ca3af'
-                  }}
-                >
-                  REJECT EVENT
-                </button>
-              </>
+              <button
+                onClick={() => setGenerateOpen(true)}
+                className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors"
+                style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'var(--caramel)'
+                  e.currentTarget.style.color = 'var(--caramel)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+                  e.currentTarget.style.color = '#9ca3af'
+                }}
+              >
+                GENERATE CONTENT
+              </button>
             )}
             {isAdmin && event.status !== 'Archived' && (
               <button
@@ -580,19 +608,13 @@ export function EventDetailPage() {
           />
         )}
         {activeTab === 'media' && <MediaTab items={mediaItems} />}
+        {activeTab === 'publications' && <PublicationsTab eventId={id!} />}
       </div>
 
-      {/* Approve modal */}
-      <ApproveEventModal
-        isOpen={approveOpen}
-        onClose={() => setApproveOpen(false)}
-        eventId={id!}
-      />
-
-      {/* Reject modal */}
-      <RejectEventModal
-        isOpen={rejectOpen}
-        onClose={() => setRejectOpen(false)}
+      {/* Generate content modal */}
+      <GenerateContentModal
+        isOpen={generateOpen}
+        onClose={() => setGenerateOpen(false)}
         eventId={id!}
       />
 

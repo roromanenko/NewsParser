@@ -14,7 +14,10 @@
       "mcp__figma__whoami",
       "Read(//d/Projects/NewsParser/UI/$APPDATA/Claude/**)",
       "Read(//d/Projects/NewsParser/UI/$USERPROFILE/**)",
-      "Read(//d/Projects/NewsParser/UI/$APPDATA/Claude/claude-code/**)"
+      "Read(//d/Projects/NewsParser/UI/$APPDATA/Claude/claude-code/**)",
+      "Bash(dotnet ef:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)"
     ]
   },
   "enabledMcpjsonServers": [

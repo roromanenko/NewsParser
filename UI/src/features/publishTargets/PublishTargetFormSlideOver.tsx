@@ -102,8 +102,8 @@ export function PublishTargetFormSlideOver({ isOpen, onClose, target }: Props) {
                 style={inputStyle}
                 placeholder="Target name"
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...editForm.register('name')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               <FieldError message={editForm.formState.errors.name?.message} />
             </div>
@@ -114,8 +114,8 @@ export function PublishTargetFormSlideOver({ isOpen, onClose, target }: Props) {
                 style={inputStyle}
                 placeholder="e.g. @channel"
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...editForm.register('identifier')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               <FieldError message={editForm.formState.errors.identifier?.message} />
             </div>
@@ -127,8 +127,8 @@ export function PublishTargetFormSlideOver({ isOpen, onClose, target }: Props) {
                 style={inputStyle}
                 placeholder="Enter system prompt…"
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...editForm.register('systemPrompt')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               <FieldError message={editForm.formState.errors.systemPrompt?.message} />
             </div>
@@ -182,8 +182,8 @@ export function PublishTargetFormSlideOver({ isOpen, onClose, target }: Props) {
                 style={inputStyle}
                 placeholder="Target name"
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...createForm.register('name')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               <FieldError message={createForm.formState.errors.name?.message} />
             </div>
@@ -193,8 +193,8 @@ export function PublishTargetFormSlideOver({ isOpen, onClose, target }: Props) {
                 className={inputClass}
                 style={inputStyle}
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...createForm.register('platform')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               >
                 <option value="">Select platform…</option>
                 <option value="Telegram">Telegram</option>
@@ -209,8 +209,8 @@ export function PublishTargetFormSlideOver({ isOpen, onClose, target }: Props) {
                 style={inputStyle}
                 placeholder="e.g. @channel"
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...createForm.register('identifier')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               <FieldError message={createForm.formState.errors.identifier?.message} />
             </div>
@@ -222,8 +222,8 @@ export function PublishTargetFormSlideOver({ isOpen, onClose, target }: Props) {
                 style={inputStyle}
                 placeholder="Enter system prompt…"
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...createForm.register('systemPrompt')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               <FieldError message={createForm.formState.errors.systemPrompt?.message} />
             </div>

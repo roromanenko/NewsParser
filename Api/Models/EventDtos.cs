@@ -49,10 +49,6 @@ public record ContradictionDto(
 	List<Guid> ArticleIds
 );
 
-public record ApproveEventRequest(List<Guid> PublishTargetIds);
-
-public record RejectEventRequest(string Reason);
-
 public record MergeEventsRequest(Guid SourceEventId, Guid TargetEventId);
 
 public record ResolveContradictionRequest(Guid ContradictionId);

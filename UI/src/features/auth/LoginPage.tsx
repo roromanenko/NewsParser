@@ -89,10 +89,10 @@ export function LoginPage() {
               onFocus={e => {
                 if (!errors.email) e.currentTarget.style.borderColor = 'var(--caramel)'
               }}
+              {...register('email')}
               onBlur={e => {
                 if (!errors.email) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
               }}
-              {...register('email')}
             />
             {errors.email && (
               <p className="mt-1 font-mono text-xs" style={{ color: 'var(--crimson)' }}>
@@ -118,10 +118,10 @@ export function LoginPage() {
               onFocus={e => {
                 if (!errors.password) e.currentTarget.style.borderColor = 'var(--caramel)'
               }}
+              {...register('password')}
               onBlur={e => {
                 if (!errors.password) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
               }}
-              {...register('password')}
             />
             {errors.password && (
               <p className="mt-1 font-mono text-xs" style={{ color: 'var(--crimson)' }}>

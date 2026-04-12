@@ -105,8 +105,8 @@ export function RegisterPage() {
                 className="w-full px-4 py-3 font-mono text-sm border focus:outline-none transition-colors"
                 style={fieldStyle(!!errors.firstName)}
                 onFocus={e => handleFocus(e, !!errors.firstName)}
-                onBlur={e => handleBlur(e, !!errors.firstName)}
                 {...register('firstName')}
+                onBlur={e => handleBlur(e, !!errors.firstName)}
               />
               {errors.firstName && (
                 <p className="mt-1 font-mono text-xs" style={{ color: 'var(--crimson)' }}>
@@ -124,8 +124,8 @@ export function RegisterPage() {
                 className="w-full px-4 py-3 font-mono text-sm border focus:outline-none transition-colors"
                 style={fieldStyle(!!errors.lastName)}
                 onFocus={e => handleFocus(e, !!errors.lastName)}
-                onBlur={e => handleBlur(e, !!errors.lastName)}
                 {...register('lastName')}
+                onBlur={e => handleBlur(e, !!errors.lastName)}
               />
               {errors.lastName && (
                 <p className="mt-1 font-mono text-xs" style={{ color: 'var(--crimson)' }}>
@@ -146,8 +146,8 @@ export function RegisterPage() {
               className="w-full px-4 py-3 font-mono text-sm border focus:outline-none transition-colors"
               style={fieldStyle(!!errors.email)}
               onFocus={e => handleFocus(e, !!errors.email)}
-              onBlur={e => handleBlur(e, !!errors.email)}
               {...register('email')}
+              onBlur={e => handleBlur(e, !!errors.email)}
             />
             {errors.email && (
               <p className="mt-1 font-mono text-xs" style={{ color: 'var(--crimson)' }}>
@@ -167,8 +167,8 @@ export function RegisterPage() {
               className="w-full px-4 py-3 font-mono text-sm border focus:outline-none transition-colors"
               style={fieldStyle(!!errors.password)}
               onFocus={e => handleFocus(e, !!errors.password)}
-              onBlur={e => handleBlur(e, !!errors.password)}
               {...register('password')}
+              onBlur={e => handleBlur(e, !!errors.password)}
             />
             {errors.password && (
               <p className="mt-1 font-mono text-xs" style={{ color: 'var(--crimson)' }}>
@@ -188,8 +188,8 @@ export function RegisterPage() {
               className="w-full px-4 py-3 font-mono text-sm border focus:outline-none transition-colors"
               style={fieldStyle(!!errors.confirmPassword)}
               onFocus={e => handleFocus(e, !!errors.confirmPassword)}
-              onBlur={e => handleBlur(e, !!errors.confirmPassword)}
               {...register('confirmPassword')}
+              onBlur={e => handleBlur(e, !!errors.confirmPassword)}
             />
             {errors.confirmPassword && (
               <p className="mt-1 font-mono text-xs" style={{ color: 'var(--crimson)' }}>

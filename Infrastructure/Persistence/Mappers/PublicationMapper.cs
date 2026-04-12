@@ -20,6 +20,10 @@ public static class PublicationMapper
 		Event = entity.Event?.ToDomain(),
 		ParentPublicationId = entity.ParentPublicationId,
 		UpdateContext = entity.UpdateContext,
+		SelectedMediaFileIds = entity.SelectedMediaFileIds ?? [],
+		ReviewedByEditorId = entity.ReviewedByEditorId,
+		RejectedAt = entity.RejectedAt,
+		RejectionReason = entity.RejectionReason,
 	};
 
 	public static PublicationEntity ToEntity(this Publication domain, Guid articleId, Guid? editorId = null) => new()
@@ -36,5 +40,9 @@ public static class PublicationMapper
 		EventId = domain.EventId,
 		ParentPublicationId = domain.ParentPublicationId,
 		UpdateContext = domain.UpdateContext,
+		SelectedMediaFileIds = domain.SelectedMediaFileIds,
+		ReviewedByEditorId = domain.ReviewedByEditorId,
+		RejectedAt = domain.RejectedAt,
+		RejectionReason = domain.RejectionReason,
 	};
 }

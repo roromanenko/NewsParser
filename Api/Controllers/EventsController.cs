@@ -1,4 +1,4 @@
-﻿using Api.Controllers;
+using Api.Controllers;
 using Api.Mappers;
 using Api.Models;
 using Core.DomainModels;
@@ -17,7 +17,6 @@ namespace Api.Controllers;
 public class EventsController(
 	IEventRepository eventRepository,
 	IEventService eventService,
-	IEventApprovalService approvalService,
 	IOptions<CloudflareR2Options> r2Options) : BaseController
 {
 	private readonly string _publicBaseUrl = r2Options.Value.PublicBaseUrl;
@@ -116,44 +115,11 @@ public class EventsController(
 			return BadRequest($"Invalid status: {status}. Valid values: " +
 				$"{string.Join(", ", Enum.GetNames<EventStatus>())}");
 
+		if (eventStatus is not EventStatus.Active and not EventStatus.Archived)
+			return BadRequest($"Only Active and Archived statuses are allowed. Provided: {status}");
+
 		await eventRepository.UpdateStatusAsync(id, eventStatus, cancellationToken);
 
 		return NoContent();
-	}
-
-	[HttpPost("{id:guid}/approve")]
-	public async Task<ActionResult<EventListItemDto>> Approve(
-		Guid id,
-		[FromBody] ApproveEventRequest request,
-		CancellationToken cancellationToken = default)
-	{
-		if (request.PublishTargetIds is null || request.PublishTargetIds.Count == 0)
-			return BadRequest("At least one publish target must be specified");
-
-		if (UserId is null)
-			return Unauthorized();
-
-		var relatedEvent = await approvalService.ApproveAsync(
-			id, UserId.Value, request.PublishTargetIds, cancellationToken);
-
-		return Ok(relatedEvent.ToListItemDto());
-	}
-
-	[HttpPost("{id:guid}/reject")]
-	public async Task<ActionResult<EventListItemDto>> Reject(
-		Guid id,
-		[FromBody] RejectEventRequest request,
-		CancellationToken cancellationToken = default)
-	{
-		if (string.IsNullOrWhiteSpace(request.Reason))
-			return BadRequest("Rejection reason is required");
-
-		if (UserId is null)
-			return Unauthorized();
-
-		var relatedEvent = await approvalService.RejectAsync(
-			id, UserId.Value, request.Reason, cancellationToken);
-
-		return Ok(relatedEvent.ToListItemDto());
 	}
 }

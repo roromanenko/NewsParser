@@ -87,8 +87,8 @@ export function SourceFormSlideOver({ isOpen, onClose, source }: SourceFormSlide
                 style={inputStyle}
                 placeholder="Source name"
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...editForm.register('name')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               <FieldError message={editForm.formState.errors.name?.message} />
             </div>
@@ -100,8 +100,8 @@ export function SourceFormSlideOver({ isOpen, onClose, source }: SourceFormSlide
                 style={inputStyle}
                 placeholder="https://..."
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...editForm.register('url')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               <FieldError message={editForm.formState.errors.url?.message} />
             </div>
@@ -158,8 +158,8 @@ export function SourceFormSlideOver({ isOpen, onClose, source }: SourceFormSlide
                 style={inputStyle}
                 placeholder="Source name"
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...createForm.register('name')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               <FieldError message={createForm.formState.errors.name?.message} />
             </div>
@@ -171,8 +171,8 @@ export function SourceFormSlideOver({ isOpen, onClose, source }: SourceFormSlide
                 style={inputStyle}
                 placeholder="https://..."
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...createForm.register('url')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               <FieldError message={createForm.formState.errors.url?.message} />
             </div>
@@ -182,8 +182,8 @@ export function SourceFormSlideOver({ isOpen, onClose, source }: SourceFormSlide
                 className={inputClass}
                 style={inputStyle}
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...createForm.register('type')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               >
                 <option value="">Select type…</option>
                 <option value="Rss">RSS</option>

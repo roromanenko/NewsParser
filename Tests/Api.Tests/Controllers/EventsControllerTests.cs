@@ -24,7 +24,6 @@ public class EventsControllerTests
     private HttpClient _client = null!;
 
     private Mock<IEventRepository> _eventRepoMock = null!;
-    private Mock<IEventApprovalService> _approvalServiceMock = null!;
     private Mock<IEventService> _eventServiceMock = null!;
 
     // JWT config — must match the values supplied via UseSetting in OneTimeSetUp
@@ -36,7 +35,6 @@ public class EventsControllerTests
     public void OneTimeSetUp()
     {
         _eventRepoMock = new Mock<IEventRepository>();
-        _approvalServiceMock = new Mock<IEventApprovalService>();
         _eventServiceMock = new Mock<IEventService>();
 
         _factory = new WebApplicationFactory<Program>()
@@ -44,22 +42,13 @@ public class EventsControllerTests
             {
                 builder.ConfigureServices(services =>
                 {
-                    // Replace all infrastructure registrations that touch real DB/AI/Telegram
                     RemoveAllImplementations(services, typeof(IEventRepository));
-                    RemoveAllImplementations(services, typeof(IEventApprovalService));
                     RemoveAllImplementations(services, typeof(IEventService));
 
                     services.AddSingleton(_eventRepoMock.Object);
-                    services.AddSingleton(_approvalServiceMock.Object);
                     services.AddSingleton(_eventServiceMock.Object);
                 });
 
-                // appsettings.Development.json ships with an empty SecretKey.
-                // Override JWT settings here so the server validates tokens with the
-                // same secret key, issuer, and audience that GenerateJwtToken() uses.
-                // Without this, SymmetricSecurityKey throws ArgumentException (key
-                // length is zero) on every request, which ExceptionMiddleware catches
-                // and maps to 400 — masking the real controller response.
                 builder.UseSetting("Jwt:SecretKey", JwtSecretKey);
                 builder.UseSetting("Jwt:Issuer", JwtIssuer);
                 builder.UseSetting("Jwt:Audience", JwtAudience);
@@ -67,9 +56,6 @@ public class EventsControllerTests
                 builder.UseSetting("ConnectionStrings:NewsParserDbContext",
                     "Host=localhost;Database=test_placeholder;Username=sa;Password=sa");
 
-                // EventsController primary constructor now requires IOptions<CloudflareR2Options>.
-                // Supplying a non-empty PublicBaseUrl prevents the Options binder from throwing
-                // at startup when the controller is instantiated by the test host.
                 builder.UseSetting("CloudflareR2:PublicBaseUrl", "https://cdn.test.example.com");
             });
 
@@ -90,172 +76,79 @@ public class EventsControllerTests
     public void ResetMocks()
     {
         _eventRepoMock.Reset();
-        _approvalServiceMock.Reset();
         _eventServiceMock.Reset();
     }
 
     // ------------------------------------------------------------------
-    // POST /events/{id}/approve — 200 with valid body
+    // PATCH /events/{id}/status — 204 with valid Active status
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task Approve_WhenValidRequest_Returns200WithEventListItemDto()
+    public async Task UpdateStatus_WhenValidActiveStatus_Returns204()
     {
         // Arrange
         var eventId = Guid.NewGuid();
-        var approvedEvent = CreateApprovedEvent(eventId);
-
-        _approvalServiceMock
-            .Setup(s => s.ApproveAsync(
-                eventId,
-                It.IsAny<Guid>(),
-                It.IsAny<List<Guid>>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(approvedEvent);
-
-        var request = new ApproveEventRequest([Guid.NewGuid()]);
+        _eventRepoMock
+            .Setup(r => r.GetByIdAsync(eventId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateEvent(eventId, EventStatus.Active));
 
         // Act
-        var response = await _client.PostAsJsonAsync($"/events/{eventId}/approve", request);
+        var response = await _client.PatchAsJsonAsync($"/events/{eventId}/status", "Active");
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<EventListItemDto>();
-        body.Should().NotBeNull();
-        body!.Id.Should().Be(eventId);
-        body.Status.Should().Be(EventStatus.Approved.ToString());
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     // ------------------------------------------------------------------
-    // POST /events/{id}/approve — 400 when PublishTargetIds is empty
+    // PATCH /events/{id}/status — 204 with valid Archived status
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task Approve_WhenPublishTargetIdsIsEmpty_Returns400()
+    public async Task UpdateStatus_WhenValidArchivedStatus_Returns204()
     {
         // Arrange
         var eventId = Guid.NewGuid();
-        var request = new ApproveEventRequest([]);
+        _eventRepoMock
+            .Setup(r => r.GetByIdAsync(eventId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateEvent(eventId, EventStatus.Active));
 
         // Act
-        var response = await _client.PostAsJsonAsync($"/events/{eventId}/approve", request);
+        var response = await _client.PatchAsJsonAsync($"/events/{eventId}/status", "Archived");
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        _approvalServiceMock.Verify(
-            s => s.ApproveAsync(
-                It.IsAny<Guid>(),
-                It.IsAny<Guid>(),
-                It.IsAny<List<Guid>>(),
-                It.IsAny<CancellationToken>()),
-            Times.Never);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     // ------------------------------------------------------------------
-    // POST /events/{id}/approve — 404 when event not found
+    // PATCH /events/{id}/status — 400 for invalid status string
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task Approve_WhenEventNotFound_Returns404()
+    public async Task UpdateStatus_WhenInvalidStatus_Returns400()
     {
         // Arrange
         var eventId = Guid.NewGuid();
-        _approvalServiceMock
-            .Setup(s => s.ApproveAsync(
-                eventId,
-                It.IsAny<Guid>(),
-                It.IsAny<List<Guid>>(),
-                It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new KeyNotFoundException($"Event {eventId} not found"));
-
-        var request = new ApproveEventRequest([Guid.NewGuid()]);
+        _eventRepoMock
+            .Setup(r => r.GetByIdAsync(eventId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateEvent(eventId, EventStatus.Active));
 
         // Act
-        var response = await _client.PostAsJsonAsync($"/events/{eventId}/approve", request);
-
-        // Assert — ExceptionMiddleware maps KeyNotFoundException → 404
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    // ------------------------------------------------------------------
-    // POST /events/{id}/reject — 200 with valid body
-    // ------------------------------------------------------------------
-
-    [Test]
-    public async Task Reject_WhenValidRequest_Returns200WithEventListItemDto()
-    {
-        // Arrange
-        var eventId = Guid.NewGuid();
-        var rejectedEvent = CreateRejectedEvent(eventId);
-
-        _approvalServiceMock
-            .Setup(s => s.RejectAsync(
-                eventId,
-                It.IsAny<Guid>(),
-                It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(rejectedEvent);
-
-        var request = new RejectEventRequest("Reason: outdated information");
-
-        // Act
-        var response = await _client.PostAsJsonAsync($"/events/{eventId}/reject", request);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<EventListItemDto>();
-        body.Should().NotBeNull();
-        body!.Id.Should().Be(eventId);
-        body.Status.Should().Be(EventStatus.Rejected.ToString());
-    }
-
-    // ------------------------------------------------------------------
-    // POST /events/{id}/reject — 400 when Reason is blank
-    // ------------------------------------------------------------------
-
-    [TestCase("")]
-    [TestCase("   ")]
-    public async Task Reject_WhenReasonIsBlank_Returns400(string blankReason)
-    {
-        // Arrange
-        var eventId = Guid.NewGuid();
-        var request = new RejectEventRequest(blankReason);
-
-        // Act
-        var response = await _client.PostAsJsonAsync($"/events/{eventId}/reject", request);
+        var response = await _client.PatchAsJsonAsync($"/events/{eventId}/status", "Approved");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        _approvalServiceMock.Verify(
-            s => s.RejectAsync(
-                It.IsAny<Guid>(),
-                It.IsAny<Guid>(),
-                It.IsAny<string>(),
-                It.IsAny<CancellationToken>()),
-            Times.Never);
     }
 
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
 
-    private static Event CreateApprovedEvent(Guid id) => new()
+    private static Event CreateEvent(Guid id, EventStatus status) => new()
     {
         Id = id,
-        Title = "Approved Event",
+        Title = "Test Event",
         Summary = "Summary",
-        Status = EventStatus.Approved,
-        FirstSeenAt = DateTimeOffset.UtcNow,
-        LastUpdatedAt = DateTimeOffset.UtcNow,
-        Articles = []
-    };
-
-    private static Event CreateRejectedEvent(Guid id) => new()
-    {
-        Id = id,
-        Title = "Rejected Event",
-        Summary = "Summary",
-        Status = EventStatus.Rejected,
+        Status = status,
         FirstSeenAt = DateTimeOffset.UtcNow,
         LastUpdatedAt = DateTimeOffset.UtcNow,
         Articles = []

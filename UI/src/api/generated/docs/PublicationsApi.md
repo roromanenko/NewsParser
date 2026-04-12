@@ -1,37 +1,36 @@
-# EventsApi
+# PublicationsApi
 
 All URIs are relative to *http://localhost*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**eventsGet**](#eventsget) | **GET** /events | |
-|[**eventsIdGet**](#eventsidget) | **GET** /events/{id} | |
-|[**eventsIdReclassifyPost**](#eventsidreclassifypost) | **POST** /events/{id}/reclassify | |
-|[**eventsIdResolveContradictionPost**](#eventsidresolvecontradictionpost) | **POST** /events/{id}/resolve-contradiction | |
-|[**eventsIdStatusPatch**](#eventsidstatuspatch) | **PATCH** /events/{id}/status | |
-|[**eventsMergePost**](#eventsmergepost) | **POST** /events/merge | |
+|[**publicationsByEventEventIdGet**](#publicationsbyeventeventidget) | **GET** /publications/by-event/{eventId} | |
+|[**publicationsGeneratePost**](#publicationsgeneratepost) | **POST** /publications/generate | |
+|[**publicationsIdApprovePost**](#publicationsidapprovepost) | **POST** /publications/{id}/approve | |
+|[**publicationsIdContentPut**](#publicationsidcontentput) | **PUT** /publications/{id}/content | |
+|[**publicationsIdGet**](#publicationsidget) | **GET** /publications/{id} | |
+|[**publicationsIdRejectPost**](#publicationsidrejectpost) | **POST** /publications/{id}/reject | |
+|[**publicationsIdSendPost**](#publicationsidsendpost) | **POST** /publications/{id}/send | |
 
-# **eventsGet**
-> EventListItemDtoPagedResult eventsGet()
+# **publicationsByEventEventIdGet**
+> Array<PublicationListItemDto> publicationsByEventEventIdGet()
 
 
 ### Example
 
 ```typescript
 import {
-    EventsApi,
+    PublicationsApi,
     Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new EventsApi(configuration);
+const apiInstance = new PublicationsApi(configuration);
 
-let page: number; // (optional) (default to 1)
-let pageSize: number; // (optional) (default to 20)
+let eventId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.eventsGet(
-    page,
-    pageSize
+const { status, data } = await apiInstance.publicationsByEventEventIdGet(
+    eventId
 );
 ```
 
@@ -39,13 +38,12 @@ const { status, data } = await apiInstance.eventsGet(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **page** | [**number**] |  | (optional) defaults to 1|
-| **pageSize** | [**number**] |  | (optional) defaults to 20|
+| **eventId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
 
-**EventListItemDtoPagedResult**
+**Array<PublicationListItemDto>**
 
 ### Authorization
 
@@ -64,24 +62,75 @@ const { status, data } = await apiInstance.eventsGet(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **eventsIdGet**
-> EventDetailDto eventsIdGet()
+# **publicationsGeneratePost**
+> PublicationListItemDto publicationsGeneratePost()
 
 
 ### Example
 
 ```typescript
 import {
-    EventsApi,
+    PublicationsApi,
+    Configuration,
+    CreatePublicationRequest
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new PublicationsApi(configuration);
+
+let createPublicationRequest: CreatePublicationRequest; // (optional)
+
+const { status, data } = await apiInstance.publicationsGeneratePost(
+    createPublicationRequest
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **createPublicationRequest** | **CreatePublicationRequest**|  | |
+
+
+### Return type
+
+**PublicationListItemDto**
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json, text/json, application/*+json
+ - **Accept**: text/plain, application/json, text/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **publicationsIdApprovePost**
+> PublicationDetailDto publicationsIdApprovePost()
+
+
+### Example
+
+```typescript
+import {
+    PublicationsApi,
     Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new EventsApi(configuration);
+const apiInstance = new PublicationsApi(configuration);
 
 let id: string; // (default to undefined)
 
-const { status, data } = await apiInstance.eventsIdGet(
+const { status, data } = await apiInstance.publicationsIdApprovePost(
     id
 );
 ```
@@ -95,7 +144,7 @@ const { status, data } = await apiInstance.eventsIdGet(
 
 ### Return type
 
-**EventDetailDto**
+**PublicationDetailDto**
 
 ### Authorization
 
@@ -114,28 +163,28 @@ const { status, data } = await apiInstance.eventsIdGet(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **eventsIdReclassifyPost**
-> eventsIdReclassifyPost()
+# **publicationsIdContentPut**
+> PublicationDetailDto publicationsIdContentPut()
 
 
 ### Example
 
 ```typescript
 import {
-    EventsApi,
+    PublicationsApi,
     Configuration,
-    ReclassifyArticleRequest
+    UpdatePublicationContentRequest
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new EventsApi(configuration);
+const apiInstance = new PublicationsApi(configuration);
 
 let id: string; // (default to undefined)
-let reclassifyArticleRequest: ReclassifyArticleRequest; // (optional)
+let updatePublicationContentRequest: UpdatePublicationContentRequest; // (optional)
 
-const { status, data } = await apiInstance.eventsIdReclassifyPost(
+const { status, data } = await apiInstance.publicationsIdContentPut(
     id,
-    reclassifyArticleRequest
+    updatePublicationContentRequest
 );
 ```
 
@@ -143,13 +192,13 @@ const { status, data } = await apiInstance.eventsIdReclassifyPost(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **reclassifyArticleRequest** | **ReclassifyArticleRequest**|  | |
+| **updatePublicationContentRequest** | **UpdatePublicationContentRequest**|  | |
 | **id** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
 
-void (empty response body)
+**PublicationDetailDto**
 
 ### Authorization
 
@@ -158,7 +207,7 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: application/json, text/json, application/*+json
- - **Accept**: Not defined
+ - **Accept**: text/plain, application/json, text/json
 
 
 ### HTTP response details
@@ -168,81 +217,25 @@ void (empty response body)
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **eventsIdResolveContradictionPost**
-> eventsIdResolveContradictionPost()
+# **publicationsIdGet**
+> PublicationDetailDto publicationsIdGet()
 
 
 ### Example
 
 ```typescript
 import {
-    EventsApi,
-    Configuration,
-    ResolveContradictionRequest
-} from './api';
-
-const configuration = new Configuration();
-const apiInstance = new EventsApi(configuration);
-
-let id: string; // (default to undefined)
-let resolveContradictionRequest: ResolveContradictionRequest; // (optional)
-
-const { status, data } = await apiInstance.eventsIdResolveContradictionPost(
-    id,
-    resolveContradictionRequest
-);
-```
-
-### Parameters
-
-|Name | Type | Description  | Notes|
-|------------- | ------------- | ------------- | -------------|
-| **resolveContradictionRequest** | **ResolveContradictionRequest**|  | |
-| **id** | [**string**] |  | defaults to undefined|
-
-
-### Return type
-
-void (empty response body)
-
-### Authorization
-
-[Bearer](../README.md#Bearer)
-
-### HTTP request headers
-
- - **Content-Type**: application/json, text/json, application/*+json
- - **Accept**: Not defined
-
-
-### HTTP response details
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-|**200** | OK |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **eventsIdStatusPatch**
-> eventsIdStatusPatch()
-
-
-### Example
-
-```typescript
-import {
-    EventsApi,
+    PublicationsApi,
     Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new EventsApi(configuration);
+const apiInstance = new PublicationsApi(configuration);
 
 let id: string; // (default to undefined)
-let body: string; // (optional)
 
-const { status, data } = await apiInstance.eventsIdStatusPatch(
-    id,
-    body
+const { status, data } = await apiInstance.publicationsIdGet(
+    id
 );
 ```
 
@@ -250,13 +243,12 @@ const { status, data } = await apiInstance.eventsIdStatusPatch(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **body** | **string**|  | |
 | **id** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
 
-void (empty response body)
+**PublicationDetailDto**
 
 ### Authorization
 
@@ -264,8 +256,8 @@ void (empty response body)
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, text/json, application/*+json
- - **Accept**: Not defined
+ - **Content-Type**: Not defined
+ - **Accept**: text/plain, application/json, text/json
 
 
 ### HTTP response details
@@ -275,26 +267,28 @@ void (empty response body)
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **eventsMergePost**
-> eventsMergePost()
+# **publicationsIdRejectPost**
+> PublicationDetailDto publicationsIdRejectPost()
 
 
 ### Example
 
 ```typescript
 import {
-    EventsApi,
+    PublicationsApi,
     Configuration,
-    MergeEventsRequest
+    RejectPublicationRequest
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new EventsApi(configuration);
+const apiInstance = new PublicationsApi(configuration);
 
-let mergeEventsRequest: MergeEventsRequest; // (optional)
+let id: string; // (default to undefined)
+let rejectPublicationRequest: RejectPublicationRequest; // (optional)
 
-const { status, data } = await apiInstance.eventsMergePost(
-    mergeEventsRequest
+const { status, data } = await apiInstance.publicationsIdRejectPost(
+    id,
+    rejectPublicationRequest
 );
 ```
 
@@ -302,12 +296,13 @@ const { status, data } = await apiInstance.eventsMergePost(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **mergeEventsRequest** | **MergeEventsRequest**|  | |
+| **rejectPublicationRequest** | **RejectPublicationRequest**|  | |
+| **id** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
 
-void (empty response body)
+**PublicationDetailDto**
 
 ### Authorization
 
@@ -316,7 +311,57 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: application/json, text/json, application/*+json
- - **Accept**: Not defined
+ - **Accept**: text/plain, application/json, text/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **publicationsIdSendPost**
+> PublicationDetailDto publicationsIdSendPost()
+
+
+### Example
+
+```typescript
+import {
+    PublicationsApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new PublicationsApi(configuration);
+
+let id: string; // (default to undefined)
+
+const { status, data } = await apiInstance.publicationsIdSendPost(
+    id
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **id** | [**string**] |  | defaults to undefined|
+
+
+### Return type
+
+**PublicationDetailDto**
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: text/plain, application/json, text/json
 
 
 ### HTTP response details

@@ -232,8 +232,8 @@ export function UsersPage() {
                   style={inputStyle}
                   placeholder="First name"
                   onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                   {...createRegister('firstName')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 />
                 <FieldError message={createErrors.firstName?.message} />
               </div>
@@ -244,8 +244,8 @@ export function UsersPage() {
                   style={inputStyle}
                   placeholder="Last name"
                   onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                   {...createRegister('lastName')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 />
                 <FieldError message={createErrors.lastName?.message} />
               </div>
@@ -258,8 +258,8 @@ export function UsersPage() {
                 style={inputStyle}
                 placeholder="user@example.com"
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...createRegister('email')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               <FieldError message={createErrors.email?.message} />
             </div>
@@ -271,8 +271,8 @@ export function UsersPage() {
                 style={inputStyle}
                 placeholder="Min. 8 characters"
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...createRegister('password')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               <FieldError message={createErrors.password?.message} />
             </div>
@@ -282,8 +282,8 @@ export function UsersPage() {
                 className={inputClass}
                 style={inputStyle}
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...createRegister('role')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               >
                 <option value="Editor">Editor</option>
                 <option value="Admin">Admin</option>
@@ -327,8 +327,8 @@ export function UsersPage() {
                   style={inputStyle}
                   placeholder="First name"
                   onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                   {...editRegister('firstName')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 />
                 <FieldError message={editErrors.firstName?.message} />
               </div>
@@ -339,8 +339,8 @@ export function UsersPage() {
                   style={inputStyle}
                   placeholder="Last name"
                   onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                   {...editRegister('lastName')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 />
                 <FieldError message={editErrors.lastName?.message} />
               </div>
@@ -353,8 +353,8 @@ export function UsersPage() {
                 style={inputStyle}
                 placeholder="user@example.com"
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                 {...editRegister('email')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
               />
               <FieldError message={editErrors.email?.message} />
             </div>

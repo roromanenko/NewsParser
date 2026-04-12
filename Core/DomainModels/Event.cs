@@ -20,8 +20,5 @@ public class Event
 public enum EventStatus
 {
 	Active,
-	Approved,
-	Rejected,
-	Resolved,
 	Archived
 }

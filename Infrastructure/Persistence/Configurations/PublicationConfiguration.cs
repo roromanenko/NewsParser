@@ -41,5 +41,21 @@ public class PublicationConfiguration : IEntityTypeConfiguration<PublicationEnti
 
 		builder.HasIndex(p => p.EventId);
 		builder.HasIndex(p => p.ParentPublicationId);
+
+		builder
+			.Property(p => p.SelectedMediaFileIds)
+			.HasColumnType("jsonb");
+
+		builder
+			.Property(p => p.ReviewedByEditorId)
+			.IsRequired(false);
+
+		builder
+			.Property(p => p.RejectedAt)
+			.IsRequired(false);
+
+		builder
+			.Property(p => p.RejectionReason)
+			.IsRequired(false);
 	}
 }

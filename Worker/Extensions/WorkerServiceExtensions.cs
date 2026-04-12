@@ -14,10 +14,15 @@ public static class WorkerServiceExtensions
 			configuration.GetSection(RssFetcherOptions.SectionName));
 		services.Configure<ArticleProcessingOptions>(
 			configuration.GetSection(ArticleProcessingOptions.SectionName));
+		services.Configure<PublicationGenerationWorkerOptions>(
+			configuration.GetSection(PublicationGenerationWorkerOptions.SectionName));
+		services.Configure<PublishingWorkerOptions>(
+			configuration.GetSection(PublishingWorkerOptions.SectionName));
 
 		services.AddHostedService<SourceFetcherWorker>();
 		services.AddHostedService<ArticleAnalysisWorker>();
-		services.AddHostedService<PublicationWorker>();
+		services.AddHostedService<PublicationGenerationWorker>();
+		services.AddHostedService<PublishingWorker>();
 
 		return services;
 	}

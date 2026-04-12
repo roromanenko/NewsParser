@@ -12,6 +12,8 @@ import { UsersPage } from '@/features/users/UsersPage'
 import { PublishTargetsPage } from '@/features/publishTargets/PublishTargetsPage'
 import { EventsPage } from '@/features/events/EventsPage'
 import { EventDetailPage } from '@/features/events/EventDetailPage'
+import { PublicationDetailPage } from '@/features/publications/PublicationDetailPage'
+import { PublicationsPage } from '@/features/publications/PublicationsPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore(state => state.user)
@@ -59,6 +61,8 @@ export function AppRouter() {
             <Route path="articles/:id" element={<ArticleDetailPage />} />
             <Route path="events" element={<EventsPage />} />
             <Route path="events/:id" element={<EventDetailPage />} />
+            <Route path="publications" element={<PublicationsPage />} />
+            <Route path="publications/:id" element={<PublicationDetailPage />} />
             <Route
               path="sources"
               element={

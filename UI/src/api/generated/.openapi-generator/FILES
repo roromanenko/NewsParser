@@ -4,7 +4,6 @@ api.ts
 base.ts
 common.ts
 configuration.ts
-docs/ApproveEventRequest.md
 docs/ArticleDetailDto.md
 docs/ArticleEventDto.md
 docs/ArticleListItemDto.md
@@ -12,6 +11,7 @@ docs/ArticleListItemDtoPagedResult.md
 docs/ArticlesApi.md
 docs/AuthApi.md
 docs/ContradictionDto.md
+docs/CreatePublicationRequest.md
 docs/CreatePublishTargetRequest.md
 docs/CreateSourceRequest.md
 docs/CreateUserRequest.md
@@ -25,15 +25,19 @@ docs/LoginRequest.md
 docs/LoginResponse.md
 docs/MediaFileDto.md
 docs/MergeEventsRequest.md
+docs/PublicationDetailDto.md
+docs/PublicationListItemDto.md
+docs/PublicationsApi.md
 docs/PublishTargetDto.md
 docs/PublishTargetsApi.md
 docs/ReclassifyArticleRequest.md
 docs/RegisterRequest.md
-docs/RejectEventRequest.md
+docs/RejectPublicationRequest.md
 docs/ResolveContradictionRequest.md
 docs/SourceDto.md
 docs/SourcesApi.md
 docs/UpdateEditorRequest.md
+docs/UpdatePublicationContentRequest.md
 docs/UpdatePublishTargetRequest.md
 docs/UpdateSourceRequest.md
 docs/UserDto.md

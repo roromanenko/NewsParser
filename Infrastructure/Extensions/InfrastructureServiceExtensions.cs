@@ -167,7 +167,7 @@ public static class InfrastructureServiceExtensions
 
 	private static IServiceCollection AddServices(this IServiceCollection services, IConfiguration configuration)
 	{
-		services.AddScoped<IEventApprovalService, EventApprovalService>();
+		services.AddScoped<IPublicationService, PublicationService>();
 		services.AddScoped<IUserService, UserService>();
 		services.AddScoped<IJwtService, JwtService>();
 		services.AddScoped<ISourceService, SourceService>();
