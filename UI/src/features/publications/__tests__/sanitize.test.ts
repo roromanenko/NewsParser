@@ -1,183 +1,109 @@
 import { describe, it, expect } from 'vitest'
-import { sanitize } from '../sanitize'
+import { renderMarkdownV2 } from '../sanitize'
 
-describe('sanitize', () => {
-  // P0 — allowed inline tags pass through
-  it('preserves <b> tags', () => {
-    // Arrange
-    const input = '<b>bold text</b>'
-
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('<b>bold text</b>')
+describe('renderMarkdownV2 — bold, italic, underline, strikethrough', () => {
+  it('renders *text* as <b>', () => {
+    expect(renderMarkdownV2('*bold*')).toBe('<b>bold</b>')
   })
 
-  it('preserves <i> tags', () => {
-    // Arrange
-    const input = '<i>italic text</i>'
-
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('<i>italic text</i>')
+  it('renders _text_ as <i>', () => {
+    expect(renderMarkdownV2('_italic_')).toBe('<i>italic</i>')
   })
 
-  it('preserves <code> tags', () => {
-    // Arrange
-    const input = '<code>const x = 1</code>'
-
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('<code>const x = 1</code>')
+  it('renders __text__ as <u>', () => {
+    expect(renderMarkdownV2('__underline__')).toBe('<u>underline</u>')
   })
 
-  it('preserves <pre> tags', () => {
-    // Arrange
-    const input = '<pre>  indented</pre>'
-
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('<pre>  indented</pre>')
+  it('renders __text__ before _text_ so underline takes precedence', () => {
+    expect(renderMarkdownV2('__u__ and _i_')).toBe('<u>u</u> and <i>i</i>')
   })
 
-  // P0 — <a> with href preserved; attributes beyond href stripped
-  it('preserves <a href="..."> tags, keeping the href value', () => {
-    // Arrange
-    const input = '<a href="https://example.com">link</a>'
+  it('renders ~text~ as <s>', () => {
+    expect(renderMarkdownV2('~strike~')).toBe('<s>strike</s>')
+  })
+})
 
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('<a href="https://example.com">link</a>')
+describe('renderMarkdownV2 — code', () => {
+  it('renders `text` as <code>', () => {
+    expect(renderMarkdownV2('`code`')).toBe('<code>code</code>')
   })
 
-  it('strips extra attributes from <a>, keeping only href', () => {
-    // Arrange
-    const input = '<a href="https://example.com" target="_blank" rel="noopener">link</a>'
-
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('<a href="https://example.com">link</a>')
+  it('renders ```block``` as <pre><code>', () => {
+    expect(renderMarkdownV2('```\nconsole.log()\n```')).toBe(
+      '<pre><code>console.log()</code></pre>',
+    )
   })
 
-  // P1 — <a> without href is stripped entirely
-  it('strips <a> tags that have no href attribute', () => {
-    // Arrange
-    const input = '<a name="anchor">anchor</a>'
+  it('code block takes precedence over inline code matching', () => {
+    const input = '```\nfoo\n```'
+    expect(renderMarkdownV2(input)).toContain('<pre><code>')
+    expect(renderMarkdownV2(input)).not.toContain('<code>foo</code><br />')
+  })
+})
 
-    // Act
-    const result = sanitize(input)
+describe('renderMarkdownV2 — links', () => {
+  it('renders [text](url) as <a href>', () => {
+    expect(renderMarkdownV2('[click](https://example.com)')).toBe(
+      '<a href="https://example.com" target="_blank" rel="noopener noreferrer">click</a>',
+    )
+  })
+})
 
-    // Assert
-    expect(result).toBe('anchor')
+describe('renderMarkdownV2 — spoiler', () => {
+  it('renders ||text|| as a span with transparent color', () => {
+    const result = renderMarkdownV2('||secret||')
+    expect(result).toContain('<span')
+    expect(result).toContain('secret')
+    expect(result).toContain('color:transparent')
+  })
+})
+
+describe('renderMarkdownV2 — HTML escaping', () => {
+  it('escapes < and > in plain text', () => {
+    expect(renderMarkdownV2('a < b > c')).toBe('a &lt; b &gt; c')
   })
 
-  // P0 — disallowed tags are removed, text content survives
-  it('strips disallowed tags such as <div>', () => {
-    // Arrange
-    const input = '<div>content</div>'
-
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('content')
+  it('escapes & in plain text', () => {
+    expect(renderMarkdownV2('foo & bar')).toBe('foo &amp; bar')
   })
 
-  it('strips <script> tags', () => {
-    // Arrange
-    const input = '<script>alert("xss")</script>'
+  it('does not double-escape HTML inside code blocks', () => {
+    const result = renderMarkdownV2('```\n<div>\n```')
+    expect(result).toContain('&lt;div&gt;')
+  })
+})
 
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('alert("xss")')
+describe('renderMarkdownV2 — escape sequences', () => {
+  it('renders \\* as a literal asterisk', () => {
+    expect(renderMarkdownV2('\\*not bold\\*')).toBe('*not bold*')
   })
 
-  it('strips <span> tags while keeping inner text', () => {
-    // Arrange
-    const input = '<span class="highlight">text</span>'
+  it('renders \\_ as a literal underscore', () => {
+    expect(renderMarkdownV2('\\_not italic\\_')).toBe('_not italic_')
+  })
+})
 
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('text')
+describe('renderMarkdownV2 — newlines', () => {
+  it('converts newlines to <br />', () => {
+    expect(renderMarkdownV2('line one\nline two')).toBe('line one<br />line two')
   })
 
-  // P0 — newline conversion
-  it('converts newline characters to <br /> tags', () => {
-    // Arrange
-    const input = 'line one\nline two'
-
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('line one<br />line two')
+  it('converts multiple consecutive newlines', () => {
+    expect(renderMarkdownV2('a\n\nb')).toBe('a<br /><br />b')
   })
+})
 
-  it('converts multiple newlines to multiple <br /> tags', () => {
-    // Arrange
-    const input = 'a\n\nb'
-
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('a<br /><br />b')
-  })
-
-  // P2 — edge cases
+describe('renderMarkdownV2 — edge cases', () => {
   it('returns empty string unchanged', () => {
-    // Arrange & Act
-    const result = sanitize('')
-
-    // Assert
-    expect(result).toBe('')
+    expect(renderMarkdownV2('')).toBe('')
   })
 
-  it('passes through plain text with no tags or newlines', () => {
-    // Arrange
-    const input = 'plain text without markup'
-
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('plain text without markup')
+  it('passes through plain text with no markup', () => {
+    expect(renderMarkdownV2('plain text')).toBe('plain text')
   })
 
-  it('handles mixed allowed and disallowed tags in the same string', () => {
-    // Arrange
-    const input = '<div><b>bold</b> and <script>evil()</script></div>'
-
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('<b>bold</b> and evil()')
-  })
-
-  it('normalises uppercase tag names to lowercase for allowed tags', () => {
-    // Arrange
-    const input = '<B>text</B>'
-
-    // Act
-    const result = sanitize(input)
-
-    // Assert
-    expect(result).toBe('<b>text</b>')
+  it('renders mixed formatting in the same string', () => {
+    const result = renderMarkdownV2('*bold* and _italic_')
+    expect(result).toBe('<b>bold</b> and <i>italic</i>')
   })
 })

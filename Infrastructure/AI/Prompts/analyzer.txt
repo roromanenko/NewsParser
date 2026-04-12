@@ -5,6 +5,7 @@ INSTRUCTIONS:
 - If the article is too short, low quality, or not a news article — still return valid JSON with best-effort values.
 - Detect the language from the article content, not from the source URL.
 - Write the summary in the SAME language as the article.
+- NEVER use double quote characters (") inside any string value. Use single quotes (') instead.
 
 CATEGORY must be exactly one of:
 Politics, Economics, Technology, Sports, Culture, Science, War, Society, Health, Environment

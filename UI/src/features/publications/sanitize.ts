@@ -1,38 +1,66 @@
-const ALLOWED_TAGS = new Set(['b', 'i', 'code', 'pre'])
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
 
-export function sanitize(html: string): string {
-  // Replace newlines before tag processing so <br /> placeholders don't get stripped
-  const withBreaks = html.replace(/\n/g, '\x00BR\x00')
-
-  let openAnchorCount = 0
-
-  const sanitized = withBreaks.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g, (match, tag: string) => {
-    const lower = tag.toLowerCase()
-
-    if (ALLOWED_TAGS.has(lower)) {
-      const isClosing = match.startsWith('</')
-      return isClosing ? `</${lower}>` : `<${lower}>`
-    }
-
-    if (lower === 'a') {
-      const isClosing = match.startsWith('</')
-      if (isClosing) {
-        if (openAnchorCount > 0) {
-          openAnchorCount--
-          return '</a>'
-        }
-        return ''
-      }
-      const hrefMatch = /href="([^"]*)"/.exec(match)
-      if (hrefMatch) {
-        openAnchorCount++
-        return `<a href="${hrefMatch[1]}">`
-      }
-      return ''
-    }
-
-    return ''
+/** Renders Telegram MarkdownV2 to HTML for preview display. */
+export function renderMarkdownV2(md: string): string {
+  // Protect escaped characters from pattern matching
+  const PLACEHOLDER = '\x00'
+  const escaped: string[] = []
+  let result = md.replace(/\\([_*[\]()~`>#+=|{}.!\\-])/g, (_, ch) => {
+    escaped.push(escapeHtml(ch))
+    return `${PLACEHOLDER}${escaped.length - 1}${PLACEHOLDER}`
   })
 
-  return sanitized.replace(/\x00BR\x00/g, '<br />')
+  // HTML-escape remaining special chars
+  result = result
+    .split(PLACEHOLDER)
+    .map((part, i) => (i % 2 === 0 ? escapeHtml(part) : part))
+    .join(PLACEHOLDER)
+
+  // Code blocks (``` ... ```) — must come before inline code
+  result = result.replace(/```([\s\S]*?)```/g, (_, code) =>
+    `<pre><code>${code.trim()}</code></pre>`,
+  )
+
+  // Inline code
+  result = result.replace(/`([^`\n]+)`/g, '<code>$1</code>')
+
+  // Bold: *text*
+  result = result.replace(/\*([^*\n]+)\*/g, '<b>$1</b>')
+
+  // Underline: __text__ — must come before italic _
+  result = result.replace(/__([^_\n]+)__/g, '<u>$1</u>')
+
+  // Italic: _text_
+  result = result.replace(/_([^_\n]+)_/g, '<i>$1</i>')
+
+  // Strikethrough: ~text~
+  result = result.replace(/~([^~\n]+)~/g, '<s>$1</s>')
+
+  // Spoiler: ||text||
+  result = result.replace(
+    /\|\|([^|\n]+)\|\|/g,
+    '<span style="background:#4a4a4a;color:transparent;border-radius:2px;cursor:pointer" title="spoiler">$1</span>',
+  )
+
+  // Links: [text](url)
+  result = result.replace(
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
+  )
+
+  // Restore escaped characters
+  result = result.replace(
+    new RegExp(`${PLACEHOLDER}(\\d+)${PLACEHOLDER}`, 'g'),
+    (_, i) => escaped[Number(i)],
+  )
+
+  // Newlines → <br />
+  result = result.replace(/\n/g, '<br />')
+
+  return result
 }
