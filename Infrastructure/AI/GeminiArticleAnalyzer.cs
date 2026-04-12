@@ -45,7 +45,8 @@ public class GeminiArticleAnalyzer : IArticleAnalyzer
 				{
 					parts = new[] { new { text = prompt } }
 				}
-			}
+			},
+			generationConfig = new { responseMimeType = "application/json" }
 		});
 
 		var httpResponse = await _httpClient.PostAsync(
@@ -65,143 +66,6 @@ public class GeminiArticleAnalyzer : IArticleAnalyzer
 			.GetProperty("text")
 			.GetString() ?? string.Empty;
 
-		return ParseAnalysisResult(text);
-	}
-
-	private static ArticleAnalysisResult ParseAnalysisResult(string json)
-	{
-		json = json
-			.Replace("```json", string.Empty)
-			.Replace("```", string.Empty)
-			.Trim();
-
-		// Gemini sometimes returns single-quoted JSON instead of valid JSON
-		if (!json.StartsWith('{') && !json.StartsWith('['))
-			json = json[json.IndexOf('{')..];
-
-		// Gemini sometimes escapes single quotes as \' which is invalid in JSON
-		json = json.Replace("\\'", "'");
-
-		if (json.Contains('\''))
-			json = NormalizeSingleQuotedJson(json);
-
-		var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-		json = RepairUnescapedQuotes(json);
-		var result = JsonSerializer.Deserialize<ArticleAnalysisResult>(json, options);
-
-		result = result ?? throw new InvalidOperationException("Gemini returned null result");
-
-		if (string.IsNullOrWhiteSpace(result.Category))
-			throw new InvalidOperationException("Gemini returned empty Category");
-		if (string.IsNullOrWhiteSpace(result.Language))
-			throw new InvalidOperationException("Gemini returned empty Language");
-		if (string.IsNullOrWhiteSpace(result.Sentiment))
-			throw new InvalidOperationException("Gemini returned empty Sentiment");
-		if (result.Tags.Count == 0)
-			throw new InvalidOperationException("Gemini returned empty Tags");
-
-		return result;
-	}
-
-	/// <summary>
-	/// Fixes JSON where string values contain unescaped double-quote characters,
-	/// e.g. "summary": "word"word" → "summary": "word\"word"
-	/// Strategy: a " is a legitimate string terminator only if the next non-space
-	/// character is a JSON structural token (: , } ]).
-	/// </summary>
-	private static string RepairUnescapedQuotes(string json)
-	{
-		var sb = new System.Text.StringBuilder(json.Length + 16);
-		bool inString = false;
-
-		for (int i = 0; i < json.Length; i++)
-		{
-			char c = json[i];
-
-			// Pass through escape sequences untouched
-			if (inString && c == '\\' && i + 1 < json.Length)
-			{
-				sb.Append(c);
-				sb.Append(json[++i]);
-				continue;
-			}
-
-			if (c == '"')
-			{
-				if (!inString)
-				{
-					inString = true;
-					sb.Append(c);
-					continue;
-				}
-
-				// Check whether this " legitimately closes the string
-				int j = i + 1;
-				while (j < json.Length && json[j] == ' ') j++;
-				bool isCloser = j >= json.Length || json[j] is ':' or ',' or '}' or ']';
-
-				if (isCloser)
-				{
-					inString = false;
-					sb.Append(c);
-				}
-				else
-				{
-					// Unescaped quote inside a value — escape it
-					sb.Append('\\');
-					sb.Append('"');
-				}
-				continue;
-			}
-
-			sb.Append(c);
-		}
-
-		return sb.ToString();
-	}
-
-	private static string NormalizeSingleQuotedJson(string json)
-	{
-		var sb = new System.Text.StringBuilder(json.Length);
-		bool inString = false;
-		char stringChar = '"';
-
-		for (int i = 0; i < json.Length; i++)
-		{
-			char c = json[i];
-
-			if (!inString && (c == '\'' || c == '"'))
-			{
-				inString = true;
-				stringChar = c;
-				sb.Append('"');
-				continue;
-			}
-
-			if (inString && c == stringChar)
-			{
-				// Check for escaped quote
-				if (i > 0 && json[i - 1] == '\\')
-				{
-					sb.Append(c);
-					continue;
-				}
-				inString = false;
-				sb.Append('"');
-				continue;
-			}
-
-			if (inString && c == '"' && stringChar == '\'')
-			{
-				sb.Append('\\');
-				sb.Append('"');
-				continue;
-			}
-
-			sb.Append(c);
-		}
-
-		return sb.ToString();
+		return ArticleJsonHelper.ParseAnalysisResult(text);
 	}
 }
