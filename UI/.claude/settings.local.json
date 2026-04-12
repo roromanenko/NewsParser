@@ -17,7 +17,9 @@
       "Read(//d/Projects/NewsParser/UI/$APPDATA/Claude/claude-code/**)",
       "Bash(dotnet ef:*)",
       "Bash(dotnet build:*)",
-      "Bash(dotnet test:*)"
+      "Bash(dotnet test:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)"
     ]
   },
   "enabledMcpjsonServers": [

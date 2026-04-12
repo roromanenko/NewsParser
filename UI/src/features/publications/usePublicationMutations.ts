@@ -61,17 +61,5 @@ export function usePublicationMutations(publicationId?: string) {
     onError: () => toast('Failed to reject publication', 'error'),
   })
 
-  const send = useMutation({
-    mutationFn: () =>
-      apiClient
-        .post<PublicationDetailDto>(`/publications/${publicationId}/send`)
-        .then(r => r.data),
-    onSuccess: () => {
-      toast('Publication queued for sending', 'success')
-      invalidateDetail()
-    },
-    onError: () => toast('Failed to send publication', 'error'),
-  })
-
-  return { generateContent, updateContent, approve, reject, send }
+  return { generateContent, updateContent, approve, reject }
 }

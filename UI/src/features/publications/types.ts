@@ -23,6 +23,7 @@ export interface PublicationDetailDto {
   status: string
   targetName: string
   platform: string
+  eventTitle: string | null
   generatedContent: string
   availableMedia: MediaFileDto[]
   selectedMediaFileIds: string[]
