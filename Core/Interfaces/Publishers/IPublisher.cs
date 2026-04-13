@@ -8,10 +8,12 @@ public interface IPublisher
 
 	Task<string> PublishAsync(
 		Publication publication,
+		List<ResolvedMedia> media,
 		CancellationToken cancellationToken = default);
 
 	Task<string> PublishReplyAsync(
 		Publication publication,
 		string replyToMessageId,
+		List<ResolvedMedia> media,
 		CancellationToken cancellationToken = default);
 }

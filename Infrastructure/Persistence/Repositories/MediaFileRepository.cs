@@ -29,4 +29,13 @@ public class MediaFileRepository(NewsParserDbContext context) : IMediaFileReposi
 		return context.MediaFiles
 			.AnyAsync(m => m.ArticleId == articleId && m.OriginalUrl == originalUrl, cancellationToken);
 	}
+
+	public async Task<List<MediaFile>> GetByIdsAsync(List<Guid> ids, CancellationToken cancellationToken = default)
+	{
+		var entities = await context.MediaFiles
+			.Where(m => ids.Contains(m.Id))
+			.ToListAsync(cancellationToken);
+
+		return entities.Select(e => e.ToDomain()).ToList();
+	}
 }

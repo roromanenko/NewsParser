@@ -1,6 +1,7 @@
 using Core.DomainModels;
 using Core.Interfaces.Publishers;
 using Core.Interfaces.Repositories;
+using Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
 using Worker.Configuration;
 
@@ -8,6 +9,9 @@ namespace Worker.Workers;
 
 public class PublishingWorker : BackgroundService
 {
+	// Mirrors the Telegram 20 MB photo limit — kept local because this is a worker concern.
+	private const long MaxMediaFileSizeBytes = 20 * 1024 * 1024;
+
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly ILogger<PublishingWorker> _logger;
 	private readonly PublishingWorkerOptions _options;
@@ -38,6 +42,8 @@ public class PublishingWorker : BackgroundService
 		using var scope = _scopeFactory.CreateScope();
 		var publicationRepository = scope.ServiceProvider.GetRequiredService<IPublicationRepository>();
 		var publishers = scope.ServiceProvider.GetServices<IPublisher>().ToList();
+		var mediaFileRepository = scope.ServiceProvider.GetRequiredService<IMediaFileRepository>();
+		var r2Options = scope.ServiceProvider.GetRequiredService<IOptions<CloudflareR2Options>>().Value;
 
 		var publications = await publicationRepository
 			.GetPendingForPublishAsync(_options.BatchSize, cancellationToken);
@@ -49,7 +55,9 @@ public class PublishingWorker : BackgroundService
 
 		foreach (var publication in publications)
 		{
-			await PublishSingleAsync(publication, publishers, publicationRepository, cancellationToken);
+			await PublishSingleAsync(
+				publication, publishers, publicationRepository,
+				mediaFileRepository, r2Options, cancellationToken);
 		}
 	}
 
@@ -57,6 +65,8 @@ public class PublishingWorker : BackgroundService
 		Publication publication,
 		List<IPublisher> publishers,
 		IPublicationRepository publicationRepository,
+		IMediaFileRepository mediaFileRepository,
+		CloudflareR2Options r2Options,
 		CancellationToken cancellationToken)
 	{
 		var publisher = publishers.FirstOrDefault(p => p.Platform == publication.Platform);
@@ -72,8 +82,11 @@ public class PublishingWorker : BackgroundService
 			_logger.LogInformation("Publishing {Id} to {Target} ({Platform})",
 				publication.Id, publication.PublishTarget.Name, publication.Platform);
 
+			var resolvedMedia = await ResolveMediaAsync(
+				publication, mediaFileRepository, r2Options, cancellationToken);
+
 			var externalMessageId = await ResolveAndPublishAsync(
-				publication, publisher, publicationRepository, cancellationToken);
+				publication, publisher, resolvedMedia, publicationRepository, cancellationToken);
 
 			await publicationRepository.AddPublishLogAsync(new PublishLog
 			{
@@ -107,14 +120,46 @@ public class PublishingWorker : BackgroundService
 		}
 	}
 
+	private async Task<List<ResolvedMedia>> ResolveMediaAsync(
+		Publication publication,
+		IMediaFileRepository mediaFileRepository,
+		CloudflareR2Options r2Options,
+		CancellationToken cancellationToken)
+	{
+		if (publication.SelectedMediaFileIds.Count == 0)
+			return [];
+
+		var mediaFiles = await mediaFileRepository.GetByIdsAsync(
+			publication.SelectedMediaFileIds, cancellationToken);
+
+		var resolvedMedia = new List<ResolvedMedia>();
+
+		foreach (var mediaFile in mediaFiles)
+		{
+			if (mediaFile.SizeBytes > MaxMediaFileSizeBytes)
+			{
+				_logger.LogWarning(
+					"Skipping media file {FileId} ({SizeBytes} bytes) — exceeds the {Limit} byte limit",
+					mediaFile.Id, mediaFile.SizeBytes, MaxMediaFileSizeBytes);
+				continue;
+			}
+
+			var url = $"{r2Options.PublicBaseUrl.TrimEnd('/')}/{mediaFile.R2Key.TrimStart('/')}";
+			resolvedMedia.Add(new ResolvedMedia(url, mediaFile.ContentType, mediaFile.Kind));
+		}
+
+		return resolvedMedia;
+	}
+
 	private async Task<string> ResolveAndPublishAsync(
 		Publication publication,
 		IPublisher publisher,
+		List<ResolvedMedia> resolvedMedia,
 		IPublicationRepository publicationRepository,
 		CancellationToken cancellationToken)
 	{
 		if (!publication.ParentPublicationId.HasValue)
-			return await publisher.PublishAsync(publication, cancellationToken);
+			return await publisher.PublishAsync(publication, resolvedMedia, cancellationToken);
 
 		var parentMessageId = await publicationRepository.GetExternalMessageIdAsync(
 			publication.ParentPublicationId.Value, cancellationToken);
@@ -127,6 +172,6 @@ public class PublishingWorker : BackgroundService
 				$"Parent publication {publication.ParentPublicationId.Value} has no ExternalMessageId");
 		}
 
-		return await publisher.PublishReplyAsync(publication, parentMessageId, cancellationToken);
+		return await publisher.PublishReplyAsync(publication, parentMessageId, resolvedMedia, cancellationToken);
 	}
 }
