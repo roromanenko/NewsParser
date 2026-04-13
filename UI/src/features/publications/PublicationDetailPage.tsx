@@ -80,6 +80,16 @@ export function PublicationDetailPage() {
     )
   }
 
+  const handleApprove = () => {
+    updateContent.mutate(
+      { content: editedContent, selectedMediaFileIds: selectedMediaIds },
+      {
+        onSuccess: () => approve.mutate(),
+        onError: (error) => console.error('Failed to save content before approving:', error),
+      }
+    )
+  }
+
   const handleReject = () => {
     if (!rejectReason.trim()) return
     reject.mutate(rejectReason, {
@@ -121,8 +131,8 @@ export function PublicationDetailPage() {
             <div className="flex items-center gap-2 flex-wrap">
               {canApprove && (
                 <button
-                  onClick={() => approve.mutate()}
-                  disabled={approve.isPending}
+                  onClick={handleApprove}
+                  disabled={approve.isPending || updateContent.isPending}
                   className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors disabled:opacity-50"
                   style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
                   onMouseEnter={e => {

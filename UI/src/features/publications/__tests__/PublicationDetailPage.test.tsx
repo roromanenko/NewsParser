@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { PublicationDetailPage } from '../PublicationDetailPage'
 import type { PublicationDetailDto } from '../types'
@@ -12,14 +12,6 @@ vi.mock('../usePublicationDetail', () => ({
 vi.mock('../usePublicationMutations', () => ({
   usePublicationMutations: vi.fn(),
 }))
-
-// requestAnimationFrame stub (needed by PublicationEditor)
-beforeEach(() => {
-  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-    cb(0)
-    return 0
-  })
-})
 
 import { usePublicationDetail } from '../usePublicationDetail'
 import { usePublicationMutations } from '../usePublicationMutations'
@@ -61,6 +53,12 @@ function renderPage(publicationId = 'pub-1') {
 }
 
 beforeEach(() => {
+  // requestAnimationFrame stub (needed by PublicationEditor)
+  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+    cb(0)
+    return 0
+  })
+
   // Cast through unknown to avoid having to satisfy the full UseMutationResult shape
   vi.mocked(usePublicationMutations).mockReturnValue(
     mockMutations as unknown as ReturnType<typeof usePublicationMutations>
@@ -269,5 +267,118 @@ describe('PublicationDetailPage — title display', () => {
 
     // Assert
     expect(screen.getByRole('heading', { name: 'My Channel' })).toBeInTheDocument()
+  })
+})
+
+describe('PublicationDetailPage — approve saves content and media first', () => {
+  it('clicking APPROVE calls updateContent.mutate then approve.mutate after content is saved', () => {
+    // Arrange
+    const approveMutate = vi.fn()
+    const updateContentMutate = vi.fn().mockImplementation((_payload, options) => {
+      options?.onSuccess?.()
+    })
+    vi.mocked(usePublicationMutations).mockReturnValue({
+      ...mockMutations,
+      updateContent: { ...mockMutations.updateContent, mutate: updateContentMutate },
+      approve: { ...mockMutations.approve, mutate: approveMutate },
+    } as unknown as ReturnType<typeof usePublicationMutations>)
+
+    vi.mocked(usePublicationDetail).mockReturnValue({
+      publication: buildPublication({ generatedContent: 'Draft text', selectedMediaFileIds: [] }),
+      isLoading: false,
+      error: null,
+    })
+
+    renderPage()
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: 'APPROVE' }))
+
+    // Assert — updateContent.mutate called first with the right payload, then approve.mutate
+    expect(updateContentMutate).toHaveBeenCalledOnce()
+    expect(updateContentMutate).toHaveBeenCalledWith(
+      { content: 'Draft text', selectedMediaFileIds: [] },
+      expect.objectContaining({ onSuccess: expect.any(Function) })
+    )
+    expect(approveMutate).toHaveBeenCalledOnce()
+  })
+
+  it('clicking APPROVE when media is pre-selected passes those IDs to updateContent.mutate', () => {
+    // Arrange
+    const updateContentMutate = vi.fn()
+    vi.mocked(usePublicationMutations).mockReturnValue({
+      ...mockMutations,
+      updateContent: { ...mockMutations.updateContent, mutate: updateContentMutate },
+    } as unknown as ReturnType<typeof usePublicationMutations>)
+
+    const preSelectedIds = ['media-id-1', 'media-id-2']
+    vi.mocked(usePublicationDetail).mockReturnValue({
+      publication: buildPublication({
+        generatedContent: 'Some content',
+        selectedMediaFileIds: preSelectedIds,
+      }),
+      isLoading: false,
+      error: null,
+    })
+
+    renderPage()
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: 'APPROVE' }))
+
+    // Assert
+    expect(updateContentMutate).toHaveBeenCalledOnce()
+    expect(updateContentMutate).toHaveBeenCalledWith(
+      { content: 'Some content', selectedMediaFileIds: preSelectedIds },
+      expect.objectContaining({ onSuccess: expect.any(Function) })
+    )
+  })
+
+  it('APPROVE button is disabled while updateContent is pending', () => {
+    // Arrange
+    vi.mocked(usePublicationMutations).mockReturnValue({
+      ...mockMutations,
+      updateContent: { ...mockMutations.updateContent, isPending: true },
+    } as unknown as ReturnType<typeof usePublicationMutations>)
+
+    vi.mocked(usePublicationDetail).mockReturnValue({
+      publication: buildPublication(),
+      isLoading: false,
+      error: null,
+    })
+
+    // Act
+    renderPage()
+
+    // Assert
+    expect(screen.getByRole('button', { name: 'APPROVE' })).toBeDisabled()
+  })
+
+  it('approve.mutate is not called when updateContent.mutate fires onError', () => {
+    // Arrange
+    const approveMutate = vi.fn()
+    const updateContentMutate = vi.fn().mockImplementation((_payload, options) => {
+      options?.onError?.(new Error('Network failure'))
+    })
+    vi.mocked(usePublicationMutations).mockReturnValue({
+      ...mockMutations,
+      updateContent: { ...mockMutations.updateContent, mutate: updateContentMutate },
+      approve: { ...mockMutations.approve, mutate: approveMutate },
+    } as unknown as ReturnType<typeof usePublicationMutations>)
+
+    vi.mocked(usePublicationDetail).mockReturnValue({
+      publication: buildPublication(),
+      isLoading: false,
+      error: null,
+    })
+
+    renderPage()
+
+    // Act
+    fireEvent.click(screen.getByRole('button', { name: 'APPROVE' }))
+
+    // Assert — save failed, so approve must never be triggered
+    expect(updateContentMutate).toHaveBeenCalledOnce()
+    expect(approveMutate).not.toHaveBeenCalled()
   })
 })

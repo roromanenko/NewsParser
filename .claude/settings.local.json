@@ -15,7 +15,8 @@
       "Bash(npx tsc:*)",
       "Bash(dotnet-script)",
       "Bash(unzip -l codehollow.feedreader.1.2.6.nupkg)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "Bash(npx vitest:*)"
     ]
   }
 }

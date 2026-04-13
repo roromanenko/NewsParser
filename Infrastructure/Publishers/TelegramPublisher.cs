@@ -260,7 +260,11 @@ public class TelegramPublisher : IPublisher
 	}
 
 	private static object BuildInputMediaItem(ResolvedMedia mediaItem, string? caption) =>
-		mediaItem.Kind == MediaKind.Image
-			? new { type = "photo", media = mediaItem.Url, caption, parse_mode = "MarkdownV2" }
-			: new { type = "video", media = mediaItem.Url, caption, parse_mode = "MarkdownV2" };
+		(mediaItem.Kind, caption) switch
+		{
+			(MediaKind.Image, not null) => new { type = "photo", media = mediaItem.Url, caption, parse_mode = "MarkdownV2" },
+			(MediaKind.Image, null)     => (object)new { type = "photo", media = mediaItem.Url, parse_mode = "MarkdownV2" },
+			(_, not null)               => new { type = "video", media = mediaItem.Url, caption, parse_mode = "MarkdownV2" },
+			_                           => new { type = "video", media = mediaItem.Url, parse_mode = "MarkdownV2" },
+		};
 }

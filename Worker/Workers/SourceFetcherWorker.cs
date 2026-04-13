@@ -44,7 +44,7 @@ public class SourceFetcherWorker : BackgroundService
 		var articleRepository = scope.ServiceProvider.GetRequiredService<IArticleRepository>();
 		var validator = scope.ServiceProvider.GetRequiredService<IArticleValidator>();
 		var parsers = scope.ServiceProvider.GetServices<ISourceParser>()
-		                   .ToDictionary(p => p.SourceType);
+					.ToDictionary(p => p.SourceType);
 		var mediaIngestionService = scope.ServiceProvider.GetRequiredService<IMediaIngestionService>();
 
 		foreach (var (sourceType, parser) in parsers)
