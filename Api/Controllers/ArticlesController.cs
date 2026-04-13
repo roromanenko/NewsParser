@@ -22,14 +22,17 @@ public class ArticlesController(
 	[HttpGet]
 	public async Task<ActionResult<PagedResult<ArticleListItemDto>>> GetAnalysisDone(
 		[FromQuery] int page = 1,
-		[FromQuery] int pageSize = 20,
+		[FromQuery] int pageSize = PaginationDefaults.DefaultPageSize,
+		[FromQuery] string? search = null,
+		[FromQuery] string? sortBy = null,
 		CancellationToken cancellationToken = default)
 	{
 		if (page < 1) page = 1;
-		if (pageSize is < 1 or > 100) pageSize = 20;
+		if (pageSize is < 1 or > PaginationDefaults.MaxPageSize) pageSize = PaginationDefaults.DefaultPageSize;
+		if (!SortOptions.BasicSortValues.Contains(sortBy ?? "")) sortBy = "newest";
 
-		var articles = await articleRepository.GetAnalysisDoneAsync(page, pageSize, cancellationToken);
-		var total = await articleRepository.CountAnalysisDoneAsync(cancellationToken);
+		var articles = await articleRepository.GetAnalysisDoneAsync(page, pageSize, search, sortBy!, cancellationToken);
+		var total = await articleRepository.CountAnalysisDoneAsync(search, cancellationToken);
 
 		var items = articles.Select(a => a.ToListItemDto()).ToList();
 

@@ -34,11 +34,17 @@ public class ArticleRepository : IArticleRepository
 		return entity?.ToDomain();
 	}
 
-	public async Task<List<Article>> GetAnalysisDoneAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+	public async Task<List<Article>> GetAnalysisDoneAsync(
+		int page, int pageSize, string? search, string sortBy,
+		CancellationToken cancellationToken = default)
 	{
-		var entities = await _context.Articles
-			.Where(a => a.Status == ArticleStatus.AnalysisDone.ToString())
-			.OrderByDescending(a => a.ProcessedAt)
+		var query = _context.Articles
+			.Where(a => a.Status == ArticleStatus.AnalysisDone.ToString());
+
+		query = ApplySearch(query, search);
+		query = ApplySort(query, sortBy);
+
+		var entities = await query
 			.Skip((page - 1) * pageSize)
 			.Take(pageSize)
 			.ToListAsync(cancellationToken);
@@ -46,11 +52,37 @@ public class ArticleRepository : IArticleRepository
 		return entities.Select(e => e.ToDomain()).ToList();
 	}
 
-	public async Task<int> CountAnalysisDoneAsync(CancellationToken cancellationToken = default)
+	public async Task<int> CountAnalysisDoneAsync(string? search, CancellationToken cancellationToken = default)
 	{
-		return await _context.Articles
-			.CountAsync(a => a.Status == ArticleStatus.AnalysisDone.ToString(), cancellationToken);
+		var query = _context.Articles
+			.Where(a => a.Status == ArticleStatus.AnalysisDone.ToString());
+
+		query = ApplySearch(query, search);
+
+		return await query.CountAsync(cancellationToken);
 	}
+
+	private static IQueryable<ArticleEntity> ApplySearch(
+		IQueryable<ArticleEntity> query, string? search)
+	{
+		if (string.IsNullOrWhiteSpace(search))
+			return query;
+
+		var escaped = QueryHelpers.EscapeILikePattern(search);
+		var pattern = $"%{escaped}%";
+
+		return query.Where(a =>
+			EF.Functions.ILike(a.Title, pattern) ||
+			EF.Functions.ILike(a.Summary ?? "", pattern));
+	}
+
+	private static IQueryable<ArticleEntity> ApplySort(
+		IQueryable<ArticleEntity> query, string sortBy) =>
+		sortBy switch
+		{
+			"oldest" => query.OrderBy(a => a.ProcessedAt),
+			_ => query.OrderByDescending(a => a.ProcessedAt),
+		};
 
 	public async Task UpdateStatusAsync(Guid id, ArticleStatus status, CancellationToken cancellationToken = default)
 	{

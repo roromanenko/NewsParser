@@ -24,14 +24,17 @@ public class EventsController(
 	[HttpGet]
 	public async Task<ActionResult<PagedResult<EventListItemDto>>> GetAll(
 		[FromQuery] int page = 1,
-		[FromQuery] int pageSize = 20,
+		[FromQuery] int pageSize = PaginationDefaults.DefaultPageSize,
+		[FromQuery] string? search = null,
+		[FromQuery] string? sortBy = null,
 		CancellationToken cancellationToken = default)
 	{
 		if (page < 1) page = 1;
-		if (pageSize is < 1 or > 100) pageSize = 20;
+		if (pageSize is < 1 or > PaginationDefaults.MaxPageSize) pageSize = PaginationDefaults.DefaultPageSize;
+		if (!SortOptions.BasicSortValues.Contains(sortBy ?? "")) sortBy = "newest";
 
-		var events = await eventRepository.GetPagedAsync(page, pageSize, cancellationToken);
-		var total = await eventRepository.CountActiveAsync(cancellationToken);
+		var events = await eventRepository.GetPagedAsync(page, pageSize, search, sortBy!, cancellationToken);
+		var total = await eventRepository.CountAsync(search, cancellationToken);
 
 		var items = events.Select(e => e.ToListItemDto()).ToList();
 

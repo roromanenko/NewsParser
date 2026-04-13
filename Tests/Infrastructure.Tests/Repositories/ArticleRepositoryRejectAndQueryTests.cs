@@ -118,11 +118,11 @@ public class ArticleRepositoryRejectAndQueryTests
         };
 
         _repositoryMock
-            .Setup(r => r.GetAnalysisDoneAsync(page, pageSize, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetAnalysisDoneAsync(page, pageSize, It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(expected);
 
         // Act
-        var result = await _repositoryMock.Object.GetAnalysisDoneAsync(page, pageSize, CancellationToken.None);
+        var result = await _repositoryMock.Object.GetAnalysisDoneAsync(page, pageSize, null, "newest", CancellationToken.None);
 
         // Assert
         result.Should().HaveCount(2);
@@ -138,11 +138,11 @@ public class ArticleRepositoryRejectAndQueryTests
     {
         // Arrange
         _repositoryMock
-            .Setup(r => r.GetAnalysisDoneAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetAnalysisDoneAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         // Act
-        var result = await _repositoryMock.Object.GetAnalysisDoneAsync(1, 10, CancellationToken.None);
+        var result = await _repositoryMock.Object.GetAnalysisDoneAsync(1, 10, null, "newest", CancellationToken.None);
 
         // Assert
         result.Should().BeEmpty();
@@ -157,11 +157,11 @@ public class ArticleRepositoryRejectAndQueryTests
     {
         // Arrange
         _repositoryMock
-            .Setup(r => r.CountAnalysisDoneAsync(It.IsAny<CancellationToken>()))
+            .Setup(r => r.CountAnalysisDoneAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(5);
 
         // Act
-        var result = await _repositoryMock.Object.CountAnalysisDoneAsync(CancellationToken.None);
+        var result = await _repositoryMock.Object.CountAnalysisDoneAsync(null, CancellationToken.None);
 
         // Assert
         result.Should().Be(5);
@@ -176,11 +176,11 @@ public class ArticleRepositoryRejectAndQueryTests
     {
         // Arrange
         _repositoryMock
-            .Setup(r => r.CountAnalysisDoneAsync(It.IsAny<CancellationToken>()))
+            .Setup(r => r.CountAnalysisDoneAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
 
         // Act
-        var result = await _repositoryMock.Object.CountAnalysisDoneAsync(CancellationToken.None);
+        var result = await _repositoryMock.Object.CountAnalysisDoneAsync(null, CancellationToken.None);
 
         // Assert
         result.Should().Be(0);

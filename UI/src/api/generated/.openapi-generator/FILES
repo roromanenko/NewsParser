@@ -27,6 +27,7 @@ docs/MediaFileDto.md
 docs/MergeEventsRequest.md
 docs/PublicationDetailDto.md
 docs/PublicationListItemDto.md
+docs/PublicationListItemDtoPagedResult.md
 docs/PublicationsApi.md
 docs/PublishTargetDto.md
 docs/PublishTargetsApi.md

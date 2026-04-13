@@ -4,11 +4,11 @@ import { apiClient } from '@/lib/axios'
 
 const eventsApi = new EventsApi(undefined, '', apiClient)
 
-export function useEvents(page: number, pageSize = 20) {
+export function useEvents(page: number, pageSize = 20, search = '', sortBy = 'newest') {
   return useQuery({
-    queryKey: ['events', page, pageSize],
+    queryKey: ['events', page, pageSize, search, sortBy],
     queryFn: async () => {
-      const res = await eventsApi.eventsGet(page, pageSize)
+      const res = await eventsApi.eventsGet(page, pageSize, search || undefined, sortBy)
       return res.data
     },
   })

@@ -62,11 +62,13 @@ public interface IEventRepository
 		CancellationToken cancellationToken = default);
 
 	Task<List<Event>> GetPagedAsync(
-	int page,
-	int pageSize,
-	CancellationToken cancellationToken = default);
+		int page,
+		int pageSize,
+		string? search,
+		string sortBy,
+		CancellationToken cancellationToken = default);
 
-	Task<int> CountActiveAsync(CancellationToken cancellationToken = default);
+	Task<int> CountAsync(string? search, CancellationToken cancellationToken = default);
 
 	Task<Event?> GetDetailAsync(Guid id, CancellationToken cancellationToken = default);
 

@@ -181,6 +181,17 @@ export interface PublicationListItemDto {
     'platform'?: string | null;
     'createdAt'?: string;
     'publishedAt'?: string | null;
+    'eventId'?: string | null;
+    'eventTitle'?: string | null;
+}
+export interface PublicationListItemDtoPagedResult {
+    'items'?: Array<PublicationListItemDto> | null;
+    'page'?: number;
+    'pageSize'?: number;
+    'totalCount'?: number;
+    'totalPages'?: number;
+    'hasNextPage'?: boolean;
+    'hasPreviousPage'?: boolean;
 }
 export interface PublishTargetDto {
     'id'?: string;
@@ -252,10 +263,12 @@ export const ArticlesApiAxiosParamCreator = function (configuration?: Configurat
          * 
          * @param {number} [page] 
          * @param {number} [pageSize] 
+         * @param {string} [search] 
+         * @param {string} [sortBy] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        articlesGet: async (page?: number, pageSize?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        articlesGet: async (page?: number, pageSize?: number, search?: string, sortBy?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/articles`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -277,6 +290,14 @@ export const ArticlesApiAxiosParamCreator = function (configuration?: Configurat
 
             if (pageSize !== undefined) {
                 localVarQueryParameter['pageSize'] = pageSize;
+            }
+
+            if (search !== undefined) {
+                localVarQueryParameter['search'] = search;
+            }
+
+            if (sortBy !== undefined) {
+                localVarQueryParameter['sortBy'] = sortBy;
             }
 
             localVarHeaderParameter['Accept'] = 'text/plain,application/json,text/json';
@@ -339,11 +360,13 @@ export const ArticlesApiFp = function(configuration?: Configuration) {
          * 
          * @param {number} [page] 
          * @param {number} [pageSize] 
+         * @param {string} [search] 
+         * @param {string} [sortBy] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async articlesGet(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ArticleListItemDtoPagedResult>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.articlesGet(page, pageSize, options);
+        async articlesGet(page?: number, pageSize?: number, search?: string, sortBy?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ArticleListItemDtoPagedResult>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.articlesGet(page, pageSize, search, sortBy, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ArticlesApi.articlesGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -373,11 +396,13 @@ export const ArticlesApiFactory = function (configuration?: Configuration, baseP
          * 
          * @param {number} [page] 
          * @param {number} [pageSize] 
+         * @param {string} [search] 
+         * @param {string} [sortBy] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        articlesGet(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<ArticleListItemDtoPagedResult> {
-            return localVarFp.articlesGet(page, pageSize, options).then((request) => request(axios, basePath));
+        articlesGet(page?: number, pageSize?: number, search?: string, sortBy?: string, options?: RawAxiosRequestConfig): AxiosPromise<ArticleListItemDtoPagedResult> {
+            return localVarFp.articlesGet(page, pageSize, search, sortBy, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -399,10 +424,12 @@ export interface ArticlesApiInterface {
      * 
      * @param {number} [page] 
      * @param {number} [pageSize] 
+     * @param {string} [search] 
+     * @param {string} [sortBy] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    articlesGet(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<ArticleListItemDtoPagedResult>;
+    articlesGet(page?: number, pageSize?: number, search?: string, sortBy?: string, options?: RawAxiosRequestConfig): AxiosPromise<ArticleListItemDtoPagedResult>;
 
     /**
      * 
@@ -422,11 +449,13 @@ export class ArticlesApi extends BaseAPI implements ArticlesApiInterface {
      * 
      * @param {number} [page] 
      * @param {number} [pageSize] 
+     * @param {string} [search] 
+     * @param {string} [sortBy] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public articlesGet(page?: number, pageSize?: number, options?: RawAxiosRequestConfig) {
-        return ArticlesApiFp(this.configuration).articlesGet(page, pageSize, options).then((request) => request(this.axios, this.basePath));
+    public articlesGet(page?: number, pageSize?: number, search?: string, sortBy?: string, options?: RawAxiosRequestConfig) {
+        return ArticlesApiFp(this.configuration).articlesGet(page, pageSize, search, sortBy, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -638,10 +667,12 @@ export const EventsApiAxiosParamCreator = function (configuration?: Configuratio
          * 
          * @param {number} [page] 
          * @param {number} [pageSize] 
+         * @param {string} [search] 
+         * @param {string} [sortBy] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        eventsGet: async (page?: number, pageSize?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        eventsGet: async (page?: number, pageSize?: number, search?: string, sortBy?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/events`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -663,6 +694,14 @@ export const EventsApiAxiosParamCreator = function (configuration?: Configuratio
 
             if (pageSize !== undefined) {
                 localVarQueryParameter['pageSize'] = pageSize;
+            }
+
+            if (search !== undefined) {
+                localVarQueryParameter['search'] = search;
+            }
+
+            if (sortBy !== undefined) {
+                localVarQueryParameter['sortBy'] = sortBy;
             }
 
             localVarHeaderParameter['Accept'] = 'text/plain,application/json,text/json';
@@ -873,11 +912,13 @@ export const EventsApiFp = function(configuration?: Configuration) {
          * 
          * @param {number} [page] 
          * @param {number} [pageSize] 
+         * @param {string} [search] 
+         * @param {string} [sortBy] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async eventsGet(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<EventListItemDtoPagedResult>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.eventsGet(page, pageSize, options);
+        async eventsGet(page?: number, pageSize?: number, search?: string, sortBy?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<EventListItemDtoPagedResult>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.eventsGet(page, pageSize, search, sortBy, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['EventsApi.eventsGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -958,11 +999,13 @@ export const EventsApiFactory = function (configuration?: Configuration, basePat
          * 
          * @param {number} [page] 
          * @param {number} [pageSize] 
+         * @param {string} [search] 
+         * @param {string} [sortBy] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        eventsGet(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<EventListItemDtoPagedResult> {
-            return localVarFp.eventsGet(page, pageSize, options).then((request) => request(axios, basePath));
+        eventsGet(page?: number, pageSize?: number, search?: string, sortBy?: string, options?: RawAxiosRequestConfig): AxiosPromise<EventListItemDtoPagedResult> {
+            return localVarFp.eventsGet(page, pageSize, search, sortBy, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1023,10 +1066,12 @@ export interface EventsApiInterface {
      * 
      * @param {number} [page] 
      * @param {number} [pageSize] 
+     * @param {string} [search] 
+     * @param {string} [sortBy] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    eventsGet(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<EventListItemDtoPagedResult>;
+    eventsGet(page?: number, pageSize?: number, search?: string, sortBy?: string, options?: RawAxiosRequestConfig): AxiosPromise<EventListItemDtoPagedResult>;
 
     /**
      * 
@@ -1081,11 +1126,13 @@ export class EventsApi extends BaseAPI implements EventsApiInterface {
      * 
      * @param {number} [page] 
      * @param {number} [pageSize] 
+     * @param {string} [search] 
+     * @param {string} [sortBy] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public eventsGet(page?: number, pageSize?: number, options?: RawAxiosRequestConfig) {
-        return EventsApiFp(this.configuration).eventsGet(page, pageSize, options).then((request) => request(this.axios, this.basePath));
+    public eventsGet(page?: number, pageSize?: number, search?: string, sortBy?: string, options?: RawAxiosRequestConfig) {
+        return EventsApiFp(this.configuration).eventsGet(page, pageSize, search, sortBy, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1214,6 +1261,48 @@ export const PublicationsApiAxiosParamCreator = function (configuration?: Config
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
             localVarRequestOptions.data = serializeDataIfNeeded(createPublicationRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {number} [page] 
+         * @param {number} [pageSize] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        publicationsGet: async (page?: number, pageSize?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/publications`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (page !== undefined) {
+                localVarQueryParameter['page'] = page;
+            }
+
+            if (pageSize !== undefined) {
+                localVarQueryParameter['pageSize'] = pageSize;
+            }
+
+            localVarHeaderParameter['Accept'] = 'text/plain,application/json,text/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -1441,6 +1530,19 @@ export const PublicationsApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @param {number} [page] 
+         * @param {number} [pageSize] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async publicationsGet(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<PublicationListItemDtoPagedResult>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.publicationsGet(page, pageSize, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['PublicationsApi.publicationsGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -1530,6 +1632,16 @@ export const PublicationsApiFactory = function (configuration?: Configuration, b
         },
         /**
          * 
+         * @param {number} [page] 
+         * @param {number} [pageSize] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        publicationsGet(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<PublicationListItemDtoPagedResult> {
+            return localVarFp.publicationsGet(page, pageSize, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {string} id 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -1600,6 +1712,15 @@ export interface PublicationsApiInterface {
 
     /**
      * 
+     * @param {number} [page] 
+     * @param {number} [pageSize] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    publicationsGet(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<PublicationListItemDtoPagedResult>;
+
+    /**
+     * 
      * @param {string} id 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -1664,6 +1785,17 @@ export class PublicationsApi extends BaseAPI implements PublicationsApiInterface
      */
     public publicationsGeneratePost(createPublicationRequest?: CreatePublicationRequest, options?: RawAxiosRequestConfig) {
         return PublicationsApiFp(this.configuration).publicationsGeneratePost(createPublicationRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {number} [page] 
+     * @param {number} [pageSize] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public publicationsGet(page?: number, pageSize?: number, options?: RawAxiosRequestConfig) {
+        return PublicationsApiFp(this.configuration).publicationsGet(page, pageSize, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

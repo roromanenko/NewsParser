@@ -125,7 +125,7 @@ public class EventRepositoryGetDetailWithMediaTests
         _db.ChangeTracker.Clear();
 
         // Act
-        var results = await _sut.GetPagedAsync(page: 1, pageSize: 10);
+        var results = await _sut.GetPagedAsync(page: 1, pageSize: 10, search: null, sortBy: "newest");
 
         // Assert
         results.Should().HaveCount(1);

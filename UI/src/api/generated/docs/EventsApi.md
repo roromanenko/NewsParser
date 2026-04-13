@@ -28,10 +28,14 @@ const apiInstance = new EventsApi(configuration);
 
 let page: number; // (optional) (default to 1)
 let pageSize: number; // (optional) (default to 20)
+let search: string; // (optional) (default to undefined)
+let sortBy: string; // (optional) (default to undefined)
 
 const { status, data } = await apiInstance.eventsGet(
     page,
-    pageSize
+    pageSize,
+    search,
+    sortBy
 );
 ```
 
@@ -41,6 +45,8 @@ const { status, data } = await apiInstance.eventsGet(
 |------------- | ------------- | ------------- | -------------|
 | **page** | [**number**] |  | (optional) defaults to 1|
 | **pageSize** | [**number**] |  | (optional) defaults to 20|
+| **search** | [**string**] |  | (optional) defaults to undefined|
+| **sortBy** | [**string**] |  | (optional) defaults to undefined|
 
 
 ### Return type

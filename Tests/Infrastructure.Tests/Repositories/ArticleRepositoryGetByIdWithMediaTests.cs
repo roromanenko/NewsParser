@@ -125,7 +125,7 @@ public class ArticleRepositoryGetByIdWithMediaTests
         _db.ChangeTracker.Clear();
 
         // Act
-        var results = await _sut.GetAnalysisDoneAsync(page: 1, pageSize: 10);
+        var results = await _sut.GetAnalysisDoneAsync(page: 1, pageSize: 10, search: null, sortBy: "newest");
 
         // Assert
         results.Should().HaveCount(1);

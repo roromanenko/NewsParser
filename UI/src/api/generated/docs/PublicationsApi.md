@@ -6,6 +6,7 @@ All URIs are relative to *http://localhost*
 |------------- | ------------- | -------------|
 |[**publicationsByEventEventIdGet**](#publicationsbyeventeventidget) | **GET** /publications/by-event/{eventId} | |
 |[**publicationsGeneratePost**](#publicationsgeneratepost) | **POST** /publications/generate | |
+|[**publicationsGet**](#publicationsget) | **GET** /publications | |
 |[**publicationsIdApprovePost**](#publicationsidapprovepost) | **POST** /publications/{id}/approve | |
 |[**publicationsIdContentPut**](#publicationsidcontentput) | **PUT** /publications/{id}/content | |
 |[**publicationsIdGet**](#publicationsidget) | **GET** /publications/{id} | |
@@ -103,6 +104,59 @@ const { status, data } = await apiInstance.publicationsGeneratePost(
 ### HTTP request headers
 
  - **Content-Type**: application/json, text/json, application/*+json
+ - **Accept**: text/plain, application/json, text/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **publicationsGet**
+> PublicationListItemDtoPagedResult publicationsGet()
+
+
+### Example
+
+```typescript
+import {
+    PublicationsApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new PublicationsApi(configuration);
+
+let page: number; // (optional) (default to 1)
+let pageSize: number; // (optional) (default to 20)
+
+const { status, data } = await apiInstance.publicationsGet(
+    page,
+    pageSize
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **page** | [**number**] |  | (optional) defaults to 1|
+| **pageSize** | [**number**] |  | (optional) defaults to 20|
+
+
+### Return type
+
+**PublicationListItemDtoPagedResult**
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
  - **Accept**: text/plain, application/json, text/json
 
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { useArticles } from './useArticles'
@@ -7,6 +7,9 @@ import type { ArticleListItemDto } from '@/api/generated'
 
 const SENTIMENT_FILTERS = ['all', 'positive', 'negative', 'neutral'] as const
 type SentimentFilter = (typeof SENTIMENT_FILTERS)[number]
+
+const SORT_OPTIONS = ['newest', 'oldest'] as const
+type SortOption = (typeof SORT_OPTIONS)[number]
 
 function sentimentColor(sentiment?: string | null): string {
   switch (sentiment?.toLowerCase()) {
@@ -26,22 +29,32 @@ function formatTimestamp(iso?: string): string {
 }
 
 const PAGE_SIZE = 20
+const DEBOUNCE_MS = 300
 
 export function ArticlesPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [sortBy, setSortBy] = useState<SortOption>('newest')
   const [filterSentiment, setFilterSentiment] = useState<SentimentFilter>('all')
   const navigate = useNavigate()
-  const { data, isLoading } = useArticles(page, PAGE_SIZE)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, sortBy])
+
+  const { data, isLoading } = useArticles(page, PAGE_SIZE, debouncedSearch, sortBy)
 
   const items = data?.items ?? []
 
-  const filtered = items.filter(article => {
-    const matchesSearch = !search || article.title?.toLowerCase().includes(search.toLowerCase())
-    const matchesSentiment =
-      filterSentiment === 'all' || article.sentiment?.toLowerCase() === filterSentiment
-    return matchesSearch && matchesSentiment
-  })
+  const filtered = items.filter(article =>
+    filterSentiment === 'all' || article.sentiment?.toLowerCase() === filterSentiment
+  )
 
   return (
     <div className="flex -m-6" style={{ minHeight: 'calc(100vh - 5rem)' }}>
@@ -74,6 +87,31 @@ export function ArticlesPage() {
               onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
             />
           </div>
+        </div>
+
+        <div className="mb-6 space-y-1">
+          <div className="font-caps text-xs tracking-widest mb-3" style={{ color: 'var(--caramel)' }}>
+            SORT
+          </div>
+          {SORT_OPTIONS.map(option => (
+            <button
+              key={option}
+              onClick={() => setSortBy(option)}
+              className="w-full text-left px-3 py-2 font-mono text-xs transition-colors"
+              style={{
+                background: sortBy === option ? 'var(--burgundy)' : 'transparent',
+                color: sortBy === option ? '#E8E8E8' : '#9ca3af',
+              }}
+              onMouseEnter={e => {
+                if (sortBy !== option) e.currentTarget.style.color = 'var(--caramel)'
+              }}
+              onMouseLeave={e => {
+                if (sortBy !== option) e.currentTarget.style.color = '#9ca3af'
+              }}
+            >
+              {option.toUpperCase()}
+            </button>
+          ))}
         </div>
 
         <div className="space-y-1">
@@ -125,7 +163,7 @@ export function ArticlesPage() {
             <div>
               <h1 className="font-display text-4xl mb-1">Articles</h1>
               <p className="font-mono text-sm" style={{ color: '#9ca3af' }}>
-                {filtered.length} items
+                {data?.totalCount ?? 0} items
               </p>
             </div>
           </div>

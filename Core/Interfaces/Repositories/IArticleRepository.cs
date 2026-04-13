@@ -6,8 +6,8 @@ public interface IArticleRepository
 {
 	Task AddAsync(Article article, CancellationToken cancellationToken = default);
 	Task<Article?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-	Task<List<Article>> GetAnalysisDoneAsync(int page, int pageSize, CancellationToken cancellationToken = default);
-	Task<int> CountAnalysisDoneAsync(CancellationToken cancellationToken = default);
+	Task<List<Article>> GetAnalysisDoneAsync(int page, int pageSize, string? search, string sortBy, CancellationToken cancellationToken = default);
+	Task<int> CountAnalysisDoneAsync(string? search, CancellationToken cancellationToken = default);
 	Task UpdateStatusAsync(Guid id, ArticleStatus status, CancellationToken cancellationToken = default);
 	Task RejectAsync(Guid id, string reason, CancellationToken cancellationToken = default);
 	Task IncrementRetryAsync(Guid id, CancellationToken cancellationToken = default);

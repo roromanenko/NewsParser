@@ -201,14 +201,21 @@ public class EventRepository : IEventRepository
 	}
 
 	public async Task<List<Event>> GetPagedAsync(
-	int page,
-	int pageSize,
-	CancellationToken cancellationToken = default)
+		int page,
+		int pageSize,
+		string? search,
+		string sortBy,
+		CancellationToken cancellationToken = default)
 	{
-		var entities = await _context.Events
+		var query = _context.Events
 			.Include(e => e.Articles)
 			.Include(e => e.Contradictions)
-			.OrderByDescending(e => e.LastUpdatedAt)
+			.AsQueryable();
+
+		query = ApplySearch(query, search);
+		query = ApplySort(query, sortBy);
+
+		var entities = await query
 			.Skip((page - 1) * pageSize)
 			.Take(pageSize)
 			.ToListAsync(cancellationToken);
@@ -216,11 +223,34 @@ public class EventRepository : IEventRepository
 		return entities.Select(e => e.ToDomain()).ToList();
 	}
 
-	public async Task<int> CountActiveAsync(CancellationToken cancellationToken = default)
+	public async Task<int> CountAsync(string? search, CancellationToken cancellationToken = default)
 	{
-		return await _context.Events
-			.CountAsync(e => e.Status == EventStatus.Active.ToString(), cancellationToken);
+		var query = _context.Events.AsQueryable();
+		query = ApplySearch(query, search);
+		return await query.CountAsync(cancellationToken);
 	}
+
+	private static IQueryable<EventEntity> ApplySearch(
+		IQueryable<EventEntity> query, string? search)
+	{
+		if (string.IsNullOrWhiteSpace(search))
+			return query;
+
+		var escaped = QueryHelpers.EscapeILikePattern(search);
+		var pattern = $"%{escaped}%";
+
+		return query.Where(e =>
+			EF.Functions.ILike(e.Title, pattern) ||
+			EF.Functions.ILike(e.Summary ?? "", pattern));
+	}
+
+	private static IQueryable<EventEntity> ApplySort(
+		IQueryable<EventEntity> query, string sortBy) =>
+		sortBy switch
+		{
+			"oldest" => query.OrderBy(e => e.LastUpdatedAt),
+			_ => query.OrderByDescending(e => e.LastUpdatedAt),
+		};
 
 	public async Task<Event?> GetDetailAsync(Guid id, CancellationToken cancellationToken = default)
 	{

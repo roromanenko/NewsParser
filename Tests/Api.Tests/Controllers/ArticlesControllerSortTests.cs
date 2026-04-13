@@ -1,7 +1,6 @@
 using Api.Models;
 using Core.DomainModels;
 using Core.Interfaces.Repositories;
-using Core.Interfaces.Services;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,38 +16,42 @@ using System.Text;
 
 namespace Api.Tests.Controllers;
 
+/// <summary>
+/// Tests for the search/sortBy query parameters on GET /articles.
+/// The controller normalises an invalid sortBy to "newest" before
+/// passing it to the repository; these tests verify that a 200 is
+/// returned in all cases and that the controller does not reject
+/// unrecognised sort values — it silently falls back.
+/// </summary>
 [TestFixture]
-public class EventsControllerTests
+public class ArticlesControllerSortTests
 {
     private WebApplicationFactory<Program> _factory = null!;
     private HttpClient _client = null!;
 
+    private Mock<IArticleRepository> _articleRepoMock = null!;
     private Mock<IEventRepository> _eventRepoMock = null!;
-    private Mock<IEventService> _eventServiceMock = null!;
 
-    // JWT config — must match the values supplied via UseSetting in OneTimeSetUp
     private const string JwtSecretKey = "65j781ddc991c216b5897b44bdsca4eff6ab75ea18448c9e43e0baasfbds4ef5";
     private const string JwtIssuer = "https://localhost:7054";
     private const string JwtAudience = "https://localhost:7054";
 
-    private HttpClient _adminClient = null!;
-
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
+        _articleRepoMock = new Mock<IArticleRepository>();
         _eventRepoMock = new Mock<IEventRepository>();
-        _eventServiceMock = new Mock<IEventService>();
 
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.ConfigureServices(services =>
                 {
+                    RemoveAllImplementations(services, typeof(IArticleRepository));
                     RemoveAllImplementations(services, typeof(IEventRepository));
-                    RemoveAllImplementations(services, typeof(IEventService));
 
+                    services.AddSingleton(_articleRepoMock.Object);
                     services.AddSingleton(_eventRepoMock.Object);
-                    services.AddSingleton(_eventServiceMock.Object);
                 });
 
                 builder.UseSetting("Jwt:SecretKey", JwtSecretKey);
@@ -65,102 +68,114 @@ public class EventsControllerTests
         _client = _factory.CreateClient();
         _client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", editorToken);
-
-        var adminToken = GenerateJwtToken(role: nameof(UserRole.Admin));
-        _adminClient = _factory.CreateClient();
-        _adminClient.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", adminToken);
     }
 
     [OneTimeTearDown]
     public void OneTimeTearDown()
     {
         _client.Dispose();
-        _adminClient.Dispose();
         _factory.Dispose();
     }
 
     [SetUp]
     public void ResetMocks()
     {
+        _articleRepoMock.Reset();
         _eventRepoMock.Reset();
-        _eventServiceMock.Reset();
+
+        // Default stubs so the controller can complete without throwing
+        _articleRepoMock
+            .Setup(r => r.GetAnalysisDoneAsync(
+                It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string?>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        _articleRepoMock
+            .Setup(r => r.CountAnalysisDoneAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
     }
 
     // ------------------------------------------------------------------
-    // PATCH /events/{id}/status — 204 with valid Active status
+    // GET /articles?sortBy=invalid — P0: falls back to newest, returns 200
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task UpdateStatus_WhenValidActiveStatus_Returns204()
+    public async Task GetAnalysisDone_WhenSortByIsInvalid_Returns200WithPagedResult()
     {
-        // Arrange
-        var eventId = Guid.NewGuid();
-        _eventRepoMock
-            .Setup(r => r.GetByIdAsync(eventId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateEvent(eventId, EventStatus.Active));
+        // Arrange — default stubs from ResetMocks are sufficient
 
         // Act
-        var response = await _adminClient.PatchAsJsonAsync($"/events/{eventId}/status", "Active");
+        var response = await _client.GetAsync("/articles?sortBy=invalid");
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<PagedResult<ArticleListItemDto>>();
+        body.Should().NotBeNull();
+        body!.Items.Should().BeEmpty();
     }
 
     // ------------------------------------------------------------------
-    // PATCH /events/{id}/status — 204 with valid Archived status
+    // GET /articles?sortBy=oldest — P0: valid sort value, returns 200
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task UpdateStatus_WhenValidArchivedStatus_Returns204()
+    public async Task GetAnalysisDone_WhenSortByIsOldest_Returns200()
     {
-        // Arrange
-        var eventId = Guid.NewGuid();
-        _eventRepoMock
-            .Setup(r => r.GetByIdAsync(eventId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateEvent(eventId, EventStatus.Active));
+        // Arrange — default stubs from ResetMocks are sufficient
 
         // Act
-        var response = await _adminClient.PatchAsJsonAsync($"/events/{eventId}/status", "Archived");
+        var response = await _client.GetAsync("/articles?sortBy=oldest");
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<PagedResult<ArticleListItemDto>>();
+        body.Should().NotBeNull();
     }
 
     // ------------------------------------------------------------------
-    // PATCH /events/{id}/status — 400 for invalid status string
+    // GET /articles?sortBy=newest — P0: valid sort value, returns 200
     // ------------------------------------------------------------------
 
     [Test]
-    public async Task UpdateStatus_WhenInvalidStatus_Returns400()
+    public async Task GetAnalysisDone_WhenSortByIsNewest_Returns200()
     {
-        // Arrange
-        var eventId = Guid.NewGuid();
-        _eventRepoMock
-            .Setup(r => r.GetByIdAsync(eventId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateEvent(eventId, EventStatus.Active));
+        // Arrange — default stubs from ResetMocks are sufficient
 
         // Act
-        var response = await _adminClient.PatchAsJsonAsync($"/events/{eventId}/status", "Approved");
+        var response = await _client.GetAsync("/articles?sortBy=newest");
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<PagedResult<ArticleListItemDto>>();
+        body.Should().NotBeNull();
+    }
+
+    // ------------------------------------------------------------------
+    // GET /articles?sortBy=invalid — P1: controller passes "newest" to repo
+    //     (not the raw invalid string) after normalisation
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task GetAnalysisDone_WhenSortByIsInvalid_PassesNewestToRepository()
+    {
+        // Arrange — default stubs from ResetMocks are sufficient
+
+        // Act
+        await _client.GetAsync("/articles?sortBy=garbage");
+
+        // Assert — the controller must have normalised "garbage" to "newest"
+        _articleRepoMock.Verify(
+            r => r.GetAnalysisDoneAsync(
+                It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string?>(), "newest",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
-
-    private static Event CreateEvent(Guid id, EventStatus status) => new()
-    {
-        Id = id,
-        Title = "Test Event",
-        Summary = "Summary",
-        Status = status,
-        FirstSeenAt = DateTimeOffset.UtcNow,
-        LastUpdatedAt = DateTimeOffset.UtcNow,
-        Articles = []
-    };
 
     private static string GenerateJwtToken(string role)
     {

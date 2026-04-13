@@ -11,6 +11,8 @@ Name | Type | Description | Notes
 **platform** | **string** |  | [optional] [default to undefined]
 **createdAt** | **string** |  | [optional] [default to undefined]
 **publishedAt** | **string** |  | [optional] [default to undefined]
+**eventId** | **string** |  | [optional] [default to undefined]
+**eventTitle** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -24,6 +26,8 @@ const instance: PublicationListItemDto = {
     platform,
     createdAt,
     publishedAt,
+    eventId,
+    eventTitle,
 };
 ```
 

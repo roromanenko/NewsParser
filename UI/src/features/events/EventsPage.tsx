@@ -1,12 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Search } from 'lucide-react'
 import { useEvents } from './useEvents'
 import { MergeEventsSlideOver } from './MergeEventsSlideOver'
 import { Pagination } from '@/components/shared/Pagination'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { EventListItemDto } from '@/api/generated'
 
+const SORT_OPTIONS = ['newest', 'oldest'] as const
+type SortOption = (typeof SORT_OPTIONS)[number]
+
 const PAGE_SIZE = 20
+const DEBOUNCE_MS = 300
 
 function formatDate(iso?: string) {
   if (!iso) return '—'
@@ -25,13 +30,95 @@ export function EventsPage() {
   const navigate = useNavigate()
   const { isAdmin } = usePermissions()
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [sortBy, setSortBy] = useState<SortOption>('newest')
   const [mergeOpen, setMergeOpen] = useState(false)
 
-  const { data, isLoading } = useEvents(page, PAGE_SIZE)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, sortBy])
+
+  const { data, isLoading } = useEvents(page, PAGE_SIZE, debouncedSearch, sortBy)
   const events = data?.items ?? []
 
   return (
     <div className="flex -m-6" style={{ minHeight: 'calc(100vh - 5rem)' }}>
+      {/* Left panel – filters */}
+      <aside
+        className="w-64 shrink-0 border-r p-6"
+        style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(61,15,15,0.3)' }}
+      >
+        <div className="mb-6">
+          <div className="font-caps text-xs tracking-widest mb-3" style={{ color: 'var(--caramel)' }}>
+            FILTER
+          </div>
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+              style={{ color: '#6b7280' }}
+            />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search events..."
+              className="w-full pl-10 pr-4 py-2 font-mono text-xs border focus:outline-none transition-colors"
+              style={{
+                background: 'var(--burgundy)',
+                borderColor: 'rgba(255,255,255,0.1)',
+                color: '#E8E8E8',
+              }}
+              onFocus={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
+              onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <div className="font-caps text-xs tracking-widest mb-3" style={{ color: 'var(--caramel)' }}>
+            SORT
+          </div>
+          {SORT_OPTIONS.map(option => (
+            <button
+              key={option}
+              onClick={() => setSortBy(option)}
+              className="w-full text-left px-3 py-2 font-mono text-xs transition-colors"
+              style={{
+                background: sortBy === option ? 'var(--burgundy)' : 'transparent',
+                color: sortBy === option ? '#E8E8E8' : '#9ca3af',
+              }}
+              onMouseEnter={e => {
+                if (sortBy !== option) e.currentTarget.style.color = 'var(--caramel)'
+              }}
+              onMouseLeave={e => {
+                if (sortBy !== option) e.currentTarget.style.color = '#9ca3af'
+              }}
+            >
+              {option.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        <div
+          className="mt-8 pt-6 border-t"
+          style={{ borderColor: 'rgba(255,255,255,0.1)' }}
+        >
+          <div className="font-caps text-xs tracking-widest mb-3" style={{ color: 'var(--caramel)' }}>
+            TOTAL
+          </div>
+          <div className="font-mono text-sm" style={{ color: '#9ca3af' }}>
+            {data?.totalCount ?? 0} events
+          </div>
+        </div>
+      </aside>
+
+      {/* Center panel – events list */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-8">
           {/* Header */}
