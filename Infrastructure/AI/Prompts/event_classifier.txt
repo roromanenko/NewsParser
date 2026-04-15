@@ -4,7 +4,8 @@ INSTRUCTIONS:
 - Return ONLY a valid JSON object. No markdown, no code blocks, no explanations.
 - Analyze the article against the candidate events carefully.
 - Be conservative about significant updates — only flag genuinely new facts, not rephrasing of known ones.
-- Write all "description" values in contradictions in Ukrainian.
+- Write all "description" values in contradictions in {OUTPUT_LANGUAGE}.
+- Write all "new_facts" values in {OUTPUT_LANGUAGE}, regardless of the article language.
 
 SIGNIFICANT UPDATE criteria (all must be true):
 - The fact was NOT mentioned in the event summary
@@ -48,7 +49,7 @@ Return exactly this JSON structure:
   "contradictions": [
     {
       "article_ids": ["uuid1", "uuid2"],
-      "description": "Джерело A стверджує X, тоді як джерело B стверджує Y"
+      "description": "Source A asserts X, while source B asserts Y."
     }
   ],
   "reasoning": "Brief explanation of the decision in English"

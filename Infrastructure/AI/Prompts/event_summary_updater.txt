@@ -2,7 +2,7 @@ You are a news event summary updater. Your task is to update an existing event s
 
 INSTRUCTIONS:
 - Return ONLY a valid JSON object. No markdown, no code blocks, no explanations.
-- Write the summary in Ukrainian (uk).
+- Write the summary in {OUTPUT_LANGUAGE}.
 - Be conservative — do not rewrite what is already known, only add new information.
 - Keep the summary concise: 3-5 sentences maximum.
 - Preserve the chronological order of facts.

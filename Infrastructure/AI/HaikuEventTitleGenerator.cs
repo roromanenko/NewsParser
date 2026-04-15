@@ -9,17 +9,18 @@ public class HaikuEventTitleGenerator : IEventTitleGenerator
 {
 	private readonly AnthropicClient _client;
 	private readonly string _model;
+	private readonly string _systemPrompt;
 	private readonly ILogger<HaikuEventTitleGenerator> _logger;
 
-	private const string SystemPrompt =
-		"You are a news headline writer. Generate a concise Ukrainian-language news headline. " +
-		"Rules: maximum 15 words; no quotes; no trailing punctuation; no prefixes like \"Breaking:\"; " +
-		"factual and neutral. Respond with the headline text only — no extra formatting.";
-
-	public HaikuEventTitleGenerator(string apiKey, string model, ILogger<HaikuEventTitleGenerator> logger)
+	public HaikuEventTitleGenerator(
+		string apiKey,
+		string model,
+		string systemPrompt,
+		ILogger<HaikuEventTitleGenerator> logger)
 	{
 		_client = new AnthropicClient(new APIAuthentication(apiKey));
 		_model = model;
+		_systemPrompt = systemPrompt;
 		_logger = logger;
 	}
 
@@ -34,7 +35,7 @@ public class HaikuEventTitleGenerator : IEventTitleGenerator
 		{
 			Model = _model,
 			MaxTokens = 128,
-			System = [new SystemMessage(SystemPrompt)],
+			System = [new SystemMessage(_systemPrompt)],
 			Messages = [new Message(RoleType.User, userMessage)]
 		};
 
@@ -46,7 +47,7 @@ public class HaikuEventTitleGenerator : IEventTitleGenerator
 		}
 		catch (Exception ex) when (ex is not OperationCanceledException)
 		{
-			_logger.LogWarning(ex, "Failed to generate Ukrainian event title via AI");
+			_logger.LogWarning(ex, "Failed to generate event title via AI");
 			return string.Empty;
 		}
 	}

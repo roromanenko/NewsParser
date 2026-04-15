@@ -10,21 +10,18 @@ public class HaikuKeyFactsExtractor : IKeyFactsExtractor
 {
 	private readonly string _apiKey;
 	private readonly string _model;
+	private readonly string _systemPrompt;
 
-	public HaikuKeyFactsExtractor(string apiKey, string model)
+	public HaikuKeyFactsExtractor(string apiKey, string model, string systemPrompt)
 	{
 		_apiKey = apiKey;
 		_model = model;
+		_systemPrompt = systemPrompt;
 	}
 
 	public async Task<List<string>> ExtractAsync(Article article, CancellationToken cancellationToken = default)
 	{
 		var client = new AnthropicClient(new APIAuthentication(_apiKey));
-
-		var systemPrompt =
-			"You are a factual extraction assistant. Extract 3 to 7 short, discrete factual " +
-			"statements from the article. Each fact must be a single sentence. " +
-			"Respond with a JSON object: {\"facts\": [\"fact1\", \"fact2\", ...]}";
 
 		var userPrompt = $"""
             TITLE: {article.Title}
@@ -38,7 +35,7 @@ public class HaikuKeyFactsExtractor : IKeyFactsExtractor
 		{
 			Model = _model,
 			MaxTokens = 512,
-			System = [new SystemMessage(systemPrompt)],
+			System = [new SystemMessage(_systemPrompt)],
 			Messages = [new Message(RoleType.User, userPrompt)]
 		};
 

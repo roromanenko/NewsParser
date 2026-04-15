@@ -88,7 +88,7 @@ public static class InfrastructureServiceExtensions
 		services.Configure<AiOptions>(configuration.GetSection(AiOptions.SectionName));		
 
 		var aiOptions = configuration.GetSection(AiOptions.SectionName).Get<AiOptions>() ?? new AiOptions();
-		var promptsOptions = configuration.GetSection(PromptsOptions.SectionName).Get<PromptsOptions>() ?? new PromptsOptions();
+		var promptsOptions = new PromptsOptions(aiOptions.Normalization.TargetLanguageName);
 
 		services.AddScoped<IArticleAnalyzer>(provider => new GeminiArticleAnalyzer(
 			aiOptions.Gemini.ApiKey,
@@ -116,12 +116,14 @@ public static class InfrastructureServiceExtensions
 
 		services.AddScoped<IKeyFactsExtractor>(_ => new HaikuKeyFactsExtractor(
 			aiOptions.Anthropic.ApiKey,
-			aiOptions.Anthropic.KeyFactsExtractorModel
+			aiOptions.Anthropic.KeyFactsExtractorModel,
+			promptsOptions.HaikuKeyFacts
 		));
 
 		services.AddScoped<IEventTitleGenerator>(sp => new HaikuEventTitleGenerator(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.TitleGeneratorModel,
+			promptsOptions.HaikuEventTitle,
 			sp.GetRequiredService<ILogger<HaikuEventTitleGenerator>>()
 		));
 

@@ -3,8 +3,15 @@
 public class AiOptions
 {
 	public const string SectionName = "Ai";
+	public NormalizationOptions Normalization { get; set; } = new();
 	public GeminiOptions Gemini { get; set; } = new();
 	public AnthropicOptions Anthropic { get; set; } = new();
+}
+
+public class NormalizationOptions
+{
+	public string TargetLanguage { get; set; } = "uk";
+	public string TargetLanguageName { get; set; } = "Ukrainian";
 }
 
 public class GeminiOptions
@@ -27,5 +34,4 @@ public class AnthropicOptions
 	public string SummaryUpdaterModel { get; set; } = "claude-haiku-4-5-20251001";
 	public string KeyFactsExtractorModel { get; set; } = "claude-haiku-4-5-20251001";
 	public string TitleGeneratorModel { get; set; } = "claude-haiku-4-5-20251001";
-	public string OutputLanguage { get; set; } = "uk";
 }
