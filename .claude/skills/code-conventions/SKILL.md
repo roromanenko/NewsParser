@@ -15,16 +15,16 @@ These rules are extracted from the actual codebase, not from generic theory. Eve
 
 | Layer | Allowed | Forbidden |
 |---|---|---|
-| `Core/` | Domain models, interfaces, enums | EF Core, HttpClient, any infrastructure |
-| `Infrastructure/` | EF Core repos, AI clients, parsers, publishers, services | Direct HTTP handling, controller concerns |
-| `Api/` | Controllers, middleware, DTOs, Api/Mappers | DbContext, EF Core, business logic |
-| `Worker/` | BackgroundService subclasses, Worker/Configuration | DbContext direct access, controller concerns |
+| `Core/` | Domain models, interfaces, enums | Dapper, HttpClient, any infrastructure |
+| `Infrastructure/` | Dapper repos, AI clients, parsers, publishers, services | Direct HTTP handling, controller concerns |
+| `Api/` | Controllers, middleware, DTOs, Api/Mappers | IDbConnectionFactory, IUnitOfWork, business logic |
+| `Worker/` | BackgroundService subclasses, Worker/Configuration | IDbConnectionFactory direct access, controller concerns |
 
 **Concrete violations to refuse:**
-- DbContext injected into a controller → move to repository
+- IDbConnectionFactory injected into a controller → move to repository
 - Business rule in a controller → move to service
 - Inline `new SomeDto(...)` construction in a controller → move to `Api/Mappers/`
-- EF Core using statement in `Core/` → not allowed
+- Dapper or Npgsql using statement in `Core/` → not allowed
 
 ---
 
@@ -115,25 +115,27 @@ The delay interval always comes from an Options class — never a hardcoded lite
 
 ---
 
-## Update Pattern: Always ExecuteUpdateAsync
+## Update Pattern: Always Dapper ExecuteAsync with SQL constant
 
-**Never** load an entity, modify properties, and call `SaveChanges` for updates. Use `ExecuteUpdateAsync` with `SetProperty`:
+**Never** load an entity and modify properties for updates. Write a targeted `UPDATE` SQL and execute it with `ExecuteAsync`:
 
 ```csharp
 // CORRECT — ArticleRepository.cs
-await _context.Articles
-    .Where(a => a.Id == id)
-    .ExecuteUpdateAsync(a => a
-        .SetProperty(x => x.Status, status.ToString())
-        .SetProperty(x => x.RejectedByEditorId, editorId)
-        .SetProperty(x => x.RejectionReason, reason),
-    cancellationToken);
+public async Task UpdateStatusAsync(Guid id, ArticleStatus status, CancellationToken cancellationToken = default)
+{
+    await using var conn = await factory.CreateOpenAsync(cancellationToken);
+    await conn.ExecuteAsync(new CommandDefinition(ArticleSql.UpdateStatus,
+        new { id, status = status.ToString() },
+        cancellationToken: cancellationToken));
+}
 
-// Self-referencing increment (CORRECT)
-.SetProperty(x => x.RetryCount, x => x.RetryCount + 1)
+// CORRECT — self-referencing increment in SQL constant
+public const string IncrementRetry = """
+    UPDATE articles SET "RetryCount" = "RetryCount" + 1 WHERE "Id" = @id
+    """;
 ```
 
-Exception: `CreateAsync` and `AddAsync` use `Add` + `SaveChangesAsync` — that's correct.
+All SQL lives in `Infrastructure/Persistence/Repositories/Sql/*Sql.cs` as string constants — never inline SQL in repository method bodies. Always use `CommandDefinition` with `cancellationToken`.
 
 ---
 
@@ -314,7 +316,7 @@ Enums co-located with the domain model file that owns them (e.g., `ArticleStatus
 | `ArticleAnalysisWorker` | Run AI analysis on pending raw articles |
 | `ArticleApprovalService` | Approve/reject articles (business rules + status transitions) |
 | `SourceService` | CRUD for sources (validates uniqueness, delegates persistence) |
-| `ArticleRepository` | EF Core queries/updates for articles and raw articles |
+| `ArticleRepository` | Dapper queries/updates for articles |
 | `Api/Mappers/ArticleMapper` | Domain → DTO conversion, no other logic |
 
 **Red flags that violate SRP:**

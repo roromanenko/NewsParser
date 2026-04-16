@@ -1,6 +1,4 @@
-﻿using Pgvector;
-
-namespace Infrastructure.Persistence.Entity;
+﻿namespace Infrastructure.Persistence.Entity;
 
 public class ArticleEntity
 {
@@ -14,7 +12,7 @@ public class ArticleEntity
 	public string? OriginalUrl { get; set; }
 	public DateTimeOffset? PublishedAt { get; set; }
 	public string? ExternalId { get; set; }
-	public Vector? Embedding { get; set; }
+	public float[]? Embedding { get; set; }
 
 	public string Title { get; set; } = string.Empty;
 	public List<string> Tags { get; set; } = [];

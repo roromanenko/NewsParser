@@ -1,191 +1,231 @@
+using System.Data;
 using Core.DomainModels;
 using Core.Interfaces.Repositories;
-using Infrastructure.Persistence.DataBase;
+using Dapper;
+using Infrastructure.Persistence.Connection;
 using Infrastructure.Persistence.Entity;
 using Infrastructure.Persistence.Mappers;
-using Microsoft.EntityFrameworkCore;
+using Infrastructure.Persistence.Repositories.Sql;
+using Infrastructure.Persistence.UnitOfWork;
 using Pgvector;
-using Pgvector.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Repositories;
 
-public class ArticleRepository : IArticleRepository
+internal class ArticleRepository(IDbConnectionFactory factory, IUnitOfWork uow) : IArticleRepository
 {
-	private readonly NewsParserDbContext _context;
+    public async Task AddAsync(Article article, CancellationToken cancellationToken = default)
+    {
+        var entity = article.ToEntity();
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var parameters = BuildArticleInsertParameters(entity);
+        await conn.ExecuteAsync(new CommandDefinition(ArticleSql.Insert, parameters, cancellationToken: cancellationToken));
+    }
 
-	public ArticleRepository(NewsParserDbContext context)
-	{
-		_context = context;
-	}
+    public async Task<Article?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
 
-	public async Task AddAsync(Article article, CancellationToken cancellationToken = default)
-	{
-		var entity = article.ToEntity();
-		await _context.Articles.AddAsync(entity, cancellationToken);
-		await _context.SaveChangesAsync(cancellationToken);
-	}
+        var articleDict = new Dictionary<Guid, ArticleEntity>();
 
-	public async Task<Article?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-	{
-		var entity = await _context.Articles
-			.Include(a => a.MediaFiles)
-			.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+        await conn.QueryAsync<ArticleEntity, MediaFileEntity?, ArticleEntity>(
+            new CommandDefinition(ArticleSql.GetById, new { id }, cancellationToken: cancellationToken),
+            (article, media) =>
+            {
+                if (!articleDict.TryGetValue(article.Id, out var existing))
+                {
+                    existing = article;
+                    existing.MediaFiles = [];
+                    articleDict[article.Id] = existing;
+                }
 
-		return entity?.ToDomain();
-	}
+                if (media is not null)
+                    existing.MediaFiles.Add(media);
 
-	public async Task<List<Article>> GetAnalysisDoneAsync(
-		int page, int pageSize, string? search, string sortBy,
-		CancellationToken cancellationToken = default)
-	{
-		var query = _context.Articles
-			.Where(a => a.Status == ArticleStatus.AnalysisDone.ToString());
+                return existing;
+            },
+            splitOn: "Id");
 
-		query = ApplySearch(query, search);
-		query = ApplySort(query, sortBy);
+        return articleDict.Values.FirstOrDefault()?.ToDomain();
+    }
 
-		var entities = await query
-			.Skip((page - 1) * pageSize)
-			.Take(pageSize)
-			.ToListAsync(cancellationToken);
+    public async Task<List<Article>> GetAnalysisDoneAsync(
+        int page, int pageSize, string? search, string sortBy,
+        CancellationToken cancellationToken = default)
+    {
+        var direction = sortBy == "oldest" ? "ASC" : "DESC";
+        var offset = (page - 1) * pageSize;
 
-		return entities.Select(e => e.ToDomain()).ToList();
-	}
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
 
-	public async Task<int> CountAnalysisDoneAsync(string? search, CancellationToken cancellationToken = default)
-	{
-		var query = _context.Articles
-			.Where(a => a.Status == ArticleStatus.AnalysisDone.ToString());
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var escaped = QueryHelpers.EscapeILikePattern(search);
+            var pattern = $"%{escaped}%";
+            var sql = string.Format(ArticleSql.GetAnalysisDoneWithSearch, direction);
+            var entities = await conn.QueryAsync<ArticleEntity>(
+                new CommandDefinition(sql, new { pattern, pageSize, offset }, cancellationToken: cancellationToken));
+            return entities.Select(e => e.ToDomain()).ToList();
+        }
+        else
+        {
+            var sql = string.Format(ArticleSql.GetAnalysisDoneWithoutSearch, direction);
+            var entities = await conn.QueryAsync<ArticleEntity>(
+                new CommandDefinition(sql, new { pageSize, offset }, cancellationToken: cancellationToken));
+            return entities.Select(e => e.ToDomain()).ToList();
+        }
+    }
 
-		query = ApplySearch(query, search);
+    public async Task<int> CountAnalysisDoneAsync(string? search, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
 
-		return await query.CountAsync(cancellationToken);
-	}
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var escaped = QueryHelpers.EscapeILikePattern(search);
+            var pattern = $"%{escaped}%";
+            return await conn.ExecuteScalarAsync<int>(
+                new CommandDefinition(ArticleSql.CountAnalysisDoneWithSearch, new { pattern }, cancellationToken: cancellationToken));
+        }
 
-	private static IQueryable<ArticleEntity> ApplySearch(
-		IQueryable<ArticleEntity> query, string? search)
-	{
-		if (string.IsNullOrWhiteSpace(search))
-			return query;
+        return await conn.ExecuteScalarAsync<int>(
+            new CommandDefinition(ArticleSql.CountAnalysisDoneWithoutSearch, cancellationToken: cancellationToken));
+    }
 
-		var escaped = QueryHelpers.EscapeILikePattern(search);
-		var pattern = $"%{escaped}%";
+    public async Task UpdateStatusAsync(Guid id, ArticleStatus status, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(ArticleSql.UpdateStatus,
+            new { id, status = status.ToString() },
+            cancellationToken: cancellationToken));
+    }
 
-		return query.Where(a =>
-			EF.Functions.ILike(a.Title, pattern) ||
-			EF.Functions.ILike(a.Summary ?? "", pattern));
-	}
+    public async Task RejectAsync(Guid id, string reason, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(ArticleSql.Reject,
+            new { id, reason },
+            cancellationToken: cancellationToken));
+    }
 
-	private static IQueryable<ArticleEntity> ApplySort(
-		IQueryable<ArticleEntity> query, string sortBy) =>
-		sortBy switch
-		{
-			"oldest" => query.OrderBy(a => a.ProcessedAt),
-			_ => query.OrderByDescending(a => a.ProcessedAt),
-		};
+    public async Task IncrementRetryAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(ArticleSql.IncrementRetry,
+            new { id },
+            cancellationToken: cancellationToken));
+    }
 
-	public async Task UpdateStatusAsync(Guid id, ArticleStatus status, CancellationToken cancellationToken = default)
-	{
-		await _context.Articles
-			.Where(a => a.Id == id)
-			.ExecuteUpdateAsync(a => a.SetProperty(x => x.Status, status.ToString()), cancellationToken);
-	}
+    public async Task<List<Article>> GetPendingAsync(int batchSize, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var entities = await conn.QueryAsync<ArticleEntity>(
+            new CommandDefinition(ArticleSql.GetPending, new { batchSize }, cancellationToken: cancellationToken));
+        return entities.Select(e => e.ToDomain()).ToList();
+    }
 
-	public async Task RejectAsync(Guid id, string reason, CancellationToken cancellationToken = default)
-	{
-		await _context.Articles
-			.Where(a => a.Id == id)
-			.ExecuteUpdateAsync(a => a
-				.SetProperty(x => x.Status, ArticleStatus.Rejected.ToString())
-				.SetProperty(x => x.RejectionReason, reason),
-			cancellationToken);
-	}
+    public async Task<List<Article>> GetPendingForClassificationAsync(int batchSize, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var entities = await conn.QueryAsync<ArticleEntity>(
+            new CommandDefinition(ArticleSql.GetPendingForClassification, new { batchSize }, cancellationToken: cancellationToken));
+        return entities.Select(e => e.ToDomain()).ToList();
+    }
 
-	public async Task IncrementRetryAsync(Guid id, CancellationToken cancellationToken = default)
-	{
-		await _context.Articles
-			.Where(a => a.Id == id)
-			.ExecuteUpdateAsync(a => a
-				.SetProperty(x => x.RetryCount, x => x.RetryCount + 1),
-			cancellationToken);
-	}
+    public async Task UpdateKeyFactsAsync(Guid id, List<string> keyFacts, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(ArticleSql.UpdateKeyFacts,
+            new { id, keyFacts },
+            cancellationToken: cancellationToken));
+    }
 
-	public async Task<List<Article>> GetPendingAsync(int batchSize, CancellationToken cancellationToken = default)
-	{
-		var statusStr = ArticleStatus.Pending.ToString();
-		var entities = await _context.Articles
-			.FromSql(
-				$"SELECT * FROM articles WHERE \"Status\" = {statusStr} ORDER BY \"ProcessedAt\" LIMIT {batchSize} FOR UPDATE SKIP LOCKED")
-			.ToListAsync(cancellationToken);
+    public async Task UpdateAnalysisResultAsync(
+        Guid id, string category, List<string> tags, string sentiment,
+        string language, string summary, string modelVersion,
+        CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var parameters = BuildTagsParameters(id, category, tags, sentiment, language, summary, modelVersion);
+        await conn.ExecuteAsync(new CommandDefinition(ArticleSql.UpdateAnalysisResult, parameters, cancellationToken: cancellationToken));
+    }
 
-		return entities.Select(e => e.ToDomain()).ToList();
-	}
+    public async Task UpdateEmbeddingAsync(Guid id, float[] embedding, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(ArticleSql.UpdateEmbedding,
+            new { id, embedding = new Vector(embedding) },
+            cancellationToken: cancellationToken));
+    }
 
-	public async Task<List<Article>> GetPendingForClassificationAsync(int batchSize, CancellationToken cancellationToken = default)
-	{
-		var statusStr = ArticleStatus.AnalysisDone.ToString();
-		var entities = await _context.Articles
-			.FromSql(
-				$"SELECT * FROM articles WHERE \"Status\" = {statusStr} AND \"EventId\" IS NULL ORDER BY \"ProcessedAt\" LIMIT {batchSize} FOR UPDATE SKIP LOCKED")
-			.ToListAsync(cancellationToken);
+    public async Task<bool> ExistsAsync(Guid sourceId, string externalId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        return await conn.ExecuteScalarAsync<bool>(
+            new CommandDefinition(ArticleSql.ExistsBySourceAndExternal,
+                new { sourceId, externalId },
+                cancellationToken: cancellationToken));
+    }
 
-		return entities.Select(e => e.ToDomain()).ToList();
-	}
+    public async Task<bool> ExistsByUrlAsync(string url, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        return await conn.ExecuteScalarAsync<bool>(
+            new CommandDefinition(ArticleSql.ExistsByUrl, new { url }, cancellationToken: cancellationToken));
+    }
 
-	public async Task UpdateKeyFactsAsync(Guid id, List<string> keyFacts, CancellationToken cancellationToken = default)
-	{
-		await _context.Articles
-			.Where(a => a.Id == id)
-			.ExecuteUpdateAsync(a => a.SetProperty(x => x.KeyFacts, keyFacts), cancellationToken);
-	}
+    public async Task<List<string>> GetRecentTitlesForDeduplicationAsync(int windowHours, CancellationToken cancellationToken = default)
+    {
+        var since = DateTimeOffset.UtcNow.AddHours(-windowHours);
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var titles = await conn.QueryAsync<string>(
+            new CommandDefinition(ArticleSql.GetRecentTitlesForDeduplication,
+                new { since },
+                cancellationToken: cancellationToken));
+        return titles.ToList();
+    }
 
-	public async Task UpdateAnalysisResultAsync(
-		Guid id, string category, List<string> tags, string sentiment,
-		string language, string summary, string modelVersion,
-		CancellationToken cancellationToken = default)
-	{
-		await _context.Articles
-			.Where(a => a.Id == id)
-			.ExecuteUpdateAsync(a => a
-				.SetProperty(x => x.Category, category)
-				.SetProperty(x => x.Tags, tags)
-				.SetProperty(x => x.Sentiment, sentiment)
-				.SetProperty(x => x.Language, language)
-				.SetProperty(x => x.Summary, summary)
-				.SetProperty(x => x.ModelVersion, modelVersion),
-			cancellationToken);
-	}
+    private static DynamicParameters BuildTagsParameters(
+        Guid id, string category, List<string> tags, string sentiment,
+        string language, string summary, string modelVersion)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("id", id);
+        parameters.Add("category", category);
+        parameters.Add("tags", tags.ToArray(), dbType: DbType.Object);
+        parameters.Add("sentiment", sentiment);
+        parameters.Add("language", language);
+        parameters.Add("summary", summary);
+        parameters.Add("modelVersion", modelVersion);
 
-	public async Task UpdateEmbeddingAsync(Guid id, float[] embedding, CancellationToken cancellationToken = default)
-	{
-		var vector = new Vector(embedding);
-		await _context.Articles
-			.Where(a => a.Id == id)
-			.ExecuteUpdateAsync(a => a.SetProperty(x => x.Embedding, vector), cancellationToken);
-	}
+        return parameters;
+    }
 
-	public async Task<bool> ExistsAsync(Guid sourceId, string externalId, CancellationToken cancellationToken = default)
-	{
-		return await _context.Articles
-			.AnyAsync(a => a.SourceId == sourceId && a.ExternalId == externalId, cancellationToken);
-	}
-
-	public async Task<bool> ExistsByUrlAsync(string url, CancellationToken cancellationToken = default)
-	{
-		return await _context.Articles
-			.AnyAsync(a => a.OriginalUrl == url
-				&& a.Status != ArticleStatus.Rejected.ToString(),
-			cancellationToken);
-	}
-
-	public async Task<List<string>> GetRecentTitlesForDeduplicationAsync(int windowHours, CancellationToken cancellationToken = default)
-	{
-		var since = DateTimeOffset.UtcNow.AddHours(-windowHours);
-		return await _context.Articles
-			.Where(a => a.PublishedAt >= since
-				&& a.Status != ArticleStatus.Rejected.ToString())
-			.Select(a => a.Title)
-			.ToListAsync(cancellationToken);
-	}
-
+    private static DynamicParameters BuildArticleInsertParameters(ArticleEntity entity)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("Id", entity.Id);
+        parameters.Add("OriginalContent", entity.OriginalContent);
+        parameters.Add("SourceId", entity.SourceId);
+        parameters.Add("OriginalUrl", entity.OriginalUrl);
+        parameters.Add("PublishedAt", entity.PublishedAt);
+        parameters.Add("ExternalId", entity.ExternalId);
+        parameters.Add("Embedding", entity.Embedding != null ? new Vector(entity.Embedding) : null);
+        parameters.Add("Title", entity.Title);
+        parameters.Add("Tags", entity.Tags.ToArray(), dbType: DbType.Object);
+        parameters.Add("Category", entity.Category);
+        parameters.Add("Sentiment", entity.Sentiment);
+        parameters.Add("ProcessedAt", entity.ProcessedAt);
+        parameters.Add("Status", entity.Status);
+        parameters.Add("ModelVersion", entity.ModelVersion);
+        parameters.Add("Language", entity.Language);
+        parameters.Add("Summary", entity.Summary);
+        parameters.Add("KeyFacts", entity.KeyFacts);
+        parameters.Add("RejectionReason", entity.RejectionReason);
+        parameters.Add("RetryCount", entity.RetryCount);
+        parameters.Add("EventId", entity.EventId);
+        parameters.Add("Role", entity.Role);
+        parameters.Add("WasReclassified", entity.WasReclassified);
+        parameters.Add("AddedToEventAt", entity.AddedToEventAt);
+        return parameters;
+    }
 }

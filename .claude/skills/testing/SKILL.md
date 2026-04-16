@@ -1,13 +1,13 @@
 ---
 name: test-writer
-description: Use this skill when writing, reviewing, or generating tests for .NET projects using NUnit, Moq, and FluentAssertions. Triggers include: creating unit tests for domain logic, repository tests with EF Core InMemory, API endpoint tests with WebApplicationFactory, service tests with mocked dependencies, worker/background-service tests, parameterized tests with TestCase, or any request to follow project testing conventions (AAA pattern, naming convention, anti-patterns checklist).
+description: Use this skill when writing, reviewing, or generating tests for .NET projects using NUnit, Moq, and FluentAssertions. Triggers include: creating unit tests for domain logic, repository interface contract tests with mocks, API endpoint tests with WebApplicationFactory, service tests with mocked dependencies, worker/background-service tests, parameterized tests with TestCase, or any request to follow project testing conventions (AAA pattern, naming convention, anti-patterns checklist).
 ---
 
 ## Stack
 - **Framework**: NUnit 4.x
 - **Mocking**: Moq 4.x + `Moq.Contrib.HttpClient` for HttpClient
 - **Assertions**: FluentAssertions
-- **EF Core**: `Microsoft.EntityFrameworkCore.InMemory` for repositories (except pgvector — Testcontainers there)
+- **Repositories**: Mock-based tests against `IXxxRepository` interfaces (Dapper repositories use PostgreSQL; no InMemory provider available)
 - **API**: `Microsoft.AspNetCore.Mvc.Testing` (WebApplicationFactory) for endpoint tests
 
 ---
@@ -16,7 +16,7 @@ description: Use this skill when writing, reviewing, or generating tests for .NE
 ```
 tests/
 ├── NewsParser.Core.Tests/           # Domain logic — pure unit tests, 0 dependencies
-├── NewsParser.Infrastructure.Tests/ # Repositories — EF InMemory or Sqlite InMemory
+├── NewsParser.Infrastructure.Tests/ # Service and repository contract tests — Moq-based
 └── NewsParser.Api.Tests/            # Endpoints — WebApplicationFactory
 ```
 
@@ -44,20 +44,13 @@ Base packages for each test project (`*.Tests.csproj`):
 <PackageReference Include="FluentAssertions" Version="6.*" />
 ```
 
-Additional for `Infrastructure.Tests`:
-```xml
-<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.*" />
-```
-
 Additional for `Api.Tests`:
 ```xml
 <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.*" />
-<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.*" />
 ```
 
 **Key project types:**
-- DB Context: `AppDbContext` (Infrastructure/Persistence)
-- Repositories: `ArticleRepository`, `EventRepository`, `RawArticleRepository`, `SourceRepository`, `UserRepository`, `PublicationRepository`, `PublishTargetRepository`
+- Repositories: `IArticleRepository`, `IEventRepository`, `ISourceRepository`, `IUserRepository`, `IPublicationRepository`, `IPublishTargetRepository`, `IMediaFileRepository`
 - Services: `ArticleApprovalService`, `EventService`, `UserService`, `SourceService`, `JwtService`, `TelegramClientService`
 - Workers: `SourceFetcherWorker`, `PublicationWorker`
 
@@ -155,71 +148,40 @@ public void Constructor_WhenUrlIsInvalid_ThrowsDomainException()
 
 ---
 
-## Repository / EF Core Tests
+## Repository Tests
 
-Use **EF InMemory** for speed. For tests involving pgvector (`EventRepository`) — Testcontainers with a real PostgreSQL instance.
+Repositories use Dapper against a real PostgreSQL database, so they are not tested with an in-memory provider. Instead, write **interface contract tests** that mock the repository interface and verify the behavior of the consumers (services, workers) that depend on it.
 
-### Base Fixture
 ```csharp
 [TestFixture]
-public abstract class RepositoryTestBase
+public class ArticleRepositoryInterfaceContractTests
 {
-    protected AppDbContext DbContext { get; private set; } = null!;
+    private Mock<IArticleRepository> _repoMock = null!;
 
     [SetUp]
     public void SetUp()
     {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()) // unique DB per test
-            .Options;
-
-        DbContext = new AppDbContext(options);
-        DbContext.Database.EnsureCreated();
-    }
-
-    [TearDown]
-    public void TearDown() => DbContext.Dispose();
-}
-```
-
-### Repository Tests
-```csharp
-[TestFixture]
-public class ArticleRepositoryTests : RepositoryTestBase
-{
-    private ArticleRepository _sut = null!;
-
-    [SetUp]
-    public new void SetUp()
-    {
-        base.SetUp();
-        _sut = new ArticleRepository(DbContext);
+        _repoMock = new Mock<IArticleRepository>();
     }
 
     [Test]
-    public async Task GetByIdAsync_WhenArticleExists_ReturnsCorrectEntity()
+    public async Task GetByIdAsync_WhenCalled_ReturnsNullableArticle()
     {
         // Arrange
-        var article = new Article { Title = "Test", Url = "https://example.com" };
-        await DbContext.Articles.AddAsync(article);
-        await DbContext.SaveChangesAsync();
+        var id = Guid.NewGuid();
+        _repoMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+                 .ReturnsAsync((Article?)null);
 
         // Act
-        var result = await _sut.GetByIdAsync(article.Id);
+        var result = await _repoMock.Object.GetByIdAsync(id);
 
         // Assert
-        result.Should().NotBeNull();
-        result!.Title.Should().Be("Test");
-    }
-
-    [Test]
-    public async Task GetByIdAsync_WhenArticleNotFound_ReturnsNull()
-    {
-        var result = await _sut.GetByIdAsync(999);
         result.Should().BeNull();
     }
 }
 ```
+
+Do NOT use `EF InMemory`, `Sqlite InMemory`, or Testcontainers for repository tests.
 
 ---
 
@@ -490,6 +452,6 @@ var expected = article.Views * 0.4 + article.Likes * 0.6; // → use a concrete 
 - [ ] No `Thread.Sleep` or `DateTime.UtcNow` — mock time via `TimeProvider`
 - [ ] Boundary values are covered via `[TestCase]`
 - [ ] Test does not depend on execution order
-- [ ] InMemory DB uses `Guid.NewGuid()` name — isolated from other tests
+- [ ] Repository tests use mocks against the interface, not InMemory DB
 - [ ] `Verify` is used only for write operations and external calls
 - [ ] Business logic is not duplicated — expected value is concrete, not computed

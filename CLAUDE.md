@@ -6,7 +6,7 @@ This is a .NET 10 + React 19 monorepo for an AI-powered news curation and publis
 
 - **`Api/`** — ASP.NET Core REST API (HTTPS port 7054, HTTP port 5172 for Swagger gen)
 - **`Core/`** — Domain models and repository/service interfaces (no dependencies)
-- **`Infrastructure/`** — EF Core (PostgreSQL + pgvector), AI services, parsers, publishers
+- **`Infrastructure/`** — Dapper (PostgreSQL + pgvector), AI services, parsers, publishers
 - **`Worker/`** — .NET Generic Host with background workers
 - **`UI/`** — React 19 + TypeScript SPA (see `UI/CLAUDE.md` for frontend-specific guidance)
 
@@ -29,7 +29,7 @@ RSS Sources
 
 ### Database
 
-PostgreSQL with the `pgvector` extension. EF Core migrations are in `Infrastructure/Persistence/Migrations/`. The `pgvector` column is used on `Event` for semantic similarity when classifying articles into events. `FuzzySharp` is used for string-based deduplication.
+PostgreSQL with the `pgvector` extension. Schema migrations are managed by **DbUp** (`dbup-postgresql`); forward-only SQL scripts live in `Infrastructure/Persistence/Sql/*.sql` as embedded resources and are applied at startup by `DbUpMigrator.Migrate()`. The `pgvector` column is used on `Event` for semantic similarity when classifying articles into events. `FuzzySharp` is used for string-based deduplication. Data access uses **Dapper** with `IDbConnectionFactory` / `IUnitOfWork` — see `.claude/skills/dapper-conventions/SKILL.md`.
 
 ### Frontend
 
@@ -80,9 +80,9 @@ See `UI/CLAUDE.md`.
     <location>.claude/skills/clean-code/SKILL.md</location>
   </skill>
   <skill>
-    <name>ef-core-conventions</name>
-    <description>NewsParser EF Core repository conventions for Infrastructure/Persistence/Repositories/. Use when adding a new repository class, adding a method to an existing repository, writing a query with Include/ThenInclude, using pgvector, or writing an update/delete operation. Triggers on: "add repository", "new repository", "add method to repository", "EF Core query", "pgvector query", "ExecuteUpdateAsync", "repository pattern", "GetPendingFor".</description>
-    <location>.claude/skills/ef-core-conventions/SKILL.md</location>
+    <name>dapper-conventions</name>
+    <description>NewsParser Dapper repository conventions for Infrastructure/Persistence/Repositories/. Use when adding a new repository class, adding a method to an existing repository, writing a query with multi-table stitching, using pgvector, or writing an update/delete operation. Triggers on: "add repository", "new repository", "add method to repository", "Dapper query", "pgvector query", "ExecuteAsync", "repository pattern", "add GetPendingFor", "write a query", "IDbConnectionFactory", "IUnitOfWork".</description>
+    <location>.claude/skills/dapper-conventions/SKILL.md</location>
   </skill>
 </available_skills>
 

@@ -7,23 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.66" />
+    <PackageReference Include="dbup-postgresql" Version="5.0.8" />
+    <PackageReference Include="Npgsql" Version="10.0.2" />
     <PackageReference Include="Anthropic.SDK" Version="5.10.0" />
     <PackageReference Include="AWSSDK.S3" Version="4.0.21.1" />
     <PackageReference Include="CodeHollow.FeedReader" Version="1.2.6" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.5">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.5" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.Design" Version="1.1.0" />
     <PackageReference Include="Pgvector" Version="0.3.2" />
-    <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.17.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1" />
     <PackageReference Include="FuzzySharp" Version="2.0.2" />
@@ -34,6 +25,10 @@
     <ProjectReference Include="..\Core\Core.csproj" />
   </ItemGroup>
 	
+  <ItemGroup>
+    <EmbeddedResource Include="Persistence\Sql\*.sql" />
+  </ItemGroup>
+
   <ItemGroup>
     <Content Include="Prompts\*.txt">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

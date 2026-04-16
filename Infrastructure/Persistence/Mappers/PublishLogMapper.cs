@@ -1,6 +1,5 @@
 ﻿using Core.DomainModels;
 using Infrastructure.Persistence.Entity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Mappers;
 

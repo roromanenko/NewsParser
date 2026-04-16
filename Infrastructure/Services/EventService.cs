@@ -2,15 +2,17 @@
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
+using Infrastructure.Persistence.UnitOfWork;
 using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
-public class EventService(
+internal class EventService(
 	IEventRepository eventRepository,
 	IGeminiEmbeddingService embeddingService,
 	IEventSummaryUpdater summaryUpdater,
 	IEventTitleGenerator titleGenerator,
+	IUnitOfWork uow,
 	ILogger<EventService> logger) : IEventService
 {
 	public async Task MergeAsync(
@@ -28,7 +30,18 @@ public class EventService(
 			throw new InvalidOperationException(
 				$"Source event {sourceEventId} is already archived");
 
-		await eventRepository.MergeAsync(sourceEventId, targetEventId, cancellationToken);
+		await uow.BeginAsync(cancellationToken);
+
+		try
+		{
+			await eventRepository.MergeAsync(sourceEventId, targetEventId, cancellationToken);
+			await uow.CommitAsync(cancellationToken);
+		}
+		catch (Exception ex) when (ex is not OperationCanceledException)
+		{
+			await uow.RollbackAsync(cancellationToken);
+			throw;
+		}
 
 		try
 		{

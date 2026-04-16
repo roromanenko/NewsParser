@@ -1,359 +1,435 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Core.Interfaces.Repositories;
-using Infrastructure.Persistence.DataBase;
+using Dapper;
+using Infrastructure.Persistence.Connection;
 using Infrastructure.Persistence.Entity;
 using Infrastructure.Persistence.Mappers;
-using Microsoft.EntityFrameworkCore;
+using Infrastructure.Persistence.Repositories.Sql;
+using Infrastructure.Persistence.UnitOfWork;
+using Npgsql;
 using Pgvector;
-using Pgvector.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Repositories;
 
-public class EventRepository : IEventRepository
+internal class EventRepository(IDbConnectionFactory factory, IUnitOfWork uow) : IEventRepository
 {
-	private readonly NewsParserDbContext _context;
+    public async Task<Event?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        return await FetchEventWithRelationsAsync(conn, id, includeMedia: false, cancellationToken);
+    }
 
-	public EventRepository(NewsParserDbContext context)
-	{
-		_context = context;
-	}
+    public async Task<List<Event>> GetActiveEventsAsync(CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var events = await conn.QueryAsync<EventEntity>(
+            new CommandDefinition(EventSql.GetActiveEvents, cancellationToken: cancellationToken));
 
-	public async Task<Event?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-	{
-		var entity = await _context.Events
-			.Include(e => e.Articles)
-			.Include(e => e.EventUpdates)
-			.Include(e => e.Contradictions)
-				.ThenInclude(c => c.ContradictionArticles)
-			.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+        var eventList = events.ToList();
+        if (eventList.Count == 0) return [];
 
-		return entity?.ToDomain();
-	}
+        var ids = eventList.Select(e => e.Id).ToArray();
+        var articles = await FetchArticlesByEventIdsAsync(conn, ids, cancellationToken);
 
-	public async Task<List<Event>> GetActiveEventsAsync(CancellationToken cancellationToken = default)
-	{
-		var entities = await _context.Events
-			.Where(e => e.Status == EventStatus.Active.ToString())
-			.Include(e => e.Articles)
-			.OrderByDescending(e => e.LastUpdatedAt)
-			.ToListAsync(cancellationToken);
+        foreach (var evt in eventList)
+            evt.Articles = articles.Where(a => a.EventId == evt.Id).ToList();
 
-		return entities.Select(e => e.ToDomain()).ToList();
-	}
+        return eventList.Select(e => e.ToDomain()).ToList();
+    }
 
-	public async Task<List<(Event Event, double Similarity)>> FindSimilarEventsAsync(
-		float[] embedding,
-		double threshold,
-		int windowHours,
-        int maxTake,
+    public async Task<List<(Event Event, double Similarity)>> FindSimilarEventsAsync(
+        float[] embedding, double threshold, int windowHours, int maxTake,
         CancellationToken cancellationToken = default)
-	{
-		var vector = new Vector(embedding);
-		var windowStart = DateTimeOffset.UtcNow.AddHours(-windowHours);
+    {
+        var vector = new Vector(embedding);
+        var windowStart = DateTimeOffset.UtcNow.AddHours(-windowHours);
 
-		var query = _context.Events
-			.Where(e =>
-				e.Status == EventStatus.Active.ToString() &&
-				e.LastUpdatedAt >= windowStart &&
-				e.Embedding != null)
-			.Select(e => new
-			{
-				Entity = e,
-				Similarity = 1 - e.Embedding!.CosineDistance(vector)
-			})
-			.Where(x => x.Similarity >= threshold)
-			.OrderByDescending(x => x.Similarity)
-			.Take(maxTake);
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
 
-		return (await query.ToListAsync(cancellationToken))
-			.Select(x => (x.Entity.ToDomain(), x.Similarity))
-			.ToList();
-	}
+        var rows = await conn.QueryAsync<EventWithSimilarityRow>(
+            new CommandDefinition(EventSql.FindSimilarEvents,
+                new { vector, windowStart, threshold, maxTake },
+                cancellationToken: cancellationToken));
 
-	public async Task<Event> CreateAsync(Event evt, CancellationToken cancellationToken = default)
-	{
-		var entity = evt.ToEntity();
-		_context.Events.Add(entity);
-		await _context.SaveChangesAsync(cancellationToken);
-		return entity.ToDomain();
-	}
+        return rows.Select(r => (r.ToDomain(), r.Similarity)).ToList();
+    }
 
-	public async Task UpdateSummaryTitleAndEmbeddingAsync(
-		Guid id,
-		string title,
-		string summary,
-		float[] embedding,
-		CancellationToken cancellationToken = default)
-	{
-		await _context.Events
-			.Where(e => e.Id == id)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(e => e.Title, title)
-				.SetProperty(e => e.Summary, summary)
-				.SetProperty(e => e.Embedding, new Vector(embedding))
-				.SetProperty(e => e.ArticleCount, e => e.ArticleCount + 1)
-				.SetProperty(e => e.LastUpdatedAt, DateTimeOffset.UtcNow),
-			cancellationToken);
-	}
+    public async Task<Event> CreateAsync(Event evt, CancellationToken cancellationToken = default)
+    {
+        var entity = evt.ToEntity();
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(EventSql.Insert, new
+        {
+            entity.Id,
+            entity.Title,
+            entity.Summary,
+            entity.Status,
+            entity.FirstSeenAt,
+            entity.LastUpdatedAt,
+            Embedding = entity.Embedding != null ? new Vector(entity.Embedding) : null,
+            entity.ArticleCount,
+        }, cancellationToken: cancellationToken));
+        return entity.ToDomain();
+    }
 
-	public async Task UpdateLastUpdatedAtAsync(
-		Guid id,
-		DateTimeOffset lastUpdatedAt,
-		CancellationToken cancellationToken = default)
-	{
-		await _context.Events
-			.Where(e => e.Id == id)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(e => e.LastUpdatedAt, lastUpdatedAt),
-			cancellationToken);
-	}
-
-	public async Task AssignArticleToEventAsync(
-		Guid articleId,
-		Guid eventId,
-		ArticleRole role,
-		CancellationToken cancellationToken = default)
-	{
-		await _context.Articles
-			.Where(a => a.Id == articleId)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(a => a.EventId, eventId)
-				.SetProperty(a => a.Role, role.ToString())
-				.SetProperty(a => a.AddedToEventAt, DateTimeOffset.UtcNow),
-			cancellationToken);
-	}
-
-	public async Task AddEventUpdateAsync(
-		EventUpdate eventUpdate,
-		CancellationToken cancellationToken = default)
-	{
-		var entity = eventUpdate.ToEntity();
-		_context.EventUpdates.Add(entity);
-		await _context.SaveChangesAsync(cancellationToken);
-	}
-
-	public async Task AddContradictionAsync(
-	Contradiction contradiction,
-	List<Guid> articleIds,
-	CancellationToken cancellationToken = default)
-	{
-		var entity = contradiction.ToEntity();
-		_context.Contradictions.Add(entity);
-		await _context.SaveChangesAsync(cancellationToken);
-
-		var contradictionArticles = articleIds.Select(articleId => new ContradictionArticleEntity
-		{
-			ContradictionId = entity.Id,
-			ArticleId = articleId,
-		}).ToList();
-
-		await _context.ContradictionArticles.AddRangeAsync(contradictionArticles, cancellationToken);
-		await _context.SaveChangesAsync(cancellationToken);
-	}
-
-	public async Task<List<EventUpdate>> GetUnpublishedUpdatesAsync(
-		int batchSize,
-		CancellationToken cancellationToken = default)
-	{
-		var entities = await _context.EventUpdates
-			.Include(eu => eu.Event)
-			.Include(eu => eu.Article)
-			.Where(eu => !eu.IsPublished)
-			.OrderBy(eu => eu.CreatedAt)
-			.Take(batchSize)
-			.ToListAsync(cancellationToken);
-
-		return entities.Select(eu => eu.ToDomain()).ToList();
-	}
-
-	public async Task MarkUpdatePublishedAsync(
-		Guid eventUpdateId,
-		CancellationToken cancellationToken = default)
-	{
-		await _context.EventUpdates
-			.Where(eu => eu.Id == eventUpdateId)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(eu => eu.IsPublished, true),
-			cancellationToken);
-	}
-
-	public async Task<int> CountUpdatesFromAsync(
-		Guid eventId,
-        DateTimeOffset from,
+    public async Task UpdateSummaryTitleAndEmbeddingAsync(
+        Guid id, string title, string summary, float[] embedding,
         CancellationToken cancellationToken = default)
-	{
-		return await _context.EventUpdates
-			.CountAsync(eu =>
-				eu.EventId == eventId &&
-				eu.CreatedAt >= from,
-			cancellationToken);
-	}
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(EventSql.UpdateSummaryTitleAndEmbedding, new
+        {
+            id,
+            title,
+            summary,
+            embedding = new Vector(embedding),
+            lastUpdatedAt = DateTimeOffset.UtcNow,
+        }, cancellationToken: cancellationToken));
+    }
 
-	public async Task<DateTimeOffset?> GetLastUpdateTimeAsync(
-		Guid eventId,
-		CancellationToken cancellationToken = default)
-	{
-		return await _context.EventUpdates
-			.Where(eu => eu.EventId == eventId)
-			.OrderByDescending(eu => eu.CreatedAt)
-			.Select(eu => (DateTimeOffset?)eu.CreatedAt)
-			.FirstOrDefaultAsync(cancellationToken);
-	}
+    public async Task UpdateLastUpdatedAtAsync(Guid id, DateTimeOffset lastUpdatedAt, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(EventSql.UpdateLastUpdatedAt,
+            new { id, lastUpdatedAt },
+            cancellationToken: cancellationToken));
+    }
 
-	public async Task<List<Event>> GetPagedAsync(
-		int page,
-		int pageSize,
-		string? search,
-		string sortBy,
-		CancellationToken cancellationToken = default)
-	{
-		var query = _context.Events
-			.Include(e => e.Articles)
-			.Include(e => e.Contradictions)
-			.AsQueryable();
+    public async Task AssignArticleToEventAsync(
+        Guid articleId, Guid eventId, ArticleRole role,
+        CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(EventSql.AssignArticleToEvent, new
+        {
+            articleId,
+            eventId,
+            role = role.ToString(),
+            addedToEventAt = DateTimeOffset.UtcNow,
+        }, cancellationToken: cancellationToken));
+    }
 
-		query = ApplySearch(query, search);
-		query = ApplySort(query, sortBy);
+    public async Task AddEventUpdateAsync(EventUpdate eventUpdate, CancellationToken cancellationToken = default)
+    {
+        var entity = eventUpdate.ToEntity();
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(EventSql.InsertEventUpdate, new
+        {
+            entity.Id,
+            entity.EventId,
+            entity.ArticleId,
+            entity.FactSummary,
+            entity.IsPublished,
+            entity.CreatedAt,
+        }, cancellationToken: cancellationToken));
+    }
 
-		var entities = await query
-			.Skip((page - 1) * pageSize)
-			.Take(pageSize)
-			.ToListAsync(cancellationToken);
+    public async Task AddContradictionAsync(
+        Contradiction contradiction, List<Guid> articleIds,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = contradiction.ToEntity();
+        var conn = uow.CurrentConnection ?? await factory.CreateOpenAsync(cancellationToken);
+        var ownedConn = uow.CurrentConnection is null;
 
-		return entities.Select(e => e.ToDomain()).ToList();
-	}
+        try
+        {
+            await conn.ExecuteAsync(new CommandDefinition(EventSql.InsertContradiction, new
+            {
+                entity.Id,
+                entity.EventId,
+                entity.Description,
+                entity.IsResolved,
+                entity.CreatedAt,
+            }, transaction: uow.CurrentTransaction, cancellationToken: cancellationToken));
 
-	public async Task<int> CountAsync(string? search, CancellationToken cancellationToken = default)
-	{
-		var query = _context.Events.AsQueryable();
-		query = ApplySearch(query, search);
-		return await query.CountAsync(cancellationToken);
-	}
+            foreach (var articleId in articleIds)
+            {
+                await conn.ExecuteAsync(new CommandDefinition(EventSql.InsertContradictionArticle,
+                    new { ContradictionId = entity.Id, ArticleId = articleId },
+                    transaction: uow.CurrentTransaction,
+                    cancellationToken: cancellationToken));
+            }
+        }
+        finally
+        {
+            if (ownedConn)
+                await conn.DisposeAsync();
+        }
+    }
 
-	private static IQueryable<EventEntity> ApplySearch(
-		IQueryable<EventEntity> query, string? search)
-	{
-		if (string.IsNullOrWhiteSpace(search))
-			return query;
+    public async Task<List<EventUpdate>> GetUnpublishedUpdatesAsync(int batchSize, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
 
-		var escaped = QueryHelpers.EscapeILikePattern(search);
-		var pattern = $"%{escaped}%";
+        var updates = (await conn.QueryAsync<EventUpdateEntity>(
+            new CommandDefinition(EventSql.GetUnpublishedUpdates, new { batchSize }, cancellationToken: cancellationToken))).ToList();
 
-		return query.Where(e =>
-			EF.Functions.ILike(e.Title, pattern) ||
-			EF.Functions.ILike(e.Summary ?? "", pattern));
-	}
+        if (updates.Count == 0) return [];
 
-	private static IQueryable<EventEntity> ApplySort(
-		IQueryable<EventEntity> query, string sortBy) =>
-		sortBy switch
-		{
-			"oldest" => query.OrderBy(e => e.LastUpdatedAt),
-			_ => query.OrderByDescending(e => e.LastUpdatedAt),
-		};
+        var eventIds = updates.Select(u => u.EventId).Distinct().ToArray();
+        var articleIds = updates.Select(u => u.ArticleId).Distinct().ToArray();
 
-	public async Task<Event?> GetDetailAsync(Guid id, CancellationToken cancellationToken = default)
-	{
-		var entity = await _context.Events
-			.Include(e => e.Articles)
-				.ThenInclude(a => a.MediaFiles)
-			.Include(e => e.EventUpdates)
-			.Include(e => e.Contradictions)
-				.ThenInclude(c => c.ContradictionArticles)
-			.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+        var events = await conn.QueryAsync<EventEntity>(
+            new CommandDefinition(EventSql.GetUnpublishedUpdateEvents, new { eventIds }, cancellationToken: cancellationToken));
+        var articles = await conn.QueryAsync<ArticleEntity>(
+            new CommandDefinition(EventSql.GetUnpublishedUpdateArticles, new { articleIds }, cancellationToken: cancellationToken));
 
-		return entity?.ToDomain();
-	}
+        var eventMap = events.ToDictionary(e => e.Id);
+        var articleMap = articles.ToDictionary(a => a.Id);
 
-	public async Task<Event?> GetWithContextAsync(Guid id, CancellationToken cancellationToken = default)
-	{
-		var entity = await _context.Events
-			.Include(e => e.Articles)
-			.Include(e => e.EventUpdates)
-			.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+        return updates.Select(u => new EventUpdate
+        {
+            Id = u.Id,
+            EventId = u.EventId,
+            ArticleId = u.ArticleId,
+            FactSummary = u.FactSummary,
+            IsPublished = u.IsPublished,
+            CreatedAt = u.CreatedAt,
+            Event = eventMap.TryGetValue(u.EventId, out var evt) ? evt.ToDomain() : new Event(),
+            Article = articleMap.TryGetValue(u.ArticleId, out var art) ? art.ToDomain() : new Article(),
+        }).ToList();
+    }
 
-		return entity?.ToDomain();
-	}
+    public async Task MarkUpdatePublishedAsync(Guid eventUpdateId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(EventSql.MarkUpdatePublished,
+            new { eventUpdateId },
+            cancellationToken: cancellationToken));
+    }
 
-	public async Task ResolveContradictionAsync(
-		Guid contradictionId,
-		CancellationToken cancellationToken = default)
-	{
-		await _context.Contradictions
-			.Where(c => c.Id == contradictionId)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(c => c.IsResolved, true),
-			cancellationToken);
-	}
+    public async Task<int> CountUpdatesFromAsync(Guid eventId, DateTimeOffset from, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        return await conn.ExecuteScalarAsync<int>(
+            new CommandDefinition(EventSql.CountUpdatesFrom, new { eventId, from }, cancellationToken: cancellationToken));
+    }
 
-	public async Task MergeAsync(
-		Guid sourceEventId,
-		Guid targetEventId,
-		CancellationToken cancellationToken = default)
-	{
-		await _context.Articles
-			.Where(a => a.EventId == sourceEventId)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(a => a.EventId, targetEventId),
-			cancellationToken);
+    public async Task<DateTimeOffset?> GetLastUpdateTimeAsync(Guid eventId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        return await conn.ExecuteScalarAsync<DateTimeOffset?>(
+            new CommandDefinition(EventSql.GetLastUpdateTime, new { eventId }, cancellationToken: cancellationToken));
+    }
 
-		await _context.EventUpdates
-			.Where(eu => eu.EventId == sourceEventId)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(eu => eu.EventId, targetEventId),
-			cancellationToken);
+    public async Task<List<Event>> GetPagedAsync(
+        int page, int pageSize, string? search, string sortBy,
+        CancellationToken cancellationToken = default)
+    {
+        var direction = sortBy == "oldest" ? "ASC" : "DESC";
+        var offset = (page - 1) * pageSize;
 
-		await _context.Contradictions
-			.Where(c => c.EventId == sourceEventId)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(c => c.EventId, targetEventId),
-			cancellationToken);
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
 
-		await _context.Events
-			.Where(e => e.Id == sourceEventId)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(e => e.Status, EventStatus.Archived.ToString()),
-			cancellationToken);
+        List<EventEntity> eventEntities;
 
-		await _context.Events
-			.Where(e => e.Id == targetEventId)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(e => e.LastUpdatedAt, DateTimeOffset.UtcNow),
-			cancellationToken);
-	}
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var escaped = QueryHelpers.EscapeILikePattern(search);
+            var pattern = $"%{escaped}%";
+            var sql = string.Format(EventSql.GetPagedWithSearch, direction);
+            eventEntities = (await conn.QueryAsync<EventEntity>(
+                new CommandDefinition(sql, new { pattern, pageSize, offset }, cancellationToken: cancellationToken))).ToList();
+        }
+        else
+        {
+            var sql = string.Format(EventSql.GetPagedWithoutSearch, direction);
+            eventEntities = (await conn.QueryAsync<EventEntity>(
+                new CommandDefinition(sql, new { pageSize, offset }, cancellationToken: cancellationToken))).ToList();
+        }
 
-	public async Task UpdateArticleRoleAsync(
-		Guid articleId,
-		ArticleRole role,
-		CancellationToken cancellationToken = default)
-	{
-		await _context.Articles
-			.Where(a => a.Id == articleId)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(a => a.Role, role.ToString()),
-			cancellationToken);
-	}
+        if (eventEntities.Count == 0) return [];
 
-	public async Task UpdateStatusAsync(
-		Guid id,
-		EventStatus status,
-		CancellationToken cancellationToken = default)
-	{
-		await _context.Events
-			.Where(e => e.Id == id)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(e => e.Status, status.ToString()),
-			cancellationToken);
-	}
+        var ids = eventEntities.Select(e => e.Id).ToArray();
+        var articles = await FetchArticlesByEventIdsAsync(conn, ids, cancellationToken);
+        var contradictions = await FetchContradictionsByEventIdsAsync(conn, ids, cancellationToken);
 
-	public async Task MarkAsReclassifiedAsync(
-	Guid articleId,
-	CancellationToken cancellationToken = default)
-	{
-		await _context.Articles
-			.Where(a => a.Id == articleId)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(a => a.WasReclassified, true),
-			cancellationToken);
-	}
+        foreach (var evt in eventEntities)
+        {
+            evt.Articles = articles.Where(a => a.EventId == evt.Id).ToList();
+            evt.Contradictions = contradictions.Where(c => c.EventId == evt.Id).ToList();
+        }
+
+        return eventEntities.Select(e => e.ToDomain()).ToList();
+    }
+
+    public async Task<int> CountAsync(string? search, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var escaped = QueryHelpers.EscapeILikePattern(search);
+            var pattern = $"%{escaped}%";
+            return await conn.ExecuteScalarAsync<int>(
+                new CommandDefinition(EventSql.CountWithSearch, new { pattern }, cancellationToken: cancellationToken));
+        }
+
+        return await conn.ExecuteScalarAsync<int>(
+            new CommandDefinition(EventSql.CountWithoutSearch, cancellationToken: cancellationToken));
+    }
+
+    public async Task<Event?> GetDetailAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        return await FetchEventWithRelationsAsync(conn, id, includeMedia: true, cancellationToken);
+    }
+
+    public async Task<Event?> GetWithContextAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var eventEntity = await conn.QuerySingleOrDefaultAsync<EventEntity>(
+            new CommandDefinition(EventSql.GetById, new { id }, cancellationToken: cancellationToken));
+
+        if (eventEntity is null) return null;
+
+        eventEntity.Articles = (await conn.QueryAsync<ArticleEntity>(
+            new CommandDefinition(EventSql.GetArticlesByEventId, new { id }, cancellationToken: cancellationToken))).ToList();
+
+        eventEntity.EventUpdates = (await conn.QueryAsync<EventUpdateEntity>(
+            new CommandDefinition(EventSql.GetEventUpdatesByEventId, new { id }, cancellationToken: cancellationToken))).ToList();
+
+        eventEntity.Contradictions = [];
+
+        return eventEntity.ToDomain();
+    }
+
+    public async Task ResolveContradictionAsync(Guid contradictionId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(EventSql.ResolveContradiction,
+            new { contradictionId },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task MergeAsync(Guid sourceEventId, Guid targetEventId, CancellationToken cancellationToken = default)
+    {
+        var conn = uow.CurrentConnection ?? await factory.CreateOpenAsync(cancellationToken);
+        var ownedConn = uow.CurrentConnection is null;
+
+        try
+        {
+            var txn = uow.CurrentTransaction;
+
+            await conn.ExecuteAsync(new CommandDefinition(EventSql.MergeArticles,
+                new { sourceEventId, targetEventId }, transaction: txn, cancellationToken: cancellationToken));
+
+            await conn.ExecuteAsync(new CommandDefinition(EventSql.MergeEventUpdates,
+                new { sourceEventId, targetEventId }, transaction: txn, cancellationToken: cancellationToken));
+
+            await conn.ExecuteAsync(new CommandDefinition(EventSql.MergeContradictions,
+                new { sourceEventId, targetEventId }, transaction: txn, cancellationToken: cancellationToken));
+
+            await conn.ExecuteAsync(new CommandDefinition(EventSql.ArchiveEvent,
+                new { sourceEventId }, transaction: txn, cancellationToken: cancellationToken));
+
+            await conn.ExecuteAsync(new CommandDefinition(EventSql.TouchLastUpdatedAt,
+                new { targetEventId, now = DateTimeOffset.UtcNow }, transaction: txn, cancellationToken: cancellationToken));
+        }
+        finally
+        {
+            if (ownedConn)
+                await conn.DisposeAsync();
+        }
+    }
+
+    public async Task UpdateArticleRoleAsync(Guid articleId, ArticleRole role, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(EventSql.UpdateArticleRole,
+            new { articleId, role = role.ToString() },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task UpdateStatusAsync(Guid id, EventStatus status, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(EventSql.UpdateEventStatus,
+            new { id, status = status.ToString() },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task MarkAsReclassifiedAsync(Guid articleId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(EventSql.MarkArticleReclassified,
+            new { articleId },
+            cancellationToken: cancellationToken));
+    }
+
+    private static async Task<Event?> FetchEventWithRelationsAsync(
+        NpgsqlConnection conn, Guid id, bool includeMedia,
+        CancellationToken cancellationToken)
+    {
+        var eventEntity = await conn.QuerySingleOrDefaultAsync<EventEntity>(
+            new CommandDefinition(EventSql.GetById, new { id }, cancellationToken: cancellationToken));
+
+        if (eventEntity is null) return null;
+
+        var articles = (await conn.QueryAsync<ArticleEntity>(
+            new CommandDefinition(EventSql.GetArticlesByEventId, new { id }, cancellationToken: cancellationToken))).ToList();
+
+        if (includeMedia && articles.Count > 0)
+        {
+            var articleIds = articles.Select(a => a.Id).ToArray();
+            var mediaFiles = await conn.QueryAsync<MediaFileEntity>(
+                new CommandDefinition(EventSql.GetMediaFilesByArticleIds, new { ids = articleIds }, cancellationToken: cancellationToken));
+
+            var mediaByArticle = mediaFiles.GroupBy(m => m.ArticleId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (var article in articles)
+                article.MediaFiles = mediaByArticle.TryGetValue(article.Id, out var media) ? media : [];
+        }
+
+        eventEntity.Articles = articles;
+
+        eventEntity.EventUpdates = (await conn.QueryAsync<EventUpdateEntity>(
+            new CommandDefinition(EventSql.GetEventUpdatesByEventId, new { id }, cancellationToken: cancellationToken))).ToList();
+
+        var contradictions = (await conn.QueryAsync<ContradictionEntity>(
+            new CommandDefinition(EventSql.GetContradictionsByEventId, new { id }, cancellationToken: cancellationToken))).ToList();
+
+        if (contradictions.Count > 0)
+        {
+            var contradictionIds = contradictions.Select(c => c.Id).ToArray();
+            var caRows = await conn.QueryAsync<ContradictionArticleEntity>(
+                new CommandDefinition(EventSql.GetContradictionArticlesByContradictionIds,
+                    new { ids = contradictionIds }, cancellationToken: cancellationToken));
+
+            var caByContradiction = caRows.GroupBy(ca => ca.ContradictionId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (var c in contradictions)
+                c.ContradictionArticles = caByContradiction.TryGetValue(c.Id, out var cas) ? cas : [];
+        }
+
+        eventEntity.Contradictions = contradictions;
+
+        return eventEntity.ToDomain();
+    }
+
+    private static async Task<List<ArticleEntity>> FetchArticlesByEventIdsAsync(
+        NpgsqlConnection conn, Guid[] ids, CancellationToken cancellationToken)
+    {
+        if (ids.Length == 0) return [];
+
+        return (await conn.QueryAsync<ArticleEntity>(
+            new CommandDefinition(EventSql.GetArticlesByEventIds, new { ids }, cancellationToken: cancellationToken))).ToList();
+    }
+
+    private static async Task<List<ContradictionEntity>> FetchContradictionsByEventIdsAsync(
+        NpgsqlConnection conn, Guid[] ids, CancellationToken cancellationToken)
+    {
+        if (ids.Length == 0) return [];
+
+        return (await conn.QueryAsync<ContradictionEntity>(
+            new CommandDefinition(EventSql.GetContradictionsByEventIds, new { ids }, cancellationToken: cancellationToken))).ToList();
+    }
+}
+
+internal sealed class EventWithSimilarityRow : EventEntity
+{
+    public double Similarity { get; init; }
 }

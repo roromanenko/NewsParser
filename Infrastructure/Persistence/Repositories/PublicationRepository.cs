@@ -1,214 +1,414 @@
 using Core.DomainModels;
 using Core.Interfaces.Repositories;
-using Infrastructure.Persistence.DataBase;
+using Dapper;
+using Infrastructure.Persistence.Connection;
+using Infrastructure.Persistence.Entity;
 using Infrastructure.Persistence.Mappers;
-using Microsoft.EntityFrameworkCore;
+using Infrastructure.Persistence.Repositories.Sql;
+using Infrastructure.Persistence.UnitOfWork;
+using Npgsql;
 
 namespace Infrastructure.Persistence.Repositories;
 
-public class PublicationRepository(NewsParserDbContext db) : IPublicationRepository
+internal class PublicationRepository(IDbConnectionFactory factory, IUnitOfWork uow) : IPublicationRepository
 {
-	public async Task<List<Publication>> GetPendingForGenerationAsync(int batchSize, CancellationToken cancellationToken = default)
-	{
-		var statusStr = PublicationStatus.Created.ToString();
+    public async Task<List<Publication>> GetPendingForGenerationAsync(int batchSize, CancellationToken cancellationToken = default)
+    {
+        var conn = uow.CurrentConnection ?? await factory.CreateOpenAsync(cancellationToken);
+        var ownedConn = uow.CurrentConnection is null;
 
-		var lockedIds = await db.Publications
-			.FromSql(
-				$"SELECT * FROM publications WHERE \"Status\" = {statusStr} ORDER BY \"CreatedAt\" LIMIT {batchSize} FOR UPDATE SKIP LOCKED")
-			.Select(p => p.Id)
-			.ToListAsync(cancellationToken);
+        try
+        {
+            var txn = uow.CurrentTransaction;
 
-		if (lockedIds.Count == 0)
-			return [];
+            var lockedIds = (await conn.QueryAsync<Guid>(
+                new CommandDefinition(PublicationSql.GetPendingForGenerationLockIds,
+                    new { batchSize }, transaction: txn, cancellationToken: cancellationToken))).ToList();
 
-		var entities = await db.Publications
-			.Where(p => lockedIds.Contains(p.Id))
-			.Include(p => p.Article)
-			.Include(p => p.PublishTarget)
-			.Include(p => p.Event)
-				.ThenInclude(e => e!.Articles)
-			.AsNoTracking()
-			.ToListAsync(cancellationToken);
+            if (lockedIds.Count == 0) return [];
 
-		return entities.Select(p => p.ToDomain()).ToList();
-	}
+            var rows = await FetchPublicationsWithArticleAndTarget(conn, txn, lockedIds.ToArray(), cancellationToken);
+            var eventIds = rows.Select(r => r.publication.EventId).Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
 
-	public async Task<List<Publication>> GetPendingForPublishAsync(int batchSize, CancellationToken cancellationToken = default)
-	{
-		var statusStr = PublicationStatus.Approved.ToString();
+            Dictionary<Guid, List<ArticleEntity>> eventArticles = [];
+            if (eventIds.Length > 0)
+            {
+                var articles = await conn.QueryAsync<ArticleEntity>(
+                    new CommandDefinition(PublicationSql.GetEventArticlesByEventIds,
+                        new { eventIds }, transaction: txn, cancellationToken: cancellationToken));
 
-		var lockedIds = await db.Publications
-			.FromSql(
-				$"SELECT * FROM publications WHERE \"Status\" = {statusStr} ORDER BY \"CreatedAt\" LIMIT {batchSize} FOR UPDATE SKIP LOCKED")
-			.Select(p => p.Id)
-			.ToListAsync(cancellationToken);
+                eventArticles = articles.GroupBy(a => a.EventId!.Value)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+            }
 
-		if (lockedIds.Count == 0)
-			return [];
+            return rows.Select(r =>
+            {
+                var (pub, article, target, evt) = r;
+                if (evt is not null && eventArticles.TryGetValue(evt.Id, out var evtArticles))
+                    evt.Articles = evtArticles;
 
-		var entities = await db.Publications
-			.Where(p => lockedIds.Contains(p.Id))
-			.Include(p => p.PublishTarget)
-			.Include(p => p.Article)
-			.AsNoTracking()
-			.ToListAsync(cancellationToken);
+                return BuildPublication(pub, article, target, evt);
+            }).ToList();
+        }
+        finally
+        {
+            if (ownedConn)
+                await conn.DisposeAsync();
+        }
+    }
 
-		return entities.Select(p => p.ToDomain()).ToList();
-	}
+    public async Task<List<Publication>> GetPendingForPublishAsync(int batchSize, CancellationToken cancellationToken = default)
+    {
+        var conn = uow.CurrentConnection ?? await factory.CreateOpenAsync(cancellationToken);
+        var ownedConn = uow.CurrentConnection is null;
 
-	public async Task AddAsync(Publication publication, CancellationToken cancellationToken = default)
-	{
-		var entity = publication.ToEntity(publication.Article.Id);
-		await db.Publications.AddAsync(entity, cancellationToken);
-		await db.SaveChangesAsync(cancellationToken);
-	}
+        try
+        {
+            var txn = uow.CurrentTransaction;
 
-	public async Task<Publication?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-	{
-		var entity = await db.Publications
-			.Include(p => p.PublishTarget)
-			.AsNoTracking()
-			.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            var lockedIds = (await conn.QueryAsync<Guid>(
+                new CommandDefinition(PublicationSql.GetPendingForPublishLockIds,
+                    new { batchSize }, transaction: txn, cancellationToken: cancellationToken))).ToList();
 
-		return entity?.ToDomain();
-	}
+            if (lockedIds.Count == 0) return [];
 
-	public async Task<Publication?> GetDetailAsync(Guid id, CancellationToken cancellationToken = default)
-	{
-		var entity = await db.Publications
-			.Include(p => p.PublishTarget)
-			.Include(p => p.PublishLogs)
-			.Include(p => p.Event)
-				.ThenInclude(e => e!.Articles)
-					.ThenInclude(a => a.MediaFiles)
-			.AsNoTracking()
-			.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            var rows = await FetchPublicationsWithTargetAndArticle(conn, txn, lockedIds.ToArray(), cancellationToken);
 
-		return entity?.ToDomain();
-	}
+            return rows.Select(r =>
+            {
+                var (pub, target, article) = r;
+                return BuildPublication(pub, article, target, evt: null);
+            }).ToList();
+        }
+        finally
+        {
+            if (ownedConn)
+                await conn.DisposeAsync();
+        }
+    }
 
-	public async Task<List<Publication>> GetByEventIdAsync(Guid eventId, CancellationToken cancellationToken = default)
-	{
-		var entities = await db.Publications
-			.Where(p => p.EventId == eventId)
-			.Include(p => p.PublishTarget)
-			.OrderBy(p => p.CreatedAt)
-			.AsNoTracking()
-			.ToListAsync(cancellationToken);
+    public async Task AddAsync(Publication publication, CancellationToken cancellationToken = default)
+    {
+        var entity = publication.ToEntity(publication.Article.Id);
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(PublicationSql.Insert,
+            BuildInsertParameters(entity),
+            cancellationToken: cancellationToken));
+    }
 
-		return entities.Select(p => p.ToDomain()).ToList();
-	}
+    public async Task<Publication?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        PublicationEntity? pub = null;
+        PublishTargetEntity? target = null;
 
-	public async Task<List<Publication>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
-	{
-		var entities = await db.Publications
-			.Include(p => p.PublishTarget)
-			.Include(p => p.Event)
-			.OrderByDescending(p => p.CreatedAt)
-			.Skip((page - 1) * pageSize)
-			.Take(pageSize)
-			.AsNoTracking()
-			.ToListAsync(cancellationToken);
+        await conn.QueryAsync<PublicationEntity, PublishTargetEntity, PublicationEntity>(
+            new CommandDefinition(PublicationSql.GetById, new { id }, cancellationToken: cancellationToken),
+            (p, t) => { pub = p; target = t; return p; },
+            splitOn: "Id");
 
-		return entities.Select(p => p.ToDomain()).ToList();
-	}
+        if (pub is null) return null;
 
-	public async Task<int> CountAllAsync(CancellationToken cancellationToken = default)
-	{
-		return await db.Publications.CountAsync(cancellationToken);
-	}
+        pub.PublishTarget = target ?? new PublishTargetEntity();
+        return BuildPublicationWithoutArticle(pub);
+    }
 
-	public async Task UpdateStatusAsync(Guid id, PublicationStatus status, CancellationToken cancellationToken = default)
-	{
-		await db.Publications
-			.Where(p => p.Id == id)
-			.ExecuteUpdateAsync(s => s.SetProperty(p => p.Status, status.ToString()), cancellationToken);
-	}
+    public async Task<Publication?> GetDetailAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
 
-	public async Task UpdateGeneratedContentAsync(Guid id, string content, CancellationToken cancellationToken = default)
-	{
-		await db.Publications
-			.Where(p => p.Id == id)
-			.ExecuteUpdateAsync(s => s.SetProperty(p => p.GeneratedContent, content), cancellationToken);
-	}
+        PublicationEntity? pub = null;
+        PublishTargetEntity? target = null;
 
-	public async Task UpdatePublishedAtAsync(Guid id, DateTimeOffset publishedAt, CancellationToken cancellationToken = default)
-	{
-		await db.Publications
-			.Where(p => p.Id == id)
-			.ExecuteUpdateAsync(s => s.SetProperty(p => p.PublishedAt, publishedAt), cancellationToken);
-	}
+        await conn.QueryAsync<PublicationEntity, PublishTargetEntity, PublicationEntity>(
+            new CommandDefinition(PublicationSql.GetDetailPublicationWithTarget, new { id }, cancellationToken: cancellationToken),
+            (p, t) => { pub = p; target = t; return p; },
+            splitOn: "Id");
 
-	public async Task UpdateContentAndMediaAsync(Guid id, string content, List<Guid> mediaFileIds, CancellationToken cancellationToken = default)
-	{
-		await db.Publications
-			.Where(p => p.Id == id)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(p => p.GeneratedContent, content)
-				.SetProperty(p => p.SelectedMediaFileIds, mediaFileIds),
-			cancellationToken);
-	}
+        if (pub is null) return null;
 
-	public async Task UpdateApprovalAsync(Guid id, Guid editorId, DateTimeOffset approvedAt, CancellationToken cancellationToken = default)
-	{
-		await db.Publications
-			.Where(p => p.Id == id)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(p => p.Status, PublicationStatus.Approved.ToString())
-				.SetProperty(p => p.ApprovedAt, approvedAt)
-				.SetProperty(p => p.ReviewedByEditorId, editorId),
-			cancellationToken);
-	}
+        pub.PublishTarget = target ?? new PublishTargetEntity();
 
-	public async Task UpdateRejectionAsync(Guid id, Guid editorId, string reason, DateTimeOffset rejectedAt, CancellationToken cancellationToken = default)
-	{
-		await db.Publications
-			.Where(p => p.Id == id)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(p => p.Status, PublicationStatus.Rejected.ToString())
-				.SetProperty(p => p.RejectedAt, rejectedAt)
-				.SetProperty(p => p.RejectionReason, reason)
-				.SetProperty(p => p.ReviewedByEditorId, editorId),
-			cancellationToken);
-	}
+        var logs = await conn.QueryAsync<PublishLogEntity>(
+            new CommandDefinition(PublicationSql.GetDetailPublishLogs, new { id }, cancellationToken: cancellationToken));
 
-	public async Task AddPublishLogAsync(PublishLog log, CancellationToken cancellationToken = default)
-	{
-		var entity = log.ToEntity();
-		await db.PublishLogs.AddAsync(entity, cancellationToken);
-		await db.SaveChangesAsync(cancellationToken);
-	}
+        EventEntity? evt = null;
+        if (pub.EventId.HasValue)
+        {
+            evt = await conn.QuerySingleOrDefaultAsync<EventEntity>(
+                new CommandDefinition(PublicationSql.GetDetailEvent, new { eventId = pub.EventId.Value }, cancellationToken: cancellationToken));
 
-	public async Task<string?> GetExternalMessageIdAsync(Guid publicationId, CancellationToken cancellationToken = default)
-	{
-		return await db.PublishLogs
-			.Where(l =>
-				l.PublicationId == publicationId &&
-				l.Status == PublishLogStatus.Success.ToString() &&
-				l.ExternalMessageId != null)
-			.OrderByDescending(l => l.AttemptedAt)
-			.Select(l => l.ExternalMessageId)
-			.FirstOrDefaultAsync(cancellationToken);
-	}
+            if (evt is not null)
+            {
+                var evtArticles = (await conn.QueryAsync<ArticleEntity>(
+                    new CommandDefinition(PublicationSql.GetDetailEventArticles,
+                        new { eventId = pub.EventId.Value }, cancellationToken: cancellationToken))).ToList();
 
-	public async Task<Publication?> GetOriginalEventPublicationAsync(Guid eventId, CancellationToken cancellationToken = default)
-	{
-		var entity = await db.Publications
-			.Include(p => p.PublishTarget)
-			.Where(p =>
-				p.EventId == eventId &&
-				p.ParentPublicationId == null &&
-				p.Status == PublicationStatus.Published.ToString())
-			.OrderBy(p => p.CreatedAt)
-			.FirstOrDefaultAsync(cancellationToken);
+                if (evtArticles.Count > 0)
+                {
+                    var articleIds = evtArticles.Select(a => a.Id).ToArray();
+                    var media = await conn.QueryAsync<MediaFileEntity>(
+                        new CommandDefinition(PublicationSql.GetDetailMediaFiles,
+                            new { articleIds }, cancellationToken: cancellationToken));
 
-		return entity?.ToDomain();
-	}
+                    var mediaByArticle = media.GroupBy(m => m.ArticleId)
+                        .ToDictionary(g => g.Key, g => g.ToList());
 
-	public async Task AddEventUpdatePublicationAsync(Publication publication, Guid articleId, CancellationToken cancellationToken = default)
-	{
-		var entity = publication.ToEntity(articleId, editorId: null);
-		await db.Publications.AddAsync(entity, cancellationToken);
-		await db.SaveChangesAsync(cancellationToken);
-	}
+                    foreach (var art in evtArticles)
+                        art.MediaFiles = mediaByArticle.TryGetValue(art.Id, out var files) ? files : [];
+                }
+
+                evt.Articles = evtArticles;
+            }
+        }
+
+        return BuildPublicationDetail(pub, logs.ToList(), evt);
+    }
+
+    public async Task<List<Publication>> GetByEventIdAsync(Guid eventId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var rows = new List<(PublicationEntity pub, PublishTargetEntity target)>();
+
+        await conn.QueryAsync<PublicationEntity, PublishTargetEntity, PublicationEntity>(
+            new CommandDefinition(PublicationSql.GetByEventId, new { eventId }, cancellationToken: cancellationToken),
+            (p, t) => { rows.Add((p, t)); return p; },
+            splitOn: "Id");
+
+        return rows.Select(r =>
+        {
+            r.pub.PublishTarget = r.target;
+            return BuildPublicationWithoutArticle(r.pub);
+        }).ToList();
+    }
+
+    public async Task<List<Publication>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var offset = (page - 1) * pageSize;
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+
+        var rows = new List<(PublicationEntity pub, PublishTargetEntity target, EventEntity? evt)>();
+
+        await conn.QueryAsync<PublicationEntity, PublishTargetEntity, EventEntity?, PublicationEntity>(
+            new CommandDefinition(PublicationSql.GetAll, new { pageSize, offset }, cancellationToken: cancellationToken),
+            (p, t, e) => { rows.Add((p, t, e)); return p; },
+            splitOn: "Id,Id");
+
+        return rows.Select(r =>
+        {
+            r.pub.PublishTarget = r.target;
+            r.pub.Event = r.evt;
+            return BuildPublicationWithoutArticle(r.pub);
+        }).ToList();
+    }
+
+    public async Task<int> CountAllAsync(CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        return await conn.ExecuteScalarAsync<int>(
+            new CommandDefinition(PublicationSql.CountAll, cancellationToken: cancellationToken));
+    }
+
+    public async Task UpdateStatusAsync(Guid id, PublicationStatus status, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(PublicationSql.UpdateStatus,
+            new { id, status = status.ToString() },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task UpdateGeneratedContentAsync(Guid id, string content, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(PublicationSql.UpdateGeneratedContent,
+            new { id, content },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task UpdatePublishedAtAsync(Guid id, DateTimeOffset publishedAt, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(PublicationSql.UpdatePublishedAt,
+            new { id, publishedAt },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task UpdateContentAndMediaAsync(Guid id, string content, List<Guid> mediaFileIds, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(PublicationSql.UpdateContentAndMedia,
+            new { id, content, selectedMediaFileIds = mediaFileIds },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task UpdateApprovalAsync(Guid id, Guid editorId, DateTimeOffset approvedAt, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(PublicationSql.UpdateApproval,
+            new { id, editorId, approvedAt },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task UpdateRejectionAsync(Guid id, Guid editorId, string reason, DateTimeOffset rejectedAt, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(PublicationSql.UpdateRejection,
+            new { id, editorId, reason, rejectedAt },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task AddPublishLogAsync(PublishLog log, CancellationToken cancellationToken = default)
+    {
+        var entity = log.ToEntity();
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(PublicationSql.InsertPublishLog, new
+        {
+            entity.Id,
+            entity.PublicationId,
+            entity.Status,
+            entity.ErrorMessage,
+            entity.AttemptedAt,
+            entity.ExternalMessageId,
+        }, cancellationToken: cancellationToken));
+    }
+
+    public async Task<string?> GetExternalMessageIdAsync(Guid publicationId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        return await conn.ExecuteScalarAsync<string?>(
+            new CommandDefinition(PublicationSql.GetExternalMessageId,
+                new { publicationId },
+                cancellationToken: cancellationToken));
+    }
+
+    public async Task<Publication?> GetOriginalEventPublicationAsync(Guid eventId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        PublicationEntity? pub = null;
+        PublishTargetEntity? target = null;
+
+        await conn.QueryAsync<PublicationEntity, PublishTargetEntity, PublicationEntity>(
+            new CommandDefinition(PublicationSql.GetOriginalEventPublication, new { eventId }, cancellationToken: cancellationToken),
+            (p, t) => { pub = p; target = t; return p; },
+            splitOn: "Id");
+
+        if (pub is null) return null;
+        pub.PublishTarget = target ?? new PublishTargetEntity();
+        return BuildPublicationWithoutArticle(pub);
+    }
+
+    public async Task AddEventUpdatePublicationAsync(Publication publication, Guid articleId, CancellationToken cancellationToken = default)
+    {
+        var entity = publication.ToEntity(articleId, editorId: null);
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(PublicationSql.Insert,
+            BuildInsertParameters(entity),
+            cancellationToken: cancellationToken));
+    }
+
+    private static async Task<List<(PublicationEntity publication, ArticleEntity article, PublishTargetEntity target, EventEntity? evt)>>
+        FetchPublicationsWithArticleAndTarget(NpgsqlConnection conn, NpgsqlTransaction? txn, Guid[] ids, CancellationToken cancellationToken)
+    {
+        var rows = new List<(PublicationEntity, ArticleEntity, PublishTargetEntity, EventEntity?)>();
+
+        await conn.QueryAsync<PublicationEntity, ArticleEntity, PublishTargetEntity, EventEntity?, PublicationEntity>(
+            new CommandDefinition(PublicationSql.GetByIdsWithArticleAndTargetAndEvent,
+                new { ids }, transaction: txn, cancellationToken: cancellationToken),
+            (p, a, t, e) => { rows.Add((p, a, t, e)); return p; },
+            splitOn: "Id,Id,Id");
+
+        return rows;
+    }
+
+    private static async Task<List<(PublicationEntity publication, PublishTargetEntity target, ArticleEntity article)>>
+        FetchPublicationsWithTargetAndArticle(NpgsqlConnection conn, NpgsqlTransaction? txn, Guid[] ids, CancellationToken cancellationToken)
+    {
+        var rows = new List<(PublicationEntity, PublishTargetEntity, ArticleEntity)>();
+
+        await conn.QueryAsync<PublicationEntity, PublishTargetEntity, ArticleEntity, PublicationEntity>(
+            new CommandDefinition(PublicationSql.GetByIdsWithTargetAndArticle,
+                new { ids }, transaction: txn, cancellationToken: cancellationToken),
+            (p, t, a) => { rows.Add((p, t, a)); return p; },
+            splitOn: "Id,Id");
+
+        return rows;
+    }
+
+    private static Publication BuildPublication(
+        PublicationEntity pub, ArticleEntity article, PublishTargetEntity target, EventEntity? evt)
+    {
+        return new Publication
+        {
+            Id = pub.Id,
+            Article = article.ToDomain(),
+            PublishTargetId = pub.PublishTargetId,
+            PublishTarget = target.ToDomain(),
+            GeneratedContent = pub.GeneratedContent,
+            Status = Enum.Parse<PublicationStatus>(pub.Status),
+            CreatedAt = pub.CreatedAt,
+            PublishedAt = pub.PublishedAt,
+            ApprovedAt = pub.ApprovedAt,
+            EventId = pub.EventId,
+            Event = evt?.ToDomain(),
+            ParentPublicationId = pub.ParentPublicationId,
+            UpdateContext = pub.UpdateContext,
+            SelectedMediaFileIds = pub.SelectedMediaFileIds ?? [],
+            ReviewedByEditorId = pub.ReviewedByEditorId,
+            RejectedAt = pub.RejectedAt,
+            RejectionReason = pub.RejectionReason,
+        };
+    }
+
+    private static Publication BuildPublicationWithoutArticle(PublicationEntity pub) =>
+        new()
+        {
+            Id = pub.Id,
+            Article = pub.Article?.ToDomain() ?? new Article(),
+            PublishTargetId = pub.PublishTargetId,
+            PublishTarget = pub.PublishTarget?.ToDomain() ?? new PublishTarget(),
+            GeneratedContent = pub.GeneratedContent,
+            Status = Enum.Parse<PublicationStatus>(pub.Status),
+            CreatedAt = pub.CreatedAt,
+            PublishedAt = pub.PublishedAt,
+            ApprovedAt = pub.ApprovedAt,
+            EventId = pub.EventId,
+            Event = pub.Event?.ToDomain(),
+            ParentPublicationId = pub.ParentPublicationId,
+            UpdateContext = pub.UpdateContext,
+            SelectedMediaFileIds = pub.SelectedMediaFileIds ?? [],
+            ReviewedByEditorId = pub.ReviewedByEditorId,
+            RejectedAt = pub.RejectedAt,
+            RejectionReason = pub.RejectionReason,
+        };
+
+    private static Publication BuildPublicationDetail(
+        PublicationEntity pub, List<PublishLogEntity> logs, EventEntity? evt)
+    {
+        var publication = BuildPublicationWithoutArticle(pub);
+        publication.PublishLogs = logs.Select(l => l.ToDomain()).ToList();
+        publication.Event = evt?.ToDomain();
+        return publication;
+    }
+
+    private static DynamicParameters BuildInsertParameters(PublicationEntity entity)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("Id", entity.Id);
+        parameters.Add("ArticleId", entity.ArticleId);
+        parameters.Add("EditorId", entity.EditorId);
+        parameters.Add("PublishTargetId", entity.PublishTargetId);
+        parameters.Add("GeneratedContent", entity.GeneratedContent);
+        parameters.Add("Status", entity.Status);
+        parameters.Add("CreatedAt", entity.CreatedAt);
+        parameters.Add("PublishedAt", entity.PublishedAt);
+        parameters.Add("ApprovedAt", entity.ApprovedAt);
+        parameters.Add("EventId", entity.EventId);
+        parameters.Add("ParentPublicationId", entity.ParentPublicationId);
+        parameters.Add("UpdateContext", entity.UpdateContext);
+        parameters.Add("SelectedMediaFileIds", entity.SelectedMediaFileIds);
+        parameters.Add("ReviewedByEditorId", entity.ReviewedByEditorId);
+        parameters.Add("RejectedAt", entity.RejectedAt);
+        parameters.Add("RejectionReason", entity.RejectionReason);
+        return parameters;
+    }
 }

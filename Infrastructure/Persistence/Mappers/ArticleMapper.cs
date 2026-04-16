@@ -1,7 +1,6 @@
 using Core.DomainModels;
 using Core.DomainModels.AI;
 using Infrastructure.Persistence.Entity;
-using Pgvector;
 
 namespace Infrastructure.Persistence.Mappers;
 
@@ -15,7 +14,7 @@ public static class ArticleMapper
 		OriginalUrl = entity.OriginalUrl,
 		PublishedAt = entity.PublishedAt,
 		ExternalId = entity.ExternalId,
-		Embedding = entity.Embedding?.ToArray(),
+		Embedding = entity.Embedding,
 		Title = entity.Title,
 		Tags = entity.Tags,
 		Category = entity.Category,
@@ -43,7 +42,7 @@ public static class ArticleMapper
 		OriginalUrl = domain.OriginalUrl,
 		PublishedAt = domain.PublishedAt,
 		ExternalId = domain.ExternalId,
-		Embedding = domain.Embedding != null ? new Vector(domain.Embedding) : null,
+		Embedding = domain.Embedding,
 		Title = domain.Title,
 		Tags = domain.Tags,
 		Category = domain.Category,

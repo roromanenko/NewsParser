@@ -1,82 +1,88 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Core.Interfaces.Repositories;
-using Infrastructure.Persistence.DataBase;
+using Dapper;
+using Infrastructure.Persistence.Connection;
+using Infrastructure.Persistence.Entity;
 using Infrastructure.Persistence.Mappers;
-using Microsoft.EntityFrameworkCore;
+using Infrastructure.Persistence.Repositories.Sql;
+using Infrastructure.Persistence.UnitOfWork;
 
 namespace Infrastructure.Persistence.Repositories;
 
-public class SourceRepository : ISourceRepository
+internal class SourceRepository(IDbConnectionFactory factory, IUnitOfWork uow) : ISourceRepository
 {
-	private readonly NewsParserDbContext _context;
+    public async Task<List<Source>> GetActiveAsync(SourceType type, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var entities = await conn.QueryAsync<SourceEntity>(
+            new CommandDefinition(SourceSql.GetActive, new { type = type.ToString() }, cancellationToken: cancellationToken));
+        return entities.Select(e => e.ToDomain()).ToList();
+    }
 
-	public SourceRepository(NewsParserDbContext context)
-	{
-		_context = context;
-	}
+    public async Task UpdateLastFetchedAtAsync(Guid sourceId, DateTimeOffset fetchedAt, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(SourceSql.UpdateLastFetchedAt,
+            new { sourceId, fetchedAt },
+            cancellationToken: cancellationToken));
+    }
 
-	public async Task<List<Source>> GetActiveAsync(SourceType type, CancellationToken cancellationToken = default)
-	{
-		var entities = await _context.Sources
-			.Where(s => s.IsActive && s.Type == type.ToString())
-			.ToListAsync(cancellationToken);
+    public async Task<List<Source>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var entities = await conn.QueryAsync<SourceEntity>(
+            new CommandDefinition(SourceSql.GetAll, cancellationToken: cancellationToken));
+        return entities.Select(e => e.ToDomain()).ToList();
+    }
 
-		return entities.Select(e => e.ToDomain()).ToList();
-	}
+    public async Task<Source?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var entity = await conn.QuerySingleOrDefaultAsync<SourceEntity>(
+            new CommandDefinition(SourceSql.GetById, new { id }, cancellationToken: cancellationToken));
+        return entity?.ToDomain();
+    }
 
-	public async Task UpdateLastFetchedAtAsync(Guid sourceId, DateTimeOffset fetchedAt, CancellationToken cancellationToken = default)
-	{
-		await _context.Sources
-			.Where(s => s.Id == sourceId)
-			.ExecuteUpdateAsync(s => s.SetProperty(x => x.LastFetchedAt, fetchedAt), cancellationToken);
-	}
+    public async Task<bool> ExistsByUrlAsync(string url, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        return await conn.ExecuteScalarAsync<bool>(
+            new CommandDefinition(SourceSql.ExistsByUrl, new { url }, cancellationToken: cancellationToken));
+    }
 
-	public async Task<List<Source>> GetAllAsync(CancellationToken cancellationToken = default)
-	{
-		var entities = await _context.Sources
-			.OrderBy(s => s.Name)
-			.ToListAsync(cancellationToken);
+    public async Task<Source> CreateAsync(Source source, CancellationToken cancellationToken = default)
+    {
+        var entity = source.ToEntity();
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(SourceSql.Insert, new
+        {
+            entity.Id,
+            entity.Name,
+            entity.Url,
+            entity.Type,
+            entity.IsActive,
+            entity.LastFetchedAt,
+        }, cancellationToken: cancellationToken));
+        return entity.ToDomain();
+    }
 
-		return entities.Select(e => e.ToDomain()).ToList();
-	}
+    public async Task UpdateAsync(Source source, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(SourceSql.UpdateFields, new
+        {
+            source.Id,
+            source.Name,
+            source.Url,
+            source.IsActive,
+        }, cancellationToken: cancellationToken));
+    }
 
-	public async Task<Source?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-	{
-		var entity = await _context.Sources
-			.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
-
-		return entity?.ToDomain();
-	}
-
-	public async Task<bool> ExistsByUrlAsync(string url, CancellationToken cancellationToken = default)
-	{
-		return await _context.Sources
-			.AnyAsync(s => s.Url == url, cancellationToken);
-	}
-
-	public async Task<Source> CreateAsync(Source source, CancellationToken cancellationToken = default)
-	{
-		var entity = source.ToEntity();
-		await _context.Sources.AddAsync(entity, cancellationToken);
-		await _context.SaveChangesAsync(cancellationToken);
-		return entity.ToDomain();
-	}
-
-	public async Task UpdateAsync(Source source, CancellationToken cancellationToken = default)
-	{
-		await _context.Sources
-			.Where(s => s.Id == source.Id)
-			.ExecuteUpdateAsync(s => s
-				.SetProperty(x => x.Name, source.Name)
-				.SetProperty(x => x.Url, source.Url)
-				.SetProperty(x => x.IsActive, source.IsActive),
-			cancellationToken);
-	}
-
-	public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
-	{
-		await _context.Sources
-			.Where(s => s.Id == id)
-			.ExecuteDeleteAsync(cancellationToken);
-	}
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(SourceSql.Delete,
+            new { id },
+            cancellationToken: cancellationToken));
+    }
 }

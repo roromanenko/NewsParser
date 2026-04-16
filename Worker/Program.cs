@@ -7,5 +7,7 @@ builder.Services
 	.AddInfrastructure(builder.Configuration)
 	.AddWorkers(builder.Configuration);
 
+builder.Configuration.MigrateDatabase();
+
 var host = builder.Build();
 host.Run();

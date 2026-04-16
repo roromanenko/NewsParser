@@ -1,4 +1,5 @@
-﻿using Core.DomainModels;
+using Infrastructure.Persistence.Migrator;
+using Core.DomainModels;
 using Core.Interfaces.AI;
 using Core.Interfaces.Parsers;
 using Core.Interfaces.Publishers;
@@ -9,14 +10,15 @@ using Core.Interfaces.Validators;
 using Infrastructure.AI;
 using Infrastructure.Configuration;
 using Infrastructure.Parsers;
-using Infrastructure.Persistence.DataBase;
+using Infrastructure.Persistence.Connection;
+using Infrastructure.Persistence.Dapper;
 using Infrastructure.Persistence.Repositories;
+using Infrastructure.Persistence.UnitOfWork;
 using Infrastructure.Publishers;
 using Infrastructure.Services;
 using Infrastructure.Storage;
 using Microsoft.Extensions.Hosting;
 using Infrastructure.Validators;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -26,12 +28,19 @@ namespace Infrastructure.Extensions;
 
 public static class InfrastructureServiceExtensions
 {
+	public static void MigrateDatabase(this IConfiguration configuration)
+	{
+		var connectionString = configuration.GetConnectionString("NewsParserDbContext")
+			?? throw new InvalidOperationException("Connection string 'NewsParserDbContext' is not configured.");
+		DbUpMigrator.Migrate(connectionString);
+	}
+
 	public static IServiceCollection AddInfrastructure(
 		this IServiceCollection services,
 		IConfiguration configuration)
 	{
 		services
-			.AddDatabase(configuration)
+			.AddDapper(configuration)
 			.AddRepositories()
 			.AddParsers(configuration)
 			.AddAiServices(configuration)
@@ -41,17 +50,13 @@ public static class InfrastructureServiceExtensions
 		return services;
 	}
 
-	private static IServiceCollection AddDatabase(
+	private static IServiceCollection AddDapper(
 		this IServiceCollection services,
 		IConfiguration configuration)
 	{
-		services.AddDbContext<NewsParserDbContext>(options =>
-			options.UseNpgsql(
-				configuration.GetConnectionString(nameof(NewsParserDbContext)),
-				npgsql => npgsql
-							.MigrationsAssembly(typeof(NewsParserDbContext).Assembly.FullName)
-							.UseVector()
-			));
+		DapperTypeHandlers.Register();
+		services.AddSingleton<IDbConnectionFactory, NpgsqlConnectionFactory>();
+		services.AddScoped<IUnitOfWork, DapperUnitOfWork>();
 		return services;
 	}
 
@@ -85,7 +90,7 @@ public static class InfrastructureServiceExtensions
 	{
 		services.AddHttpClient();
 
-		services.Configure<AiOptions>(configuration.GetSection(AiOptions.SectionName));		
+		services.Configure<AiOptions>(configuration.GetSection(AiOptions.SectionName));
 
 		var aiOptions = configuration.GetSection(AiOptions.SectionName).Get<AiOptions>() ?? new AiOptions();
 		var promptsOptions = new PromptsOptions(aiOptions.Normalization.TargetLanguageName);
