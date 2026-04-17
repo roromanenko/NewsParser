@@ -66,7 +66,7 @@ internal class EventRepository(IDbConnectionFactory factory, IUnitOfWork uow) : 
             entity.Status,
             entity.FirstSeenAt,
             entity.LastUpdatedAt,
-            Embedding = entity.Embedding != null ? new Vector(entity.Embedding) : null,
+            Embedding = entity.Embedding,
             entity.ArticleCount,
         }, cancellationToken: cancellationToken));
         return entity.ToDomain();
@@ -209,8 +209,9 @@ internal class EventRepository(IDbConnectionFactory factory, IUnitOfWork uow) : 
     public async Task<DateTimeOffset?> GetLastUpdateTimeAsync(Guid eventId, CancellationToken cancellationToken = default)
     {
         await using var conn = await factory.CreateOpenAsync(cancellationToken);
-        return await conn.ExecuteScalarAsync<DateTimeOffset?>(
+        var dt = await conn.ExecuteScalarAsync<DateTime?>(
             new CommandDefinition(EventSql.GetLastUpdateTime, new { eventId }, cancellationToken: cancellationToken));
+        return dt.HasValue ? new DateTimeOffset(dt.Value, TimeSpan.Zero) : null;
     }
 
     public async Task<List<Event>> GetPagedAsync(

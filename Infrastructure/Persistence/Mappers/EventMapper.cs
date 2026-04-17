@@ -13,7 +13,7 @@ public static class EventMapper
 		Status = Enum.Parse<EventStatus>(entity.Status),
 		FirstSeenAt = entity.FirstSeenAt,
 		LastUpdatedAt = entity.LastUpdatedAt,
-		Embedding = entity.Embedding,
+		Embedding = entity.Embedding?.ToArray(),
 		ArticleCount = entity.ArticleCount,
 		Articles = entity.Articles?.Select(a => a.ToDomain()).ToList() ?? [],
 		EventUpdates = entity.EventUpdates?.Select(eu => eu.ToDomain()).ToList() ?? [],
@@ -28,7 +28,7 @@ public static class EventMapper
 		Status = domain.Status.ToString(),
 		FirstSeenAt = domain.FirstSeenAt,
 		LastUpdatedAt = domain.LastUpdatedAt,
-		Embedding = domain.Embedding,
+		Embedding = domain.Embedding != null ? new Pgvector.Vector(domain.Embedding) : null,
 		ArticleCount = domain.ArticleCount,
 	};
 

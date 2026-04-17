@@ -12,10 +12,10 @@ public class ArticleEntity
 	public string? OriginalUrl { get; set; }
 	public DateTimeOffset? PublishedAt { get; set; }
 	public string? ExternalId { get; set; }
-	public float[]? Embedding { get; set; }
+	public Pgvector.Vector? Embedding { get; set; }
 
 	public string Title { get; set; } = string.Empty;
-	public List<string> Tags { get; set; } = [];
+	public string[] Tags { get; set; } = [];
 	public string Category { get; set; } = string.Empty;
 	public string Sentiment { get; set; } = string.Empty;
 	public DateTimeOffset ProcessedAt { get; set; }

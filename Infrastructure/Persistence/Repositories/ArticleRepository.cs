@@ -208,9 +208,9 @@ internal class ArticleRepository(IDbConnectionFactory factory) : IArticleReposit
         parameters.Add("OriginalUrl", entity.OriginalUrl);
         parameters.Add("PublishedAt", entity.PublishedAt);
         parameters.Add("ExternalId", entity.ExternalId);
-        parameters.Add("Embedding", entity.Embedding != null ? new Vector(entity.Embedding) : null);
+        parameters.Add("Embedding", entity.Embedding);
         parameters.Add("Title", entity.Title);
-        parameters.Add("Tags", entity.Tags.ToArray(), dbType: DbType.Object);
+        parameters.Add("Tags", entity.Tags, dbType: DbType.Object);
         parameters.Add("Category", entity.Category);
         parameters.Add("Sentiment", entity.Sentiment);
         parameters.Add("ProcessedAt", entity.ProcessedAt);

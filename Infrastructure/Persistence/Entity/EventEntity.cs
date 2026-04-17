@@ -8,7 +8,7 @@ public class EventEntity
 	public string Status { get; set; } = string.Empty;
 	public DateTimeOffset FirstSeenAt { get; init; }
 	public DateTimeOffset LastUpdatedAt { get; set; }
-	public float[]? Embedding { get; set; }
+	public Pgvector.Vector? Embedding { get; set; }
 
 	public int ArticleCount { get; set; } = 0;
 
