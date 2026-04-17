@@ -6,12 +6,11 @@ using Infrastructure.Persistence.Connection;
 using Infrastructure.Persistence.Entity;
 using Infrastructure.Persistence.Mappers;
 using Infrastructure.Persistence.Repositories.Sql;
-using Infrastructure.Persistence.UnitOfWork;
 using Pgvector;
 
 namespace Infrastructure.Persistence.Repositories;
 
-internal class ArticleRepository(IDbConnectionFactory factory, IUnitOfWork uow) : IArticleRepository
+internal class ArticleRepository(IDbConnectionFactory factory) : IArticleRepository
 {
     public async Task AddAsync(Article article, CancellationToken cancellationToken = default)
     {

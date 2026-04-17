@@ -26,15 +26,7 @@ internal static class PublicationSql
         e."Embedding", e."ArticleCount"
         """;
 
-    public const string GetPendingForGenerationLockIds = """
-        SELECT "Id" FROM publications
-        WHERE "Status" = 'Created'
-        ORDER BY "CreatedAt"
-        LIMIT @batchSize
-        FOR UPDATE SKIP LOCKED
-        """;
-
-    public const string GetByIdsWithArticleAndTargetAndEvent = """
+    public const string GetPendingForGeneration = """
         SELECT p."Id", p."ArticleId", p."EditorId", p."PublishTargetId",
                p."GeneratedContent", p."Status", p."CreatedAt", p."PublishedAt",
                p."ApprovedAt", p."EventId", p."ParentPublicationId", p."UpdateContext",
@@ -51,7 +43,10 @@ internal static class PublicationSql
         INNER JOIN articles a ON a."Id" = p."ArticleId"
         INNER JOIN publish_targets t ON t."Id" = p."PublishTargetId"
         LEFT JOIN events e ON e."Id" = p."EventId"
-        WHERE p."Id" = ANY(@ids)
+        WHERE p."Status" = 'Created'
+        ORDER BY p."CreatedAt"
+        LIMIT @batchSize
+        FOR UPDATE OF p SKIP LOCKED
         """;
 
     public const string GetEventArticlesByEventIds = """
@@ -62,15 +57,7 @@ internal static class PublicationSql
         FROM articles WHERE "EventId" = ANY(@eventIds)
         """;
 
-    public const string GetPendingForPublishLockIds = """
-        SELECT "Id" FROM publications
-        WHERE "Status" = 'Approved'
-        ORDER BY "CreatedAt"
-        LIMIT @batchSize
-        FOR UPDATE SKIP LOCKED
-        """;
-
-    public const string GetByIdsWithTargetAndArticle = """
+    public const string GetPendingForPublish = """
         SELECT p."Id", p."ArticleId", p."EditorId", p."PublishTargetId",
                p."GeneratedContent", p."Status", p."CreatedAt", p."PublishedAt",
                p."ApprovedAt", p."EventId", p."ParentPublicationId", p."UpdateContext",
@@ -84,7 +71,10 @@ internal static class PublicationSql
         FROM publications p
         INNER JOIN publish_targets t ON t."Id" = p."PublishTargetId"
         INNER JOIN articles a ON a."Id" = p."ArticleId"
-        WHERE p."Id" = ANY(@ids)
+        WHERE p."Status" = 'Approved'
+        ORDER BY p."CreatedAt"
+        LIMIT @batchSize
+        FOR UPDATE OF p SKIP LOCKED
         """;
 
     public const string Insert = """

@@ -5,86 +5,57 @@ using Infrastructure.Persistence.Connection;
 using Infrastructure.Persistence.Entity;
 using Infrastructure.Persistence.Mappers;
 using Infrastructure.Persistence.Repositories.Sql;
-using Infrastructure.Persistence.UnitOfWork;
-using Npgsql;
 
 namespace Infrastructure.Persistence.Repositories;
 
-internal class PublicationRepository(IDbConnectionFactory factory, IUnitOfWork uow) : IPublicationRepository
+internal class PublicationRepository(IDbConnectionFactory factory) : IPublicationRepository
 {
     public async Task<List<Publication>> GetPendingForGenerationAsync(int batchSize, CancellationToken cancellationToken = default)
     {
-        var conn = uow.CurrentConnection ?? await factory.CreateOpenAsync(cancellationToken);
-        var ownedConn = uow.CurrentConnection is null;
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
 
-        try
+        var rows = new List<(PublicationEntity, ArticleEntity, PublishTargetEntity, EventEntity?)>();
+        await conn.QueryAsync<PublicationEntity, ArticleEntity, PublishTargetEntity, EventEntity?, PublicationEntity>(
+            new CommandDefinition(PublicationSql.GetPendingForGeneration, new { batchSize }, cancellationToken: cancellationToken),
+            (p, a, t, e) => { rows.Add((p, a, t, e)); return p; },
+            splitOn: "Id,Id,Id");
+
+        if (rows.Count == 0) return [];
+
+        var eventIds = rows.Select(r => r.Item4?.Id).Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
+        Dictionary<Guid, List<ArticleEntity>> eventArticles = [];
+
+        if (eventIds.Length > 0)
         {
-            var txn = uow.CurrentTransaction;
-
-            var lockedIds = (await conn.QueryAsync<Guid>(
-                new CommandDefinition(PublicationSql.GetPendingForGenerationLockIds,
-                    new { batchSize }, transaction: txn, cancellationToken: cancellationToken))).ToList();
-
-            if (lockedIds.Count == 0) return [];
-
-            var rows = await FetchPublicationsWithArticleAndTarget(conn, txn, lockedIds.ToArray(), cancellationToken);
-            var eventIds = rows.Select(r => r.publication.EventId).Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
-
-            Dictionary<Guid, List<ArticleEntity>> eventArticles = [];
-            if (eventIds.Length > 0)
-            {
-                var articles = await conn.QueryAsync<ArticleEntity>(
-                    new CommandDefinition(PublicationSql.GetEventArticlesByEventIds,
-                        new { eventIds }, transaction: txn, cancellationToken: cancellationToken));
-
-                eventArticles = articles.GroupBy(a => a.EventId!.Value)
-                    .ToDictionary(g => g.Key, g => g.ToList());
-            }
-
-            return rows.Select(r =>
-            {
-                var (pub, article, target, evt) = r;
-                if (evt is not null && eventArticles.TryGetValue(evt.Id, out var evtArticles))
-                    evt.Articles = evtArticles;
-
-                return BuildPublication(pub, article, target, evt);
-            }).ToList();
+            var articles = await conn.QueryAsync<ArticleEntity>(
+                new CommandDefinition(PublicationSql.GetEventArticlesByEventIds, new { eventIds }, cancellationToken: cancellationToken));
+            eventArticles = articles.GroupBy(a => a.EventId!.Value).ToDictionary(g => g.Key, g => g.ToList());
         }
-        finally
+
+        return rows.Select(r =>
         {
-            if (ownedConn)
-                await conn.DisposeAsync();
-        }
+            var (pub, article, target, evt) = r;
+            if (evt is not null && eventArticles.TryGetValue(evt.Id, out var evtArticles))
+                evt.Articles = evtArticles;
+            return BuildPublication(pub, article, target, evt);
+        }).ToList();
     }
 
     public async Task<List<Publication>> GetPendingForPublishAsync(int batchSize, CancellationToken cancellationToken = default)
     {
-        var conn = uow.CurrentConnection ?? await factory.CreateOpenAsync(cancellationToken);
-        var ownedConn = uow.CurrentConnection is null;
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
 
-        try
+        var rows = new List<(PublicationEntity, PublishTargetEntity, ArticleEntity)>();
+        await conn.QueryAsync<PublicationEntity, PublishTargetEntity, ArticleEntity, PublicationEntity>(
+            new CommandDefinition(PublicationSql.GetPendingForPublish, new { batchSize }, cancellationToken: cancellationToken),
+            (p, t, a) => { rows.Add((p, t, a)); return p; },
+            splitOn: "Id,Id");
+
+        return rows.Select(r =>
         {
-            var txn = uow.CurrentTransaction;
-
-            var lockedIds = (await conn.QueryAsync<Guid>(
-                new CommandDefinition(PublicationSql.GetPendingForPublishLockIds,
-                    new { batchSize }, transaction: txn, cancellationToken: cancellationToken))).ToList();
-
-            if (lockedIds.Count == 0) return [];
-
-            var rows = await FetchPublicationsWithTargetAndArticle(conn, txn, lockedIds.ToArray(), cancellationToken);
-
-            return rows.Select(r =>
-            {
-                var (pub, target, article) = r;
-                return BuildPublication(pub, article, target, evt: null);
-            }).ToList();
-        }
-        finally
-        {
-            if (ownedConn)
-                await conn.DisposeAsync();
-        }
+            var (pub, target, article) = r;
+            return BuildPublication(pub, article, target, evt: null);
+        }).ToList();
     }
 
     public async Task AddAsync(Publication publication, CancellationToken cancellationToken = default)
@@ -304,34 +275,6 @@ internal class PublicationRepository(IDbConnectionFactory factory, IUnitOfWork u
         await conn.ExecuteAsync(new CommandDefinition(PublicationSql.Insert,
             BuildInsertParameters(entity),
             cancellationToken: cancellationToken));
-    }
-
-    private static async Task<List<(PublicationEntity publication, ArticleEntity article, PublishTargetEntity target, EventEntity? evt)>>
-        FetchPublicationsWithArticleAndTarget(NpgsqlConnection conn, NpgsqlTransaction? txn, Guid[] ids, CancellationToken cancellationToken)
-    {
-        var rows = new List<(PublicationEntity, ArticleEntity, PublishTargetEntity, EventEntity?)>();
-
-        await conn.QueryAsync<PublicationEntity, ArticleEntity, PublishTargetEntity, EventEntity?, PublicationEntity>(
-            new CommandDefinition(PublicationSql.GetByIdsWithArticleAndTargetAndEvent,
-                new { ids }, transaction: txn, cancellationToken: cancellationToken),
-            (p, a, t, e) => { rows.Add((p, a, t, e)); return p; },
-            splitOn: "Id,Id,Id");
-
-        return rows;
-    }
-
-    private static async Task<List<(PublicationEntity publication, PublishTargetEntity target, ArticleEntity article)>>
-        FetchPublicationsWithTargetAndArticle(NpgsqlConnection conn, NpgsqlTransaction? txn, Guid[] ids, CancellationToken cancellationToken)
-    {
-        var rows = new List<(PublicationEntity, PublishTargetEntity, ArticleEntity)>();
-
-        await conn.QueryAsync<PublicationEntity, PublishTargetEntity, ArticleEntity, PublicationEntity>(
-            new CommandDefinition(PublicationSql.GetByIdsWithTargetAndArticle,
-                new { ids }, transaction: txn, cancellationToken: cancellationToken),
-            (p, t, a) => { rows.Add((p, t, a)); return p; },
-            splitOn: "Id,Id");
-
-        return rows;
     }
 
     private static Publication BuildPublication(

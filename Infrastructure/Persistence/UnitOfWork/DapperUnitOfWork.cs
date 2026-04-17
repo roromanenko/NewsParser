@@ -3,7 +3,7 @@ using Npgsql;
 
 namespace Infrastructure.Persistence.UnitOfWork;
 
-internal sealed class DapperUnitOfWork(IDbConnectionFactory factory) : IUnitOfWork, IAsyncDisposable
+internal sealed class DapperUnitOfWork(IDbConnectionFactory factory) : IUnitOfWork, IAsyncDisposable, IDisposable
 {
     private NpgsqlConnection? _connection;
     private NpgsqlTransaction? _transaction;
@@ -36,6 +36,8 @@ internal sealed class DapperUnitOfWork(IDbConnectionFactory factory) : IUnitOfWo
         await _transaction.DisposeAsync();
         _transaction = null;
     }
+
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
 
     public async ValueTask DisposeAsync()
     {
