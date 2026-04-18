@@ -19,10 +19,70 @@ public class TelegramParser(ITelegramChannelReader channelReader) : ISourceParse
 
 		var messages = await channelReader.GetChannelMessagesAsync(username, source.Id, cancellationToken);
 
-		return messages.Select(item => new Article
+		var (albums, singles) = GroupMessages(messages);
+
+		var articles = new List<Article>(albums.Count + singles.Count);
+
+		foreach (var albumGroup in albums)
+			articles.Add(BuildAlbumArticle(albumGroup, username, source.Id));
+
+		foreach (var single in singles)
+			articles.Add(BuildSingleArticle(single, username, source.Id));
+
+		// Preserve chronological order (Telegram returns messages newest-first by ID)
+		articles.Sort((a, b) => int.Parse(b.ExternalId).CompareTo(int.Parse(a.ExternalId)));
+
+		return articles;
+	}
+
+	private static (List<IGrouping<long, TelegramChannelMessage>> albums, List<TelegramChannelMessage> singles)
+		GroupMessages(List<TelegramChannelMessage> messages)
+	{
+		var albums = messages
+			.Where(m => m.Message.grouped_id != 0)
+			.GroupBy(m => m.Message.grouped_id)
+			.ToList();
+
+		var singles = messages
+			.Where(m => m.Message.grouped_id == 0)
+			.ToList();
+
+		return (albums, singles);
+	}
+
+	private static Article BuildAlbumArticle(IGrouping<long, TelegramChannelMessage> group, string username, Guid sourceId)
+	{
+		var sorted = group.OrderBy(m => m.Message.id).ToList();
+
+		var primary = sorted.FirstOrDefault(m => !string.IsNullOrWhiteSpace(m.Message.message))
+			?? sorted.First();
+
+		var mediaReferences = sorted
+			.SelectMany((msg, index) => ExtractMediaReferences(msg, username, mediaUrlIndex: index))
+			.ToList();
+
+		return new Article
 		{
 			Id = Guid.NewGuid(),
-			SourceId = source.Id,
+			SourceId = sourceId,
+			ExternalId = primary.Message.id.ToString(),
+			Title = BuildTitle(primary.Message.message),
+			OriginalContent = primary.Message.message,
+			OriginalUrl = $"https://t.me/{username}/{primary.Message.id}",
+			PublishedAt = new DateTimeOffset(primary.Message.date, TimeSpan.Zero),
+			Language = string.Empty,
+			Status = ArticleStatus.Pending,
+			ProcessedAt = DateTimeOffset.UtcNow,
+			MediaReferences = mediaReferences,
+		};
+	}
+
+	private static Article BuildSingleArticle(TelegramChannelMessage item, string username, Guid sourceId)
+	{
+		return new Article
+		{
+			Id = Guid.NewGuid(),
+			SourceId = sourceId,
 			ExternalId = item.Message.id.ToString(),
 			Title = BuildTitle(item.Message.message),
 			OriginalContent = item.Message.message,
@@ -31,11 +91,11 @@ public class TelegramParser(ITelegramChannelReader channelReader) : ISourceParse
 			Language = string.Empty,
 			Status = ArticleStatus.Pending,
 			ProcessedAt = DateTimeOffset.UtcNow,
-			MediaReferences = ExtractMediaReferences(item, username),
-		}).ToList();
+			MediaReferences = ExtractMediaReferences(item, username, mediaUrlIndex: 0),
+		};
 	}
 
-	private static List<MediaReference> ExtractMediaReferences(TelegramChannelMessage item, string username)
+	private static List<MediaReference> ExtractMediaReferences(TelegramChannelMessage item, string username, int mediaUrlIndex)
 	{
 		var msg = item.Message;
 		var baseUrl = $"https://t.me/{username}/{msg.id}";
@@ -43,7 +103,7 @@ public class TelegramParser(ITelegramChannelReader channelReader) : ISourceParse
 		return msg.media switch
 		{
 			MessageMediaPhoto => [new MediaReference(
-				Url: $"{baseUrl}#media-0",
+				Url: $"{baseUrl}#media-{mediaUrlIndex}",
 				Kind: MediaKind.Image,
 				DeclaredContentType: "image/jpeg",
 				SourceKind: MediaSourceKind.Telegram,
@@ -51,7 +111,7 @@ public class TelegramParser(ITelegramChannelReader channelReader) : ISourceParse
 
 			MessageMediaDocument { document: Document doc } when doc.mime_type.StartsWith("image/") =>
 			[new MediaReference(
-				Url: $"{baseUrl}#media-0",
+				Url: $"{baseUrl}#media-{mediaUrlIndex}",
 				Kind: MediaKind.Image,
 				DeclaredContentType: doc.mime_type,
 				SourceKind: MediaSourceKind.Telegram,
@@ -59,7 +119,7 @@ public class TelegramParser(ITelegramChannelReader channelReader) : ISourceParse
 
 			MessageMediaDocument { document: Document doc } when doc.mime_type.StartsWith("video/") =>
 			[new MediaReference(
-				Url: $"{baseUrl}#media-0",
+				Url: $"{baseUrl}#media-{mediaUrlIndex}",
 				Kind: MediaKind.Video,
 				DeclaredContentType: doc.mime_type,
 				SourceKind: MediaSourceKind.Telegram,

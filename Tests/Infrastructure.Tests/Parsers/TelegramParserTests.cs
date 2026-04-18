@@ -219,10 +219,200 @@ public class TelegramParserTests
 	}
 
 	// ------------------------------------------------------------------
+	// Album tests — P0: album of 3 photos with caption on first → 1 Article, 3 MediaReferences
+	// ------------------------------------------------------------------
+
+	[Test]
+	public async Task ParseAsync_WhenAlbumHas3PhotosWithCaptionOnFirst_Returns1ArticleWith3MediaReferences()
+	{
+		// Arrange
+		const long albumGroupId = 12345L;
+		const int firstId = 100;
+		const int secondId = 101;
+		const int thirdId = 102;
+		const string captionText = "Album caption on first";
+
+		var messages = new List<TelegramChannelMessage>
+		{
+			new(BuildMessage(firstId, captionText, new MessageMediaPhoto { photo = new Photo() }, groupedId: albumGroupId), ChannelId, AccessHash),
+			new(BuildMessage(secondId, "", new MessageMediaPhoto { photo = new Photo() }, groupedId: albumGroupId), ChannelId, AccessHash),
+			new(BuildMessage(thirdId, "", new MessageMediaPhoto { photo = new Photo() }, groupedId: albumGroupId), ChannelId, AccessHash),
+		};
+
+		var source = BuildSource($"https://t.me/{ChannelUsername}");
+		_channelReaderMock
+			.Setup(r => r.GetChannelMessagesAsync(ChannelUsername, source.Id, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(messages);
+
+		// Act
+		var articles = await _sut.ParseAsync(source, CancellationToken.None);
+
+		// Assert
+		articles.Should().HaveCount(1);
+		var article = articles[0];
+		article.ExternalId.Should().Be(firstId.ToString());
+		article.OriginalContent.Should().Be(captionText);
+		article.MediaReferences.Should().HaveCount(3);
+		article.MediaReferences[0].Url.Should().EndWith("#media-0");
+		article.MediaReferences[1].Url.Should().EndWith("#media-1");
+		article.MediaReferences[2].Url.Should().EndWith("#media-2");
+	}
+
+	// ------------------------------------------------------------------
+	// Album tests — P0: album with no captions → uses first message by ID as primary
+	// ------------------------------------------------------------------
+
+	[Test]
+	public async Task ParseAsync_WhenAlbumHasNoCaptions_UsesFirstMessageByIdAsPrimary()
+	{
+		// Arrange
+		const long albumGroupId = 22222L;
+		const int lowerId = 200;
+		const int higherId = 201;
+
+		var messages = new List<TelegramChannelMessage>
+		{
+			new(BuildMessage(higherId, "", new MessageMediaPhoto { photo = new Photo() }, groupedId: albumGroupId), ChannelId, AccessHash),
+			new(BuildMessage(lowerId, "", new MessageMediaPhoto { photo = new Photo() }, groupedId: albumGroupId), ChannelId, AccessHash),
+		};
+
+		var source = BuildSource($"https://t.me/{ChannelUsername}");
+		_channelReaderMock
+			.Setup(r => r.GetChannelMessagesAsync(ChannelUsername, source.Id, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(messages);
+
+		// Act
+		var articles = await _sut.ParseAsync(source, CancellationToken.None);
+
+		// Assert
+		articles.Should().HaveCount(1);
+		articles[0].ExternalId.Should().Be(lowerId.ToString());
+		articles[0].Title.Should().Be(string.Empty);
+		articles[0].MediaReferences.Should().HaveCount(2);
+	}
+
+	// ------------------------------------------------------------------
+	// Album tests — P0: album with mixed photo and video → correct MediaKind per item
+	// ------------------------------------------------------------------
+
+	[Test]
+	public async Task ParseAsync_WhenAlbumHasMixedPhotoAndVideo_MediaReferenceKindsAreCorrect()
+	{
+		// Arrange
+		const long albumGroupId = 33333L;
+		const int photoId = 300;
+		const int videoId = 301;
+
+		var videoDoc = new Document { mime_type = "video/mp4", size = 4096L };
+		var messages = new List<TelegramChannelMessage>
+		{
+			new(BuildMessage(photoId, "Mixed album", new MessageMediaPhoto { photo = new Photo() }, groupedId: albumGroupId), ChannelId, AccessHash),
+			new(BuildMessage(videoId, "", new MessageMediaDocument { document = videoDoc }, groupedId: albumGroupId), ChannelId, AccessHash),
+		};
+
+		var source = BuildSource($"https://t.me/{ChannelUsername}");
+		_channelReaderMock
+			.Setup(r => r.GetChannelMessagesAsync(ChannelUsername, source.Id, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(messages);
+
+		// Act
+		var articles = await _sut.ParseAsync(source, CancellationToken.None);
+
+		// Assert
+		articles.Should().HaveCount(1);
+		articles[0].MediaReferences.Should().HaveCount(2);
+		articles[0].MediaReferences[0].Kind.Should().Be(MediaKind.Image);
+		articles[0].MediaReferences[1].Kind.Should().Be(MediaKind.Video);
+	}
+
+	// ------------------------------------------------------------------
+	// Regression — ungrouped message with media → 1 Article, 1 MediaReference
+	// ------------------------------------------------------------------
+
+	[Test]
+	public async Task ParseAsync_WhenUngroupedMessageHasMedia_Returns1ArticleWith1MediaReference()
+	{
+		// Arrange
+		const int messageId = 400;
+		var message = BuildMessage(messageId, "Ungrouped with photo", new MessageMediaPhoto { photo = new Photo() }, groupedId: 0);
+		var source = BuildSource($"https://t.me/{ChannelUsername}");
+
+		_channelReaderMock
+			.Setup(r => r.GetChannelMessagesAsync(ChannelUsername, source.Id, It.IsAny<CancellationToken>()))
+			.ReturnsAsync([new TelegramChannelMessage(message, ChannelId, AccessHash)]);
+
+		// Act
+		var articles = await _sut.ParseAsync(source, CancellationToken.None);
+
+		// Assert
+		articles.Should().HaveCount(1);
+		articles[0].MediaReferences.Should().HaveCount(1);
+		articles[0].MediaReferences[0].Url.Should().EndWith("#media-0");
+	}
+
+	// ------------------------------------------------------------------
+	// Regression — ungrouped text-only message → 1 Article, 0 MediaReferences
+	// ------------------------------------------------------------------
+
+	[Test]
+	public async Task ParseAsync_WhenUngroupedTextOnlyMessage_Returns1ArticleWithNoMediaReferences()
+	{
+		// Arrange
+		const int messageId = 500;
+		var message = BuildMessage(messageId, "Just text, no media at all", media: null, groupedId: 0);
+		var source = BuildSource($"https://t.me/{ChannelUsername}");
+
+		_channelReaderMock
+			.Setup(r => r.GetChannelMessagesAsync(ChannelUsername, source.Id, It.IsAny<CancellationToken>()))
+			.ReturnsAsync([new TelegramChannelMessage(message, ChannelId, AccessHash)]);
+
+		// Act
+		var articles = await _sut.ParseAsync(source, CancellationToken.None);
+
+		// Assert
+		articles.Should().HaveCount(1);
+		articles[0].MediaReferences.Should().BeEmpty();
+	}
+
+	// ------------------------------------------------------------------
+	// Album tests — caption on later message → that message is primary
+	// ------------------------------------------------------------------
+
+	[Test]
+	public async Task ParseAsync_WhenAlbumCaptionIsOnLaterMessage_ThatMessageIsPrimary()
+	{
+		// Arrange
+		const long albumGroupId = 44444L;
+		const int lowerId = 600;
+		const int higherId = 601;
+		const string captionText = "Caption on second message";
+
+		var messages = new List<TelegramChannelMessage>
+		{
+			new(BuildMessage(lowerId, "", new MessageMediaPhoto { photo = new Photo() }, groupedId: albumGroupId), ChannelId, AccessHash),
+			new(BuildMessage(higherId, captionText, new MessageMediaPhoto { photo = new Photo() }, groupedId: albumGroupId), ChannelId, AccessHash),
+		};
+
+		var source = BuildSource($"https://t.me/{ChannelUsername}");
+		_channelReaderMock
+			.Setup(r => r.GetChannelMessagesAsync(ChannelUsername, source.Id, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(messages);
+
+		// Act
+		var articles = await _sut.ParseAsync(source, CancellationToken.None);
+
+		// Assert
+		articles.Should().HaveCount(1);
+		articles[0].ExternalId.Should().Be(higherId.ToString());
+		articles[0].OriginalContent.Should().Be(captionText);
+		articles[0].MediaReferences.Should().HaveCount(2);
+	}
+
+	// ------------------------------------------------------------------
 	// Helpers
 	// ------------------------------------------------------------------
 
-	private static Message BuildMessage(int id, string text, MessageMedia? media)
+	private static Message BuildMessage(int id, string text, MessageMedia? media, long groupedId = 0)
 	{
 		return new Message
 		{
@@ -230,6 +420,7 @@ public class TelegramParserTests
 			message = text,
 			date = new DateTime(2025, 1, 15, 12, 0, 0, DateTimeKind.Utc),
 			media = media,
+			grouped_id = groupedId,
 		};
 	}
 

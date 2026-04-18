@@ -74,7 +74,8 @@ public class TelegramClientService : IHostedService, IAsyncDisposable, ITelegram
 
 		var messages = history.Messages
 			.OfType<Message>()
-			.Where(m => !string.IsNullOrWhiteSpace(m.message))
+			// Album items carry media but no caption — allow them through for grouping in TelegramParser
+			.Where(m => !string.IsNullOrWhiteSpace(m.message) || m.media is not null)
 			.Select(m => new TelegramChannelMessage(m, channel.id, channel.access_hash))
 			.ToList();
 
