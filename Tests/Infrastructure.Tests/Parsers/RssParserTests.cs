@@ -1,14 +1,20 @@
 using CodeHollow.FeedReader;
 using Core.DomainModels;
+using Core.Interfaces.Parsers;
 using FluentAssertions;
+using Infrastructure.Configuration;
 using Infrastructure.Parsers;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Moq;
 using NUnit.Framework;
 using System.Reflection;
 
 namespace Infrastructure.Tests.Parsers;
 
 /// <summary>
-/// Tests for <see cref="RssParser"/>'s media-reference extraction logic.
+/// Tests for <see cref="RssParser"/>'s media-reference extraction logic and scrape
+/// orchestration.
 ///
 /// <para>
 /// <c>RssParser.ParseAsync</c> calls <c>FeedReader.ReadAsync</c>, which performs a live
@@ -26,6 +32,13 @@ namespace Infrastructure.Tests.Parsers;
 /// NOT a <c>MediaRssFeedItem</c>, which happens for plain RSS 2.0 items without
 /// the media namespace. Tests reflect this actual parsing behavior.
 /// </para>
+///
+/// <para>
+/// The scrape-orchestration tests cover the per-article scrape + merge pipeline
+/// exposed by the private <c>ScrapeAndMergeAllAsync</c> method, invoked via reflection
+/// against pre-built <see cref="Article"/> lists. This avoids the live
+/// <c>FeedReader.ReadAsync</c> network call without modifying the production API.
+/// </para>
 /// </summary>
 [TestFixture]
 public class RssParserTests
@@ -34,6 +47,11 @@ public class RssParserTests
 		typeof(RssParser)
 			.GetMethod("ExtractMediaReferences", BindingFlags.NonPublic | BindingFlags.Static)
 		?? throw new MissingMethodException(nameof(RssParser), "ExtractMediaReferences");
+
+	private static readonly MethodInfo ScrapeAndMergeAllMethod =
+		typeof(RssParser)
+			.GetMethod("ScrapeAndMergeAllAsync", BindingFlags.NonPublic | BindingFlags.Instance)
+		?? throw new MissingMethodException(nameof(RssParser), "ScrapeAndMergeAllAsync");
 
 	// ------------------------------------------------------------------
 	// P0 — RSS 2.0 <enclosure> → one Image MediaReference
@@ -142,17 +160,14 @@ public class RssParserTests
 	}
 
 	// ------------------------------------------------------------------
-	// P1 — media:thumbnail alone in MediaRssFeedItem → empty
-	//       (FeedReader does not populate Media from thumbnail-only items;
-	//        the XML fallback path is not reached for MediaRssFeedItem)
+	// P0 — media:thumbnail alone in MediaRssFeedItem → one Image reference
+	//       (XML fallback is now called inside ExtractFromMediaRssFeedItem)
 	// ------------------------------------------------------------------
 
 	[Test]
-	public void ExtractMediaReferences_WhenMediaRssFeedItemHasThumbnailOnly_ReturnsEmpty()
+	public void ExtractMediaReferences_WhenMediaRssFeedItemHasThumbnailOnly_ReturnsImageReference()
 	{
-		// Arrange — thumbnail-only item is still parsed as MediaRssFeedItem by FeedReader,
-		// but MediaRssFeedItem.Media is empty; the XML fallback (ExtractXmlMediaElements)
-		// is only reached for non-MediaRssFeedItem types.
+		// Arrange
 		var feed = FeedReader.ReadFromString(BuildMediaRssFeed("""
             <media:thumbnail url="https://cdn.example.com/thumb.jpg" />
             """));
@@ -161,8 +176,33 @@ public class RssParserTests
 		// Act
 		var refs = InvokeExtract(item);
 
-		// Assert — documents known production behavior for standalone thumbnails
-		refs.Should().BeEmpty();
+		// Assert
+		refs.Should().HaveCount(1);
+		refs[0].Url.Should().Be("https://cdn.example.com/thumb.jpg");
+		refs[0].Kind.Should().Be(MediaKind.Image);
+	}
+
+	// ------------------------------------------------------------------
+	// P0 — media:content + media:thumbnail at the same URL → deduped to one
+	// ------------------------------------------------------------------
+
+	[Test]
+	public void ExtractMediaReferences_WhenMediaRssFeedItemHasContentAndThumbnail_DedupesByUrl()
+	{
+		// Arrange
+		var feed = FeedReader.ReadFromString(BuildMediaRssFeed("""
+            <media:content url="https://cdn.example.com/img.jpg" type="image/jpeg" />
+            <media:thumbnail url="https://cdn.example.com/img.jpg" />
+            """));
+		var item = feed.Items.First();
+
+		// Act
+		var refs = InvokeExtract(item);
+
+		// Assert — DistinctBy keeps the first entry (media:content wins)
+		refs.Should().HaveCount(1);
+		refs[0].Url.Should().Be("https://cdn.example.com/img.jpg");
+		refs[0].DeclaredContentType.Should().Be("image/jpeg");
 	}
 
 	// ------------------------------------------------------------------
@@ -188,6 +228,154 @@ public class RssParserTests
 		refs.Should().ContainSingle(r => r.Url == "https://cdn.example.com/photo.jpg" && r.Kind == MediaKind.Image);
 	}
 
+	// ==================================================================
+	// Scrape-orchestration tests (private ScrapeAndMergeAllAsync path)
+	// ==================================================================
+
+	// ------------------------------------------------------------------
+	// P0 — Scraped FullContent longer than RSS content → replaces
+	// ------------------------------------------------------------------
+
+	[Test]
+	public async Task ParseAsync_WhenScraperReturnsLongerContent_ReplacesRssContent()
+	{
+		// Arrange
+		var scraperMock = new Mock<IArticleContentScraper>();
+		const string rssContent = "short rss";
+		const string scrapedContent = "this is a significantly longer scraped content body";
+
+		scraperMock
+			.Setup(s => s.ScrapeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new ScrapedArticle(
+				FullContent: scrapedContent,
+				Tags: [],
+				DiscoveredMedia: []));
+
+		var sut = CreateSut(scraperMock.Object, enabled: true);
+		var article = CreateArticle(originalContent: rssContent);
+
+		// Act
+		await InvokeScrapeAndMergeAll(sut, [article]);
+
+		// Assert
+		article.OriginalContent.Should().Be(scrapedContent);
+	}
+
+	// ------------------------------------------------------------------
+	// P0 — Scraped FullContent shorter than RSS content → keeps RSS
+	// ------------------------------------------------------------------
+
+	[Test]
+	public async Task ParseAsync_WhenScraperReturnsShortContent_KeepsRssContent()
+	{
+		// Arrange
+		var scraperMock = new Mock<IArticleContentScraper>();
+		const string rssContent = "long rss content from the original feed description";
+		const string scrapedContent = "short";
+
+		scraperMock
+			.Setup(s => s.ScrapeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new ScrapedArticle(
+				FullContent: scrapedContent,
+				Tags: [],
+				DiscoveredMedia: []));
+
+		var sut = CreateSut(scraperMock.Object, enabled: true);
+		var article = CreateArticle(originalContent: rssContent);
+
+		// Act
+		await InvokeScrapeAndMergeAll(sut, [article]);
+
+		// Assert
+		article.OriginalContent.Should().Be(rssContent);
+	}
+
+	// ------------------------------------------------------------------
+	// P1 — Scraper throws HttpRequestException → article kept with RSS content,
+	//      no exception propagates to the caller
+	// ------------------------------------------------------------------
+
+	[Test]
+	public async Task ParseAsync_WhenScraperThrows_ReturnsArticleWithRssContent()
+	{
+		// Arrange
+		var scraperMock = new Mock<IArticleContentScraper>();
+		const string rssContent = "rss content preserved after scrape failure";
+
+		scraperMock
+			.Setup(s => s.ScrapeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			.ThrowsAsync(new HttpRequestException("boom"));
+
+		var sut = CreateSut(scraperMock.Object, enabled: true);
+		var article = CreateArticle(originalContent: rssContent);
+		var articles = new List<Article> { article };
+
+		// Act
+		var act = async () => await InvokeScrapeAndMergeAll(sut, articles);
+
+		// Assert
+		await act.Should().NotThrowAsync();
+		articles.Should().ContainSingle();
+		articles[0].OriginalContent.Should().Be(rssContent);
+	}
+
+	// ------------------------------------------------------------------
+	// P0 — Scraper returns og:image → appended to existing MediaReferences
+	// ------------------------------------------------------------------
+
+	[Test]
+	public async Task ParseAsync_WhenScraperReturnsOgImage_AppendsToMediaReferences()
+	{
+		// Arrange
+		var scraperMock = new Mock<IArticleContentScraper>();
+		const string rssImageUrl = "https://cdn.example.com/rss.jpg";
+		const string ogImageUrl = "https://cdn.example.com/og.jpg";
+
+		var scrapedMedia = new MediaReference(ogImageUrl, MediaKind.Image, null, MediaSourceKind.Http);
+
+		scraperMock
+			.Setup(s => s.ScrapeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new ScrapedArticle(
+				FullContent: null,
+				Tags: [],
+				DiscoveredMedia: [scrapedMedia]));
+
+		var sut = CreateSut(scraperMock.Object, enabled: true);
+		var article = CreateArticle(originalContent: "rss");
+		article.MediaReferences.Add(new MediaReference(rssImageUrl, MediaKind.Image, "image/jpeg"));
+
+		// Act
+		await InvokeScrapeAndMergeAll(sut, [article]);
+
+		// Assert
+		article.MediaReferences.Should().HaveCount(2);
+		article.MediaReferences.Should().ContainSingle(m => m.Url == rssImageUrl);
+		article.MediaReferences.Should().ContainSingle(m => m.Url == ogImageUrl);
+	}
+
+	// ------------------------------------------------------------------
+	// P1 — Options.Enabled=false → scraper is never invoked
+	//
+	// Note: the Enabled=false short-circuit lives inside the public ParseAsync,
+	// which cannot be driven without triggering FeedReader.ReadAsync (live HTTP).
+	// Restructuring production code to inject a pre-built feed is out of scope
+	// per the task rules ("do NOT change production code signatures to enable
+	// tests"). The kill-switch is also double-guarded inside
+	// HtmlArticleContentScraper.ScrapeAsync, which is covered by
+	// HtmlArticleContentScraperTests.ScrapeAsync_WhenEnabledFalse_ReturnsNull.
+	// ------------------------------------------------------------------
+
+	[Test]
+	[Ignore("ParseAsync's Enabled=false branch lives behind FeedReader.ReadAsync " +
+			"(live HTTP) and cannot be reached without restructuring the production " +
+			"API to accept an injectable feed source. The kill-switch behaviour is " +
+			"covered at the scraper level by " +
+			"HtmlArticleContentScraperTests.ScrapeAsync_WhenEnabledFalse_ReturnsNull.")]
+	public Task ParseAsync_WhenOptionsEnabledFalse_DoesNotCallScraper()
+	{
+		return Task.CompletedTask;
+	}
+
 	// ------------------------------------------------------------------
 	// Helpers
 	// ------------------------------------------------------------------
@@ -197,6 +385,38 @@ public class RssParserTests
 		var result = ExtractMediaReferencesMethod.Invoke(null, [item]);
 		return (List<MediaReference>)result!;
 	}
+
+	private static Task InvokeScrapeAndMergeAll(RssParser sut, List<Article> articles)
+	{
+		var result = ScrapeAndMergeAllMethod.Invoke(sut, [articles, CancellationToken.None]);
+		return (Task)result!;
+	}
+
+	private static RssParser CreateSut(IArticleContentScraper scraper, bool enabled) =>
+		new(
+			scraper,
+			Options.Create(new ArticleScraperOptions
+			{
+				Enabled = enabled,
+				MaxConcurrencyPerFeed = 4,
+				MaxTagsPerArticle = 20,
+			}),
+			NullLogger<RssParser>.Instance);
+
+	private static Article CreateArticle(string originalContent) => new()
+	{
+		Id = Guid.NewGuid(),
+		SourceId = Guid.NewGuid(),
+		Title = "Test",
+		OriginalContent = originalContent,
+		OriginalUrl = "https://example.com/article",
+		ExternalId = "ext-1",
+		PublishedAt = DateTimeOffset.UtcNow,
+		Language = string.Empty,
+		Status = ArticleStatus.Pending,
+		ProcessedAt = DateTimeOffset.UtcNow,
+		MediaReferences = [],
+	};
 
 	private static string BuildRss20Feed(string itemExtra) => $"""
         <?xml version="1.0" encoding="UTF-8"?>

@@ -106,6 +106,19 @@ public class ArticleJsonHelperTests
 	}
 
 	[Test]
+	public void ParseAnalysisResult_UkrainianSummaryWithUnescapedInnerQuotesAndApostrophe_RepairsAndParses()
+	{
+		const string json =
+			"{\"category\": \"Politics\", \"tags\": [\"pétermagyar\", \"tisza party\", \"hungary\", \"politics\", \"election\", \"prime minister\"], \"sentiment\": \"Positive\", \"language\": \"en\", \"summary\": \"Петер Мадяр та його партія \"Тиса\" без зволікань готуються до передачі влади після їхньої драматичної переконливої перемоги. Ера Орбана закінчилася миттєво, а наступний прем'єр-міністр Угорщини – людина, яка поспішає.\"}";
+
+		var result = ArticleJsonHelper.ParseAnalysisResult(json);
+
+		result.Category.Should().Be("Politics");
+		result.Summary.Should().Contain("Тиса");
+		result.Summary.Should().Contain("прем'єр-міністр");
+	}
+
+	[Test]
 	public void ParseAnalysisResult_RawInput_RepairsAndParses()
 	{
 		const string json =

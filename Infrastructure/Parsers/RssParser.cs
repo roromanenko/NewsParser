@@ -3,135 +3,180 @@ using CodeHollow.FeedReader.Feeds;
 using CodeHollow.FeedReader.Feeds.MediaRSS;
 using Core.DomainModels;
 using Core.Interfaces.Parsers;
+using Infrastructure.Configuration;
+using Infrastructure.Persistence.Mappers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Xml.Linq;
 
 namespace Infrastructure.Parsers;
 
-public class RssParser : ISourceParser
+public class RssParser(
+    IArticleContentScraper scraper,
+    IOptions<ArticleScraperOptions> options,
+    ILogger<RssParser> logger) : ISourceParser
 {
-	public SourceType SourceType => SourceType.Rss;
+    private readonly ArticleScraperOptions _options = options.Value;
 
-	private static readonly XNamespace MediaNs = "http://search.yahoo.com/mrss/";
+    public SourceType SourceType => SourceType.Rss;
 
-	public async Task<List<Article>> ParseAsync(Source source, CancellationToken cancellationToken = default)
-	{
-		var feed = await FeedReader.ReadAsync(source.Url, cancellationToken);
+    private static readonly XNamespace MediaNs = "http://search.yahoo.com/mrss/";
 
-		return feed.Items.Select(item => new Article
-		{
-			Id = Guid.NewGuid(),
-			SourceId = source.Id,
-			Title = item.Title ?? string.Empty,
-			OriginalContent = item.Content ?? item.Description ?? string.Empty,
-			OriginalUrl = item.Link ?? string.Empty,
-			ExternalId = item.Id ?? item.Link,
-			PublishedAt = item.PublishingDate ?? DateTimeOffset.UtcNow,
-			Language = string.Empty,
-			Status = ArticleStatus.Pending,
-			ProcessedAt = DateTimeOffset.UtcNow,
-			MediaReferences = ExtractMediaReferences(item),
-		}).ToList();
-	}
+    public async Task<List<Article>> ParseAsync(Source source, CancellationToken cancellationToken = default)
+    {
+        var feed = await FeedReader.ReadAsync(source.Url, cancellationToken);
 
-	private static List<MediaReference> ExtractMediaReferences(FeedItem item)
-	{
-		if (item.SpecificItem is MediaRssFeedItem mediaItem)
-			return ExtractFromMediaRssFeedItem(mediaItem);
+        var articles = feed.Items.Select(item => new Article
+        {
+            Id = Guid.NewGuid(),
+            SourceId = source.Id,
+            Title = item.Title ?? string.Empty,
+            OriginalContent = item.Content ?? item.Description ?? string.Empty,
+            OriginalUrl = item.Link ?? string.Empty,
+            ExternalId = item.Id ?? item.Link,
+            PublishedAt = item.PublishingDate ?? DateTimeOffset.UtcNow,
+            Language = string.Empty,
+            Status = ArticleStatus.Pending,
+            ProcessedAt = DateTimeOffset.UtcNow,
+            MediaReferences = ExtractMediaReferences(item),
+        }).ToList();
 
-		var refs = new List<MediaReference>();
+        if (_options.Enabled)
+            await ScrapeAndMergeAllAsync(articles, cancellationToken);
 
-		if (item.SpecificItem is Rss20FeedItem rssItem)
-			AddEnclosureReference(rssItem.Enclosure, refs);
+        return articles;
+    }
 
-		AddXmlMediaElements(item.SpecificItem?.Element, refs);
+    private async Task ScrapeAndMergeAllAsync(List<Article> articles, CancellationToken cancellationToken)
+    {
+        var sem = new SemaphoreSlim(_options.MaxConcurrencyPerFeed);
+        var tasks = articles.Select(article => ScrapeAndMergeOneAsync(article, sem, cancellationToken));
+        await Task.WhenAll(tasks);
+    }
 
-		return refs;
-	}
+    private async Task ScrapeAndMergeOneAsync(Article article, SemaphoreSlim sem, CancellationToken cancellationToken)
+    {
+        await sem.WaitAsync(cancellationToken);
+        try
+        {
+            var scraped = await scraper.ScrapeAsync(article.OriginalUrl!, cancellationToken);
+            article.MergeScraped(scraped, _options.MaxTagsPerArticle);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Scrape failed for {Url}; keeping RSS data.", article.OriginalUrl);
+        }
+        finally
+        {
+            sem.Release();
+        }
+    }
 
-	private static List<MediaReference> ExtractFromMediaRssFeedItem(MediaRssFeedItem mediaItem)
-	{
-		var refs = new List<MediaReference>();
+    private static List<MediaReference> ExtractMediaReferences(FeedItem item)
+    {
+        if (item.SpecificItem is MediaRssFeedItem mediaItem)
+            return ExtractFromMediaRssFeedItem(mediaItem);
 
-		foreach (var media in mediaItem.Media)
-		{
-			if (string.IsNullOrEmpty(media.Url)) continue;
+        var refs = new List<MediaReference>();
 
-			var kind = ResolveKindFromTypeAndMedium(media.Type, media.Medium);
-			if (kind is null) continue;
+        if (item.SpecificItem is Rss20FeedItem rssItem)
+            AddEnclosureReference(rssItem.Enclosure, refs);
 
-			refs.Add(new MediaReference(media.Url, kind.Value, media.Type));
-		}
+        AddXmlMediaElements(item.SpecificItem?.Element, refs);
 
-		return refs;
-	}
+        return refs;
+    }
 
-	private static void AddEnclosureReference(FeedItemEnclosure? enclosure, List<MediaReference> refs)
-	{
-		if (enclosure is null || string.IsNullOrEmpty(enclosure.Url)) return;
-		if (string.IsNullOrEmpty(enclosure.MediaType)) return;
+    private static List<MediaReference> ExtractFromMediaRssFeedItem(MediaRssFeedItem mediaItem)
+    {
+        var refs = new List<MediaReference>();
 
-		if (!enclosure.MediaType.StartsWith("image/") && !enclosure.MediaType.StartsWith("video/"))
-			return;
+        foreach (var media in mediaItem.Media)
+        {
+            if (string.IsNullOrEmpty(media.Url)) continue;
 
-		var kind = enclosure.MediaType.StartsWith("video/") ? MediaKind.Video : MediaKind.Image;
-		refs.Add(new MediaReference(enclosure.Url, kind, enclosure.MediaType));
-	}
+            var kind = ResolveKindFromTypeAndMedium(media.Type, media.Medium);
+            if (kind is null) continue;
 
-	private static void AddXmlMediaElements(XElement? element, List<MediaReference> refs)
-	{
-		if (element is null) return;
+            refs.Add(new MediaReference(media.Url, kind.Value, media.Type));
+        }
 
-		foreach (var el in element.Descendants(MediaNs + "content"))
-		{
-			var url = (string?)el.Attribute("url");
-			if (string.IsNullOrEmpty(url)) continue;
+        AddXmlMediaElements(mediaItem.Element, refs);
 
-			var type = (string?)el.Attribute("type");
-			var medium = (string?)el.Attribute("medium");
-			var kind = ResolveKindFromStrings(type, medium);
-			if (kind is null) continue;
+        return refs.DistinctBy(r => r.Url).ToList();
+    }
 
-			refs.Add(new MediaReference(url, kind.Value, type));
-		}
+    private static void AddEnclosureReference(FeedItemEnclosure? enclosure, List<MediaReference> refs)
+    {
+        if (enclosure is null || string.IsNullOrEmpty(enclosure.Url)) return;
+        if (string.IsNullOrEmpty(enclosure.MediaType)) return;
 
-		foreach (var el in element.Descendants(MediaNs + "thumbnail"))
-		{
-			var url = (string?)el.Attribute("url");
-			if (string.IsNullOrEmpty(url)) continue;
+        if (!enclosure.MediaType.StartsWith("image/") && !enclosure.MediaType.StartsWith("video/"))
+            return;
 
-			refs.Add(new MediaReference(url, MediaKind.Image, null));
-		}
-	}
+        var kind = enclosure.MediaType.StartsWith("video/") ? MediaKind.Video : MediaKind.Image;
+        refs.Add(new MediaReference(enclosure.Url, kind, enclosure.MediaType));
+    }
 
-	private static MediaKind? ResolveKindFromTypeAndMedium(string? type, Medium medium)
-	{
-		if (!string.IsNullOrEmpty(type))
-		{
-			if (type.StartsWith("video/")) return MediaKind.Video;
-			if (type.StartsWith("image/")) return MediaKind.Image;
-		}
+    private static void AddXmlMediaElements(XElement? element, List<MediaReference> refs)
+    {
+        if (element is null) return;
 
-		return medium switch
-		{
-			Medium.Video => MediaKind.Video,
-			Medium.Image => MediaKind.Image,
-			_ => null
-		};
-	}
+        foreach (var el in element.Descendants(MediaNs + "content"))
+        {
+            var url = (string?)el.Attribute("url");
+            if (string.IsNullOrEmpty(url)) continue;
 
-	private static MediaKind? ResolveKindFromStrings(string? type, string? medium)
-	{
-		if (!string.IsNullOrEmpty(type))
-		{
-			if (type.StartsWith("video/")) return MediaKind.Video;
-			if (type.StartsWith("image/")) return MediaKind.Image;
-		}
+            var type = (string?)el.Attribute("type");
+            var medium = (string?)el.Attribute("medium");
+            var kind = ResolveKindFromStrings(type, medium);
+            if (kind is null) continue;
 
-		return medium switch
-		{
-			"video" => MediaKind.Video,
-			"image" => MediaKind.Image,
-			_ => null
-		};
-	}
+            refs.Add(new MediaReference(url, kind.Value, type));
+        }
+
+        foreach (var el in element.Descendants(MediaNs + "thumbnail"))
+        {
+            var url = (string?)el.Attribute("url");
+            if (string.IsNullOrEmpty(url)) continue;
+
+            refs.Add(new MediaReference(url, MediaKind.Image, null));
+        }
+    }
+
+    private static MediaKind? ResolveKindFromTypeAndMedium(string? type, Medium medium)
+    {
+        if (!string.IsNullOrEmpty(type))
+        {
+            if (type.StartsWith("video/")) return MediaKind.Video;
+            if (type.StartsWith("image/")) return MediaKind.Image;
+        }
+
+        return medium switch
+        {
+            Medium.Video => MediaKind.Video,
+            Medium.Image => MediaKind.Image,
+            _ => null
+        };
+    }
+
+    private static MediaKind? ResolveKindFromStrings(string? type, string? medium)
+    {
+        if (!string.IsNullOrEmpty(type))
+        {
+            if (type.StartsWith("video/")) return MediaKind.Video;
+            if (type.StartsWith("image/")) return MediaKind.Image;
+        }
+
+        return medium switch
+        {
+            "video" => MediaKind.Video,
+            "image" => MediaKind.Image,
+            _ => null
+        };
+    }
 }

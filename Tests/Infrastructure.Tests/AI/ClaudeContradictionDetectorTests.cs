@@ -56,7 +56,7 @@ public class ClaudeContradictionDetectorTests
 		var json = $$"""
             [
               {
-                "articleIds": ["{{articleId}}"],
+                "article_ids": ["{{articleId}}"],
                 "description": "Article claims 5 casualties, but event summary says 2."
               }
             ]
@@ -101,7 +101,7 @@ public class ClaudeContradictionDetectorTests
             ```json
             [
               {
-                "articleIds": ["{{articleId}}"],
+                "article_ids": ["{{articleId}}"],
                 "description": "Contradicting death toll figures."
               }
             ]

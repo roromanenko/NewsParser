@@ -8,7 +8,8 @@ builder.Services
 	.AddInfrastructure(builder.Configuration)
 	.AddApi(builder.Configuration);
 
-builder.Configuration.MigrateDatabase();
+if (!builder.Environment.IsEnvironment("Testing"))
+	builder.Configuration.MigrateDatabase();
 
 var app = builder.Build();
 

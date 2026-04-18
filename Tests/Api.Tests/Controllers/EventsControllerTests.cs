@@ -3,6 +3,7 @@ using Core.DomainModels;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
 using FluentAssertions;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -42,6 +43,8 @@ public class EventsControllerTests
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
+                builder.UseEnvironment("Testing");
+
                 builder.ConfigureServices(services =>
                 {
                     RemoveAllImplementations(services, typeof(IEventRepository));

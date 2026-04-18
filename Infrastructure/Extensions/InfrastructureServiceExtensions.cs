@@ -81,6 +81,17 @@ public static class InfrastructureServiceExtensions
 		services.AddSingleton<ITelegramChannelReader>(sp => sp.GetRequiredService<TelegramClientService>());
 		services.AddScoped<ISourceParser, RssParser>();
 		services.AddScoped<ISourceParser, TelegramParser>();
+
+		services.Configure<ArticleScraperOptions>(configuration.GetSection(ArticleScraperOptions.SectionName));
+		services.AddScoped<IArticleContentScraper, HtmlArticleContentScraper>();
+		services.AddHttpClient("ArticleContentScraper")
+			.ConfigureHttpClient((sp, client) =>
+			{
+				var opts = sp.GetRequiredService<IOptions<ArticleScraperOptions>>().Value;
+				client.Timeout = TimeSpan.FromSeconds(opts.RequestTimeoutSeconds);
+				client.DefaultRequestHeaders.UserAgent.ParseAdd(opts.UserAgent);
+			});
+
 		return services;
 	}
 
