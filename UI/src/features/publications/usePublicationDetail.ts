@@ -10,6 +10,10 @@ export function usePublicationDetail(id: string) {
         .get<PublicationDetailDto>(`/publications/${id}`)
         .then(r => r.data),
     enabled: !!id,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === 'Created' || status === 'GenerationInProgress' ? 3000 : false
+    },
   })
 
   return { publication: data, isLoading, error }

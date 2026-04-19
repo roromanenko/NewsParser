@@ -61,5 +61,23 @@ export function usePublicationMutations(publicationId?: string) {
     onError: () => toast('Failed to reject publication', 'error'),
   })
 
-  return { generateContent, updateContent, approve, reject }
+  const regenerate = useMutation({
+    mutationFn: (feedback: string) =>
+      apiClient
+        .post<PublicationDetailDto>(`/publications/${publicationId}/regenerate`, { feedback })
+        .then(r => r.data),
+    onSuccess: () => {
+      toast('Regeneration requested', 'success')
+      invalidateDetail()
+    },
+    onError: (error: unknown) => {
+      const status = (error as { response?: { status?: number } })?.response?.status
+      const message = status === 409
+        ? 'Cannot regenerate: publication is no longer in a regeneratable state.'
+        : 'Failed to request regeneration'
+      toast(message, 'error')
+    },
+  })
+
+  return { generateContent, updateContent, approve, reject, regenerate }
 }

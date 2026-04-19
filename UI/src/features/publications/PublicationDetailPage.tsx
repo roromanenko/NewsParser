@@ -26,16 +26,20 @@ function buildInitialMediaIds(publication: PublicationDetailDto): string[] {
   return publication.selectedMediaFileIds ?? []
 }
 
+const REGEN_MAX = 2000
+
 export function PublicationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { publication, isLoading } = usePublicationDetail(id!)
-  const { updateContent, approve, reject } = usePublicationMutations(id)
+  const { updateContent, approve, reject, regenerate } = usePublicationMutations(id)
 
   const [editedContent, setEditedContent] = useState('')
   const [selectedMediaIds, setSelectedMediaIds] = useState<string[]>([])
   const [rejectReason, setRejectReason] = useState('')
   const [showRejectInput, setShowRejectInput] = useState(false)
+  const [showRegenerateInput, setShowRegenerateInput] = useState(false)
+  const [regenerateFeedback, setRegenerateFeedback] = useState('')
 
   useEffect(() => {
     if (!publication) return
@@ -63,9 +67,11 @@ export function PublicationDetailPage() {
 
   const isContentReady = publication.status === 'ContentReady'
   const isApproved = publication.status === 'Approved'
+  const isFailed = publication.status === 'Failed'
   const canEdit = isContentReady
   const canApprove = isContentReady
   const canReject = isContentReady || isApproved
+  const canRegenerate = isContentReady || isFailed
 
   const accentColor = statusAccentColor(publication.status)
   const displayTitle = publication.eventTitle ?? publication.targetName
@@ -96,6 +102,17 @@ export function PublicationDetailPage() {
       onSuccess: () => {
         setShowRejectInput(false)
         setRejectReason('')
+      },
+    })
+  }
+
+  const handleRegenerate = () => {
+    const trimmed = regenerateFeedback.trim()
+    if (!trimmed) return
+    regenerate.mutate(trimmed, {
+      onSuccess: () => {
+        setShowRegenerateInput(false)
+        setRegenerateFeedback('')
       },
     })
   }
@@ -149,7 +166,10 @@ export function PublicationDetailPage() {
               )}
               {canReject && (
                 <button
-                  onClick={() => setShowRejectInput(v => !v)}
+                  onClick={() => {
+                    setShowRegenerateInput(false)
+                    setShowRejectInput(v => !v)
+                  }}
                   disabled={reject.isPending}
                   className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors disabled:opacity-50"
                   style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
@@ -163,6 +183,27 @@ export function PublicationDetailPage() {
                   }}
                 >
                   REJECT
+                </button>
+              )}
+              {canRegenerate && (
+                <button
+                  onClick={() => {
+                    setShowRejectInput(false)
+                    setShowRegenerateInput(v => !v)
+                  }}
+                  disabled={regenerate.isPending}
+                  className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors disabled:opacity-50"
+                  style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'var(--caramel)'
+                    e.currentTarget.style.color = 'var(--caramel)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+                    e.currentTarget.style.color = '#9ca3af'
+                  }}
+                >
+                  REGENERATE
                 </button>
               )}
             </div>
@@ -208,6 +249,22 @@ export function PublicationDetailPage() {
           </p>
           <p className="font-mono text-sm" style={{ color: '#9ca3af' }}>
             {publication.rejectionReason}
+          </p>
+        </div>
+      )}
+
+      {/* Editor feedback display */}
+      {publication.editorFeedback && (
+        <div
+          className="relative border p-5"
+          style={{ background: 'rgba(61,15,15,0.4)', borderColor: 'rgba(255,255,255,0.1)' }}
+        >
+          <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: 'var(--caramel)' }} />
+          <p className="font-caps text-[10px] tracking-widest mb-2" style={{ color: '#6b7280' }}>
+            EDITOR FEEDBACK
+          </p>
+          <p className="font-mono text-sm whitespace-pre-wrap" style={{ color: '#9ca3af' }}>
+            {publication.editorFeedback}
           </p>
         </div>
       )}
@@ -266,6 +323,69 @@ export function PublicationDetailPage() {
             >
               CANCEL
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Regenerate input */}
+      {showRegenerateInput && (
+        <div
+          className="relative border p-5 space-y-3"
+          style={{ background: 'rgba(61,15,15,0.4)', borderColor: 'rgba(255,255,255,0.1)' }}
+        >
+          <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: 'var(--caramel)' }} />
+          <p className="font-caps text-[10px] tracking-widest" style={{ color: '#6b7280' }}>
+            REGENERATION FEEDBACK
+          </p>
+          <textarea
+            value={regenerateFeedback}
+            onChange={e => setRegenerateFeedback(e.target.value.slice(0, REGEN_MAX))}
+            rows={4}
+            className="w-full font-mono text-sm resize-y p-3 focus:outline-none"
+            style={{
+              background: 'rgba(61,15,15,0.4)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: '#E8E8E8',
+            }}
+            placeholder="Describe what to change: 'make it shorter', 'emphasize the second source'…"
+          />
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[10px]" style={{ color: '#6b7280' }}>
+              {regenerateFeedback.length} / {REGEN_MAX}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={handleRegenerate}
+                disabled={!regenerateFeedback.trim() || regenerate.isPending}
+                className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors disabled:opacity-40"
+                style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'var(--caramel)'
+                  e.currentTarget.style.color = 'var(--caramel)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+                  e.currentTarget.style.color = '#9ca3af'
+                }}
+              >
+                {regenerate.isPending ? 'REQUESTING…' : 'REQUEST REGENERATION'}
+              </button>
+              <button
+                onClick={() => setShowRegenerateInput(false)}
+                className="px-4 py-2 font-caps text-xs tracking-wider border transition-colors"
+                style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'
+                  e.currentTarget.style.color = '#E8E8E8'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+                  e.currentTarget.style.color = '#9ca3af'
+                }}
+              >
+                CANCEL
+              </button>
+            </div>
           </div>
         </div>
       )}

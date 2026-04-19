@@ -22,6 +22,7 @@ const mockMutations = {
   updateContent: { mutate: vi.fn(), isPending: false },
   approve: { mutate: vi.fn(), isPending: false },
   reject: { mutate: vi.fn(), isPending: false },
+  regenerate: { mutate: vi.fn(), isPending: false },
 }
 
 function buildPublication(overrides: Partial<PublicationDetailDto> = {}): PublicationDetailDto {
@@ -38,6 +39,7 @@ function buildPublication(overrides: Partial<PublicationDetailDto> = {}): Public
     approvedAt: null,
     publishedAt: null,
     rejectionReason: null,
+    editorFeedback: null,
     ...overrides,
   }
 }

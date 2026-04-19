@@ -31,4 +31,5 @@ export interface PublicationDetailDto {
   approvedAt: string | null
   publishedAt: string | null
   rejectionReason: string | null
+  editorFeedback: string | null
 }
