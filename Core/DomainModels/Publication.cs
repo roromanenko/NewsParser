@@ -22,6 +22,7 @@ public class Publication
 	public Publication? ParentPublication { get; set; }
 
 	public string? UpdateContext { get; set; }
+	public string? EditorFeedback { get; set; }
 
 	public List<Guid> SelectedMediaFileIds { get; set; } = [];
 	public Guid? ReviewedByEditorId { get; set; }

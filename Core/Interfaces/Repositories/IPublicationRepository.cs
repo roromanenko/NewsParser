@@ -33,4 +33,5 @@ public interface IPublicationRepository
 	Task<string?> GetExternalMessageIdAsync(Guid publicationId, CancellationToken cancellationToken = default);
 	Task<Publication?> GetOriginalEventPublicationAsync(Guid eventId, CancellationToken cancellationToken = default);
 	Task AddEventUpdatePublicationAsync(Publication publication, Guid articleId, CancellationToken cancellationToken = default);
+	Task RequestRegenerationAsync(Guid id, string feedback, CancellationToken cancellationToken = default);
 }

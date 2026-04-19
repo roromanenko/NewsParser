@@ -449,6 +449,155 @@ public class PublicationsControllerTests
     }
 
     // ------------------------------------------------------------------
+    // POST /publications/{id}/regenerate — 200 with detail dto on success
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task Regenerate_WhenServiceSucceeds_Returns200WithDetailDto()
+    {
+        // Arrange
+        const string feedback = "Make it shorter.";
+        var publication = CreatePublicationWithEvent(PublicationStatus.Created);
+        publication.EditorFeedback = feedback;
+
+        _publicationServiceMock
+            .Setup(s => s.RegenerateAsync(publication.Id, feedback, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(publication);
+        _publicationRepoMock
+            .Setup(r => r.GetDetailAsync(publication.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(publication);
+
+        var request = new RegeneratePublicationRequest(Feedback: feedback);
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/publications/{publication.Id}/regenerate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<PublicationDetailDto>();
+        body.Should().NotBeNull();
+        body!.Id.Should().Be(publication.Id);
+        body.Status.Should().Be("Created");
+        body.EditorFeedback.Should().Be(feedback);
+    }
+
+    // ------------------------------------------------------------------
+    // POST /publications/{id}/regenerate — 401 when not authenticated
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task Regenerate_WhenNotAuthenticated_Returns401()
+    {
+        // Arrange
+        using var unauthClient = _factory.CreateClient();
+        var request = new RegeneratePublicationRequest(Feedback: "Some feedback.");
+
+        // Act
+        var response = await unauthClient.PostAsJsonAsync($"/publications/{Guid.NewGuid()}/regenerate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    // ------------------------------------------------------------------
+    // POST /publications/{id}/regenerate — 404 when GetDetailAsync returns null
+    // after the service call succeeds
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task Regenerate_WhenDetailLookupReturnsNull_Returns404()
+    {
+        // Arrange
+        var publicationId = Guid.NewGuid();
+        const string feedback = "Emphasize the second source.";
+
+        _publicationServiceMock
+            .Setup(s => s.RegenerateAsync(publicationId, feedback, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreatePublication(PublicationStatus.Created));
+        _publicationRepoMock
+            .Setup(r => r.GetDetailAsync(publicationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Publication?)null);
+
+        var request = new RegeneratePublicationRequest(Feedback: feedback);
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/publications/{publicationId}/regenerate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    // ------------------------------------------------------------------
+    // POST /publications/{id}/regenerate — 400 when feedback is empty
+    // (FluentValidation fires before controller)
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task Regenerate_WhenFeedbackIsEmpty_Returns400()
+    {
+        // Arrange
+        var publicationId = Guid.NewGuid();
+        var request = new RegeneratePublicationRequest(Feedback: "");
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/publications/{publicationId}/regenerate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        _publicationServiceMock.Verify(
+            s => s.RegenerateAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    // ------------------------------------------------------------------
+    // POST /publications/{id}/regenerate — 400 when feedback exceeds 2000 chars
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task Regenerate_WhenFeedbackExceedsMaxLength_Returns400()
+    {
+        // Arrange
+        var publicationId = Guid.NewGuid();
+        var oversized = new string('x', 2001);
+        var request = new RegeneratePublicationRequest(Feedback: oversized);
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/publications/{publicationId}/regenerate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        _publicationServiceMock.Verify(
+            s => s.RegenerateAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    // ------------------------------------------------------------------
+    // POST /publications/{id}/regenerate — 409 when service throws
+    // InvalidOperationException (wrong status)
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task Regenerate_WhenServiceThrowsInvalidOperationException_Returns409()
+    {
+        // Arrange
+        var publicationId = Guid.NewGuid();
+        const string feedback = "Try again please.";
+
+        _publicationServiceMock
+            .Setup(s => s.RegenerateAsync(publicationId, feedback, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException(
+                $"Publication {publicationId} cannot be regenerated: status is Approved"));
+
+        var request = new RegeneratePublicationRequest(Feedback: feedback);
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/publications/{publicationId}/regenerate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
 

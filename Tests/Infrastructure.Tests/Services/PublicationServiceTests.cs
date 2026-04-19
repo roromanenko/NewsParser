@@ -577,6 +577,154 @@ public class PublicationServiceTests
     }
 
     // ------------------------------------------------------------------
+    // RegenerateAsync — P0: happy path from ContentReady queues regeneration
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task RegenerateAsync_WhenPublicationIsContentReady_QueuesRegenerationAndReturnsPublication()
+    {
+        // Arrange
+        var publicationId = Guid.NewGuid();
+        const string feedback = "Make it shorter.";
+        var publication = CreatePublication(publicationId, PublicationStatus.ContentReady);
+        publication.GeneratedContent = "Previous draft content.";
+
+        _publicationRepoMock
+            .Setup(r => r.GetByIdAsync(publicationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(publication);
+        _publicationRepoMock
+            .Setup(r => r.RequestRegenerationAsync(publicationId, feedback, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await _sut.RegenerateAsync(publicationId, feedback);
+
+        // Assert
+        result.Status.Should().Be(PublicationStatus.Created);
+        result.EditorFeedback.Should().Be(feedback);
+        result.GeneratedContent.Should().BeEmpty();
+        _publicationRepoMock.Verify(
+            r => r.RequestRegenerationAsync(publicationId, feedback, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    // ------------------------------------------------------------------
+    // RegenerateAsync — P0: happy path from Failed queues regeneration
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task RegenerateAsync_WhenPublicationIsFailed_QueuesRegenerationAndReturnsPublication()
+    {
+        // Arrange
+        var publicationId = Guid.NewGuid();
+        const string feedback = "Retry with a calmer tone.";
+        var publication = CreatePublication(publicationId, PublicationStatus.Failed);
+        publication.GeneratedContent = "Partial content.";
+
+        _publicationRepoMock
+            .Setup(r => r.GetByIdAsync(publicationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(publication);
+        _publicationRepoMock
+            .Setup(r => r.RequestRegenerationAsync(publicationId, feedback, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await _sut.RegenerateAsync(publicationId, feedback);
+
+        // Assert
+        result.Status.Should().Be(PublicationStatus.Created);
+        result.EditorFeedback.Should().Be(feedback);
+        result.GeneratedContent.Should().BeEmpty();
+        _publicationRepoMock.Verify(
+            r => r.RequestRegenerationAsync(publicationId, feedback, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    // ------------------------------------------------------------------
+    // RegenerateAsync — P1: status guards reject non-ContentReady/Failed statuses
+    // ------------------------------------------------------------------
+
+    [TestCase(PublicationStatus.Created)]
+    [TestCase(PublicationStatus.GenerationInProgress)]
+    [TestCase(PublicationStatus.Approved)]
+    [TestCase(PublicationStatus.Published)]
+    [TestCase(PublicationStatus.Rejected)]
+    public async Task RegenerateAsync_WhenPublicationStatusIsNotRegeneratable_ThrowsInvalidOperationException(
+        PublicationStatus status)
+    {
+        // Arrange
+        var publicationId = Guid.NewGuid();
+        var publication = CreatePublication(publicationId, status);
+
+        _publicationRepoMock
+            .Setup(r => r.GetByIdAsync(publicationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(publication);
+
+        // Act
+        var act = async () => await _sut.RegenerateAsync(publicationId, "Some feedback");
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage($"*{publicationId}*");
+        _publicationRepoMock.Verify(
+            r => r.RequestRegenerationAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    // ------------------------------------------------------------------
+    // RegenerateAsync — P1: throws KeyNotFoundException when publication missing
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task RegenerateAsync_WhenPublicationNotFound_ThrowsKeyNotFoundException()
+    {
+        // Arrange
+        var publicationId = Guid.NewGuid();
+
+        _publicationRepoMock
+            .Setup(r => r.GetByIdAsync(publicationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Publication?)null);
+
+        // Act
+        var act = async () => await _sut.RegenerateAsync(publicationId, "feedback");
+
+        // Assert
+        await act.Should().ThrowAsync<KeyNotFoundException>().WithMessage($"*{publicationId}*");
+        _publicationRepoMock.Verify(
+            r => r.RequestRegenerationAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    // ------------------------------------------------------------------
+    // RegenerateAsync — P1: empty/whitespace/null feedback is rejected BEFORE DB lookup
+    // ------------------------------------------------------------------
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    [TestCase("\t\n")]
+    public async Task RegenerateAsync_WhenFeedbackIsNullOrWhitespace_ThrowsArgumentExceptionBeforeDbLookup(
+        string? feedback)
+    {
+        // Arrange
+        var publicationId = Guid.NewGuid();
+
+        // Act
+        var act = async () => await _sut.RegenerateAsync(publicationId, feedback!);
+
+        // Assert
+        var assertion = await act.Should().ThrowAsync<ArgumentException>();
+        assertion.Which.ParamName.Should().Be("feedback");
+
+        // The guard must run before the repository lookup
+        _publicationRepoMock.Verify(
+            r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _publicationRepoMock.Verify(
+            r => r.RequestRegenerationAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
 

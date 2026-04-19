@@ -1,0 +1,1 @@
+ALTER TABLE publications ADD COLUMN IF NOT EXISTS "EditorFeedback" TEXT NULL;

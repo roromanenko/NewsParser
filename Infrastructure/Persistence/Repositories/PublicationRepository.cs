@@ -277,6 +277,15 @@ internal class PublicationRepository(IDbConnectionFactory factory) : IPublicatio
             cancellationToken: cancellationToken));
     }
 
+    public async Task RequestRegenerationAsync(Guid id, string feedback, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(new CommandDefinition(
+            PublicationSql.RequestRegeneration,
+            new { id, feedback },
+            cancellationToken: cancellationToken));
+    }
+
     private static Publication BuildPublication(
         PublicationEntity pub, ArticleEntity article, PublishTargetEntity target, EventEntity? evt)
     {
@@ -295,6 +304,7 @@ internal class PublicationRepository(IDbConnectionFactory factory) : IPublicatio
             Event = evt?.ToDomain(),
             ParentPublicationId = pub.ParentPublicationId,
             UpdateContext = pub.UpdateContext,
+            EditorFeedback = pub.EditorFeedback,
             SelectedMediaFileIds = pub.SelectedMediaFileIds ?? [],
             ReviewedByEditorId = pub.ReviewedByEditorId,
             RejectedAt = pub.RejectedAt,
@@ -318,6 +328,7 @@ internal class PublicationRepository(IDbConnectionFactory factory) : IPublicatio
             Event = pub.Event?.ToDomain(),
             ParentPublicationId = pub.ParentPublicationId,
             UpdateContext = pub.UpdateContext,
+            EditorFeedback = pub.EditorFeedback,
             SelectedMediaFileIds = pub.SelectedMediaFileIds ?? [],
             ReviewedByEditorId = pub.ReviewedByEditorId,
             RejectedAt = pub.RejectedAt,
@@ -348,6 +359,7 @@ internal class PublicationRepository(IDbConnectionFactory factory) : IPublicatio
         parameters.Add("EventId", entity.EventId);
         parameters.Add("ParentPublicationId", entity.ParentPublicationId);
         parameters.Add("UpdateContext", entity.UpdateContext);
+        parameters.Add("EditorFeedback", entity.EditorFeedback);
         parameters.Add("SelectedMediaFileIds", entity.SelectedMediaFileIds);
         parameters.Add("ReviewedByEditorId", entity.ReviewedByEditorId);
         parameters.Add("RejectedAt", entity.RejectedAt);

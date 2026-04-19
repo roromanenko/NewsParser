@@ -8,5 +8,6 @@ public interface IContentGenerator
 		Event evt,
 		PublishTarget target,
 		CancellationToken cancellationToken = default,
-		string? updateContext = null);
+		string? updateContext = null,
+		string? editorFeedback = null);
 }

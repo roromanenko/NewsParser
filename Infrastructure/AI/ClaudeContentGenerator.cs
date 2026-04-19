@@ -8,32 +8,20 @@ using System.Text.Json;
 
 namespace Infrastructure.AI;
 
-public class ClaudeContentGenerator : IContentGenerator
+public class ClaudeContentGenerator(
+	string apiKey,
+	string model,
+	Dictionary<Platform, string> basePrompts,
+	ILogger<ClaudeContentGenerator> logger) : IContentGenerator
 {
-	private readonly string _apiKey;
-	private readonly string _model;
-	private readonly Dictionary<Platform, string> _basePrompts;
-	private readonly ILogger<ClaudeContentGenerator> _logger;
-
-	public ClaudeContentGenerator(
-		string apiKey,
-		string model,
-		Dictionary<Platform, string> basePrompts,
-		ILogger<ClaudeContentGenerator> logger)
-	{
-		_apiKey = apiKey;
-		_model = model;
-		_basePrompts = basePrompts;
-		_logger = logger;
-	}
-
 	public async Task<string> GenerateForPlatformAsync(
 		Event evt,
 		PublishTarget target,
 		CancellationToken cancellationToken = default,
-		string? updateContext = null)
+		string? updateContext = null,
+		string? editorFeedback = null)
 	{
-		if (!_basePrompts.TryGetValue(target.Platform, out var basePrompt))
+		if (!basePrompts.TryGetValue(target.Platform, out var basePrompt))
 			throw new InvalidOperationException(
 				$"No base prompt configured for platform {target.Platform}");
 
@@ -41,29 +29,31 @@ public class ClaudeContentGenerator : IContentGenerator
 			? basePrompt
 			: $"{basePrompt}\n\nCHANNEL STYLE INSTRUCTIONS:\n{target.SystemPrompt}";
 
-		var client = new AnthropicClient(new APIAuthentication(_apiKey));
+		var client = new AnthropicClient(new APIAuthentication(apiKey));
 
-		var userPrompt = updateContext is not null
-			? BuildUpdatePrompt(evt, target, updateContext)
-			: BuildEventPrompt(evt, target);
+		var userPrompt = editorFeedback is not null
+			? BuildRegenerationPrompt(evt, target, editorFeedback)
+			: updateContext is not null
+				? BuildUpdatePrompt(evt, target, updateContext)
+				: BuildEventPrompt(evt, target);
 
 		var request = new MessageParameters
 		{
-			Model = _model,
+			Model = model,
 			MaxTokens = 1024,
 			System = [new SystemMessage(systemPrompt)],
 			Messages = [new Message(RoleType.User, userPrompt)]
 		};
 
 		var sw = Stopwatch.StartNew();
-		_logger.LogDebug("Calling {Provider} {Model} with {PromptChars} chars",
-			"Anthropic", _model, userPrompt.Length);
+		logger.LogDebug("Calling {Provider} {Model} with {PromptChars} chars",
+			"Anthropic", model, userPrompt.Length);
 
 		var response = await client.Messages.GetClaudeMessageAsync(request, cancellationToken);
 
 		sw.Stop();
-		_logger.LogDebug("{Provider} {Model} succeeded in {DurationMs}ms",
-			"Anthropic", _model, sw.ElapsedMilliseconds);
+		logger.LogDebug("{Provider} {Model} succeeded in {DurationMs}ms",
+			"Anthropic", model, sw.ElapsedMilliseconds);
 
 		var raw = response.Content.FirstOrDefault()?.ToString() ?? string.Empty;
 
@@ -73,8 +63,8 @@ public class ClaudeContentGenerator : IContentGenerator
 		}
 		catch (Exception ex)
 		{
-			_logger.LogWarning(ex, "{Provider} {Model} returned unparseable response",
-				"Anthropic", _model);
+			logger.LogWarning(ex, "{Provider} {Model} returned unparseable response",
+				"Anthropic", model);
 			throw;
 		}
 	}
@@ -113,6 +103,22 @@ public class ClaudeContentGenerator : IContentGenerator
             Title: {evt.Title}
             Category: {initiator.Category}
             Tags: {string.Join(", ", combinedTags)}
+            """;
+	}
+
+	private static string BuildRegenerationPrompt(Event evt, PublishTarget target, string editorFeedback)
+	{
+		var articlesSection = BuildArticlesSection(evt.Articles);
+
+		return $"""
+            CHANNEL: {target.Name}
+            This is a REGENERATION request. The previous draft was rejected by the editor.
+            EDITOR FEEDBACK (apply carefully, do not quote literally):
+            {editorFeedback}
+            EVENT TITLE: {evt.Title}
+            EVENT SUMMARY: {evt.Summary}
+            SOURCES:
+            {articlesSection}
             """;
 	}
 

@@ -11,9 +11,9 @@ namespace Infrastructure.Tests.Repositories;
 ///
 /// Methods that use raw SQL with FOR UPDATE SKIP LOCKED
 /// (GetPendingForGenerationAsync, GetPendingForPublishAsync) and the bulk-update
-/// methods (UpdateContentAndMediaAsync, UpdateApprovalAsync, UpdateRejectionAsync)
-/// require PostgreSQL-specific APIs. Those contracts are verified against the
-/// <see cref="IPublicationRepository"/> interface mock.
+/// methods (UpdateContentAndMediaAsync, UpdateApprovalAsync, UpdateRejectionAsync,
+/// RequestRegenerationAsync) require PostgreSQL-specific APIs. Those contracts
+/// are verified against the <see cref="IPublicationRepository"/> interface mock.
 /// </summary>
 [TestFixture]
 public class PublicationRepositoryInterfaceContractTests
@@ -208,12 +208,99 @@ public class PublicationRepositoryInterfaceContractTests
     }
 
     // ------------------------------------------------------------------
+    // RequestRegenerationAsync — P0: after call, re-fetch shows Status=Created,
+    // EditorFeedback=feedback, GeneratedContent=""
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task RequestRegenerationAsync_WhenCalled_ReFetchShowsCreatedStatusFeedbackAndClearedContent()
+    {
+        // Arrange — simulate a real repository by wiring the mock to mutate an in-memory
+        // publication on RequestRegenerationAsync, then reflect that state on GetByIdAsync.
+        var publicationId = Guid.NewGuid();
+        const string feedback = "Drop the political angle.";
+
+        var storedPublication = CreatePublication(PublicationStatus.ContentReady, publicationId);
+        storedPublication.GeneratedContent = "Original AI draft text.";
+        storedPublication.EditorFeedback = null;
+
+        _repositoryMock
+            .Setup(r => r.RequestRegenerationAsync(publicationId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<Guid, string, CancellationToken>((_, f, _) =>
+            {
+                storedPublication.Status = PublicationStatus.Created;
+                storedPublication.EditorFeedback = f;
+                storedPublication.GeneratedContent = string.Empty;
+            })
+            .Returns(Task.CompletedTask);
+
+        _repositoryMock
+            .Setup(r => r.GetByIdAsync(publicationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => storedPublication);
+
+        // Act
+        await _repositoryMock.Object.RequestRegenerationAsync(publicationId, feedback, CancellationToken.None);
+        var refetched = await _repositoryMock.Object.GetByIdAsync(publicationId, CancellationToken.None);
+
+        // Assert
+        refetched.Should().NotBeNull();
+        refetched!.Status.Should().Be(PublicationStatus.Created);
+        refetched.EditorFeedback.Should().Be(feedback);
+        refetched.GeneratedContent.Should().BeEmpty();
+        _repositoryMock.Verify(
+            r => r.RequestRegenerationAsync(publicationId, feedback, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    // ------------------------------------------------------------------
+    // RequestRegenerationAsync — P1: second call overwrites the first feedback
+    // (latest-wins semantics documented in ADR 0017)
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task RequestRegenerationAsync_WhenCalledTwice_SecondFeedbackOverwritesFirst()
+    {
+        // Arrange
+        var publicationId = Guid.NewGuid();
+        const string firstFeedback = "Make it shorter.";
+        const string secondFeedback = "Actually, make it longer and more detailed.";
+
+        var storedPublication = CreatePublication(PublicationStatus.ContentReady, publicationId);
+
+        _repositoryMock
+            .Setup(r => r.RequestRegenerationAsync(publicationId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<Guid, string, CancellationToken>((_, f, _) =>
+            {
+                storedPublication.Status = PublicationStatus.Created;
+                storedPublication.EditorFeedback = f;
+                storedPublication.GeneratedContent = string.Empty;
+            })
+            .Returns(Task.CompletedTask);
+
+        _repositoryMock
+            .Setup(r => r.GetByIdAsync(publicationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => storedPublication);
+
+        // Act
+        await _repositoryMock.Object.RequestRegenerationAsync(publicationId, firstFeedback, CancellationToken.None);
+        await _repositoryMock.Object.RequestRegenerationAsync(publicationId, secondFeedback, CancellationToken.None);
+        var refetched = await _repositoryMock.Object.GetByIdAsync(publicationId, CancellationToken.None);
+
+        // Assert
+        refetched.Should().NotBeNull();
+        refetched!.EditorFeedback.Should().Be(secondFeedback);
+        _repositoryMock.Verify(
+            r => r.RequestRegenerationAsync(publicationId, It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+    }
+
+    // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
 
-    private static Publication CreatePublication(PublicationStatus status) => new()
+    private static Publication CreatePublication(PublicationStatus status, Guid? id = null) => new()
     {
-        Id = Guid.NewGuid(),
+        Id = id ?? Guid.NewGuid(),
         Article = new Article { Id = Guid.NewGuid(), Title = "Test Article" },
         PublishTarget = new PublishTarget { Id = Guid.NewGuid(), Name = "Test Target", Platform = Platform.Telegram, IsActive = true },
         Status = status,

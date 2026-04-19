@@ -22,7 +22,8 @@ public record PublicationDetailDto(
 	DateTimeOffset CreatedAt,
 	DateTimeOffset? ApprovedAt,
 	DateTimeOffset? PublishedAt,
-	string? RejectionReason
+	string? RejectionReason,
+	string? EditorFeedback
 );
 
 public record CreatePublicationRequest(Guid EventId, Guid PublishTargetId);
@@ -30,3 +31,5 @@ public record CreatePublicationRequest(Guid EventId, Guid PublishTargetId);
 public record UpdatePublicationContentRequest(string Content, List<Guid> SelectedMediaFileIds);
 
 public record RejectPublicationRequest(string Reason);
+
+public record RegeneratePublicationRequest(string Feedback);

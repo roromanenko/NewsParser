@@ -32,6 +32,7 @@ docs/PublicationsApi.md
 docs/PublishTargetDto.md
 docs/PublishTargetsApi.md
 docs/ReclassifyArticleRequest.md
+docs/RegeneratePublicationRequest.md
 docs/RegisterRequest.md
 docs/RejectPublicationRequest.md
 docs/ResolveContradictionRequest.md

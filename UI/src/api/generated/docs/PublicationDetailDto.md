@@ -16,6 +16,7 @@ Name | Type | Description | Notes
 **approvedAt** | **string** |  | [optional] [default to undefined]
 **publishedAt** | **string** |  | [optional] [default to undefined]
 **rejectionReason** | **string** |  | [optional] [default to undefined]
+**editorFeedback** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -34,6 +35,7 @@ const instance: PublicationDetailDto = {
     approvedAt,
     publishedAt,
     rejectionReason,
+    editorFeedback,
 };
 ```
 

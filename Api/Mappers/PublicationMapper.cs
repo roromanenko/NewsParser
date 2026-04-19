@@ -27,6 +27,7 @@ public static class PublicationMapper
 		pub.CreatedAt,
 		pub.ApprovedAt,
 		pub.PublishedAt,
-		pub.RejectionReason
+		pub.RejectionReason,
+		pub.EditorFeedback
 	);
 }

@@ -160,6 +160,25 @@ public class PublicationsController(
 		return Ok(detail.ToDetailDto(availableMedia, _publicBaseUrl));
 	}
 
+	[HttpPost("{id:guid}/regenerate")]
+	public async Task<ActionResult<PublicationDetailDto>> Regenerate(
+		Guid id,
+		[FromBody] RegeneratePublicationRequest request,
+		CancellationToken cancellationToken = default)
+	{
+		if (UserId is null)
+			return Unauthorized();
+
+		await publicationService.RegenerateAsync(id, request.Feedback, cancellationToken);
+
+		var detail = await publicationRepository.GetDetailAsync(id, cancellationToken);
+		if (detail is null)
+			return NotFound();
+
+		var availableMedia = ExtractAvailableMedia(detail);
+		return Ok(detail.ToDetailDto(availableMedia, _publicBaseUrl));
+	}
+
 	private static List<MediaFile> ExtractAvailableMedia(Publication publication)
 	{
 		if (publication.Event is null)

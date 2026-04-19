@@ -10,6 +10,7 @@ All URIs are relative to *http://localhost*
 |[**publicationsIdApprovePost**](#publicationsidapprovepost) | **POST** /publications/{id}/approve | |
 |[**publicationsIdContentPut**](#publicationsidcontentput) | **PUT** /publications/{id}/content | |
 |[**publicationsIdGet**](#publicationsidget) | **GET** /publications/{id} | |
+|[**publicationsIdRegeneratePost**](#publicationsidregeneratepost) | **POST** /publications/{id}/regenerate | |
 |[**publicationsIdRejectPost**](#publicationsidrejectpost) | **POST** /publications/{id}/reject | |
 |[**publicationsIdSendPost**](#publicationsidsendpost) | **POST** /publications/{id}/send | |
 
@@ -311,6 +312,60 @@ const { status, data } = await apiInstance.publicationsIdGet(
 ### HTTP request headers
 
  - **Content-Type**: Not defined
+ - **Accept**: text/plain, application/json, text/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **publicationsIdRegeneratePost**
+> PublicationDetailDto publicationsIdRegeneratePost()
+
+
+### Example
+
+```typescript
+import {
+    PublicationsApi,
+    Configuration,
+    RegeneratePublicationRequest
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new PublicationsApi(configuration);
+
+let id: string; // (default to undefined)
+let regeneratePublicationRequest: RegeneratePublicationRequest; // (optional)
+
+const { status, data } = await apiInstance.publicationsIdRegeneratePost(
+    id,
+    regeneratePublicationRequest
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **regeneratePublicationRequest** | **RegeneratePublicationRequest**|  | |
+| **id** | [**string**] |  | defaults to undefined|
+
+
+### Return type
+
+**PublicationDetailDto**
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json, text/json, application/*+json
  - **Accept**: text/plain, application/json, text/json
 
 

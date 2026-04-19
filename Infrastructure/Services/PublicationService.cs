@@ -152,4 +152,30 @@ public class PublicationService(
 
 		return publication;
 	}
+
+	public async Task<Publication> RegenerateAsync(
+		Guid publicationId,
+		string feedback,
+		CancellationToken cancellationToken = default)
+	{
+		if (string.IsNullOrWhiteSpace(feedback))
+			throw new ArgumentException("Feedback must not be empty", nameof(feedback));
+
+		var publication = await publicationRepository.GetByIdAsync(publicationId, cancellationToken)
+			?? throw new KeyNotFoundException($"Publication {publicationId} not found");
+
+		if (publication.Status is not PublicationStatus.ContentReady and not PublicationStatus.Failed)
+			throw new InvalidOperationException(
+				$"Publication {publicationId} cannot be regenerated: status is {publication.Status}");
+
+		await publicationRepository.RequestRegenerationAsync(publicationId, feedback, cancellationToken);
+		logger.LogInformation("Publication {PublicationId} queued for regeneration with editor feedback",
+			publicationId);
+
+		publication.Status = PublicationStatus.Created;
+		publication.EditorFeedback = feedback;
+		publication.GeneratedContent = string.Empty;
+
+		return publication;
+	}
 }

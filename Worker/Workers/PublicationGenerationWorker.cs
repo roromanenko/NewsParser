@@ -91,7 +91,8 @@ public class PublicationGenerationWorker : BackgroundService
 				publication.Event,
 				publication.PublishTarget,
 				cancellationToken,
-				updateContext: publication.UpdateContext);
+				updateContext: publication.UpdateContext,
+				editorFeedback: publication.EditorFeedback);
 
 			await publicationRepository.UpdateGeneratedContentAsync(publication.Id, content, cancellationToken);
 			await publicationRepository.UpdateStatusAsync(publication.Id, PublicationStatus.ContentReady, cancellationToken);

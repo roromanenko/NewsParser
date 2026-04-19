@@ -31,4 +31,9 @@ public interface IPublicationService
 		Guid publicationId,
 		Guid editorId,
 		CancellationToken cancellationToken = default);
+
+	Task<Publication> RegenerateAsync(
+		Guid publicationId,
+		string feedback,
+		CancellationToken cancellationToken = default);
 }
