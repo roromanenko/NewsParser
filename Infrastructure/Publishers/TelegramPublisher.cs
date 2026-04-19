@@ -60,18 +60,28 @@ public class TelegramPublisher : IPublisher
 		CancellationToken cancellationToken)
 	{
 		if (media.Count == 0)
+		{
+			_logger.LogDebug("Sending {MessageType} to {ChatId}", "sendMessage", channelId);
 			return await SendMessageAsync(channelId, content, replyToMessageId, cancellationToken);
+		}
 
 		if (media.Count == 1 && media[0].Kind == MediaKind.Image)
+		{
+			_logger.LogDebug("Sending {MessageType} to {ChatId}", "sendPhoto", channelId);
 			return await SendPhotoAsync(channelId, media[0].Url, content, replyToMessageId, cancellationToken);
+		}
 
 		if (media.Count == 1 && media[0].Kind == MediaKind.Video)
+		{
+			_logger.LogDebug("Sending {MessageType} to {ChatId}", "sendVideo", channelId);
 			return await SendVideoAsync(channelId, media[0].Url, content, replyToMessageId, cancellationToken);
+		}
 
 		var group = media.Count > TelegramMediaGroupMaxSize
 			? media.Take(TelegramMediaGroupMaxSize).ToList()
 			: media;
 
+		_logger.LogDebug("Sending {MessageType} to {ChatId}", "sendMediaGroup", channelId);
 		return await SendMediaGroupAsync(channelId, group, content, replyToMessageId, cancellationToken);
 	}
 

@@ -2,6 +2,7 @@ using Anthropic.SDK;
 using Anthropic.SDK.Messaging;
 using Core.Interfaces.AI;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace Infrastructure.AI;
 
@@ -41,7 +42,16 @@ public class HaikuEventTitleGenerator : IEventTitleGenerator
 
 		try
 		{
+			var sw = Stopwatch.StartNew();
+			_logger.LogDebug("Calling {Provider} {Model} with {PromptChars} chars",
+				"Anthropic", _model, userMessage.Length);
+
 			var response = await _client.Messages.GetClaudeMessageAsync(request, cancellationToken);
+
+			sw.Stop();
+			_logger.LogDebug("{Provider} {Model} succeeded in {DurationMs}ms",
+				"Anthropic", _model, sw.ElapsedMilliseconds);
+
 			var raw = response.Content.FirstOrDefault()?.ToString() ?? string.Empty;
 			return raw.Trim();
 		}

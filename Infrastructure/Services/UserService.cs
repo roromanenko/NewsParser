@@ -1,11 +1,14 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
-public class UserService(IUserRepository userRepository) : IUserService
+public class UserService(
+	IUserRepository userRepository,
+	ILogger<UserService> logger) : IUserService
 {
 	public async Task<User?> VerifyLoginAsync(
 		string email,
@@ -57,7 +60,9 @@ public class UserService(IUserRepository userRepository) : IUserService
 		var hasher = new PasswordHasher<User>();
 		var passwordHash = hasher.HashPassword(user, password);
 
-		return await userRepository.CreateAsync(user, passwordHash, cancellationToken);
+		var created = await userRepository.CreateAsync(user, passwordHash, cancellationToken);
+		logger.LogInformation("User {UserId} created with role {Role}", created.Id, created.Role);
+		return created;
 	}
 
 	public async Task<User> UpdateEditorAsync(
@@ -81,6 +86,7 @@ public class UserService(IUserRepository userRepository) : IUserService
 		}
 
 		await userRepository.UpdateAsync(id, firstName, lastName, email, cancellationToken);
+		logger.LogInformation("User {UserId} updated", id);
 
 		user.FirstName = firstName;
 		user.LastName = lastName;
@@ -97,5 +103,6 @@ public class UserService(IUserRepository userRepository) : IUserService
 			throw new InvalidOperationException("Cannot delete Admin users");
 
 		await userRepository.DeleteAsync(id, cancellationToken);
+		logger.LogInformation("User {UserId} deleted", id);
 	}
 }

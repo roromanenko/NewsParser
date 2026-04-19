@@ -106,17 +106,19 @@ public static class InfrastructureServiceExtensions
 		var aiOptions = configuration.GetSection(AiOptions.SectionName).Get<AiOptions>() ?? new AiOptions();
 		var promptsOptions = new PromptsOptions(aiOptions.Normalization.TargetLanguageName);
 
-		services.AddScoped<IArticleAnalyzer>(provider => new GeminiArticleAnalyzer(
+		services.AddScoped<IArticleAnalyzer>(sp => new GeminiArticleAnalyzer(
 			aiOptions.Gemini.ApiKey,
 			aiOptions.Gemini.AnalyzerModel,
 			promptsOptions.Analyzer,
-			provider.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(GeminiArticleAnalyzer))
+			sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(GeminiArticleAnalyzer)),
+			sp.GetRequiredService<ILogger<GeminiArticleAnalyzer>>()
 		));
 
-		services.AddScoped<IEventSummaryUpdater>(_ => new ClaudeEventSummaryUpdater(
+		services.AddScoped<IEventSummaryUpdater>(sp => new ClaudeEventSummaryUpdater(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.SummaryUpdaterModel,
-			promptsOptions.EventSummaryUpdater
+			promptsOptions.EventSummaryUpdater,
+			sp.GetRequiredService<ILogger<ClaudeEventSummaryUpdater>>()
 		));
 
 		var contentGeneratorPrompts = new Dictionary<Platform, string>
@@ -124,16 +126,18 @@ public static class InfrastructureServiceExtensions
 			{ Platform.Telegram, promptsOptions.Telegram }
 		};
 
-		services.AddScoped<IContentGenerator>(_ => new ClaudeContentGenerator(
+		services.AddScoped<IContentGenerator>(sp => new ClaudeContentGenerator(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.ContentGeneratorModel,
-			contentGeneratorPrompts
+			contentGeneratorPrompts,
+			sp.GetRequiredService<ILogger<ClaudeContentGenerator>>()
 		));
 
-		services.AddScoped<IKeyFactsExtractor>(_ => new HaikuKeyFactsExtractor(
+		services.AddScoped<IKeyFactsExtractor>(sp => new HaikuKeyFactsExtractor(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.KeyFactsExtractorModel,
-			promptsOptions.HaikuKeyFacts
+			promptsOptions.HaikuKeyFacts,
+			sp.GetRequiredService<ILogger<HaikuKeyFactsExtractor>>()
 		));
 
 		services.AddScoped<IEventTitleGenerator>(sp => new HaikuEventTitleGenerator(
@@ -143,22 +147,25 @@ public static class InfrastructureServiceExtensions
 			sp.GetRequiredService<ILogger<HaikuEventTitleGenerator>>()
 		));
 
-		services.AddScoped<IEventClassifier>(_ => new ClaudeEventClassifier(
+		services.AddScoped<IEventClassifier>(sp => new ClaudeEventClassifier(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.ClassifierModel,
-			promptsOptions.EventClassifier
+			promptsOptions.EventClassifier,
+			sp.GetRequiredService<ILogger<ClaudeEventClassifier>>()
 		));
 
-		services.AddScoped<IContradictionDetector>(_ => new ClaudeContradictionDetector(
+		services.AddScoped<IContradictionDetector>(sp => new ClaudeContradictionDetector(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.ContradictionDetectorModel,
-			promptsOptions.ContradictionDetector
+			promptsOptions.ContradictionDetector,
+			sp.GetRequiredService<ILogger<ClaudeContradictionDetector>>()
 		));
 
-		services.AddScoped<IGeminiEmbeddingService>(provider => new GeminiEmbeddingService(
+		services.AddScoped<IGeminiEmbeddingService>(sp => new GeminiEmbeddingService(
 			aiOptions.Gemini.ApiKey,
 			aiOptions.Gemini.EmbeddingModel,
-			provider.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(GeminiEmbeddingService))
+			sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(GeminiEmbeddingService)),
+			sp.GetRequiredService<ILogger<GeminiEmbeddingService>>()
 		));
 
 		return services;

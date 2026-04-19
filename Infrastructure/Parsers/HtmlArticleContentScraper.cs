@@ -2,6 +2,7 @@ using Core.DomainModels;
 using Core.Interfaces.Parsers;
 using HtmlAgilityPack;
 using Infrastructure.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 
@@ -9,7 +10,8 @@ namespace Infrastructure.Parsers;
 
 public class HtmlArticleContentScraper(
     IHttpClientFactory httpClientFactory,
-    IOptions<ArticleScraperOptions> options) : IArticleContentScraper
+    IOptions<ArticleScraperOptions> options,
+    ILogger<HtmlArticleContentScraper> logger) : IArticleContentScraper
 {
     private readonly ArticleScraperOptions _options = options.Value;
 
@@ -31,18 +33,24 @@ public class HtmlArticleContentScraper(
         {
             response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         }
-        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
+            logger.LogDebug("Scrape skipped for {Url}: {Reason}", url, ex.GetType().Name);
             return null;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            logger.LogDebug("Scrape skipped for {Url}: {Reason}", url, ex.GetType().Name);
             return null;
         }
 
-        if (!response.IsSuccessStatusCode) return null;
+        if (!response.IsSuccessStatusCode)
+        {
+            logger.LogDebug("Scrape returned {StatusCode} for {Url}", (int)response.StatusCode, url);
+            return null;
+        }
 
-        var html = await ReadBodyUpToLimitAsync(response, cancellationToken);
+        var html = await ReadBodyUpToLimitAsync(response, url, cancellationToken);
         if (string.IsNullOrEmpty(html)) return null;
 
         var doc = new HtmlDocument();
@@ -56,7 +64,10 @@ public class HtmlArticleContentScraper(
             DiscoveredMedia: ExtractOpenGraphMedia(doc, articleUri));
     }
 
-    private async Task<string?> ReadBodyUpToLimitAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    private async Task<string?> ReadBodyUpToLimitAsync(
+        HttpResponseMessage response,
+        string url,
+        CancellationToken cancellationToken)
     {
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         var buffer = new byte[8192];
@@ -65,7 +76,11 @@ public class HtmlArticleContentScraper(
         while ((bytesRead = await stream.ReadAsync(buffer, cancellationToken)) > 0)
         {
             ms.Write(buffer, 0, bytesRead);
-            if (ms.Length > _options.MaxHtmlSizeBytes) return null;
+            if (ms.Length > _options.MaxHtmlSizeBytes)
+            {
+                logger.LogWarning("Scrape body exceeded size limit for {Url}", url);
+                return null;
+            }
         }
         return ms.Length == 0 ? null : System.Text.Encoding.UTF8.GetString(ms.ToArray());
     }

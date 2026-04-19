@@ -39,6 +39,12 @@ public class PublishingWorker : BackgroundService
 
 	private async Task ProcessBatchAsync(CancellationToken cancellationToken)
 	{
+		using var cycleScope = _logger.BeginScope(new Dictionary<string, object>
+		{
+			["Worker"] = nameof(PublishingWorker),
+			["CycleId"] = Guid.NewGuid()
+		});
+
 		using var scope = _scopeFactory.CreateScope();
 		var publicationRepository = scope.ServiceProvider.GetRequiredService<IPublicationRepository>();
 		var publishers = scope.ServiceProvider.GetServices<IPublisher>().ToList();
@@ -55,6 +61,13 @@ public class PublishingWorker : BackgroundService
 
 		foreach (var publication in publications)
 		{
+			using var itemScope = _logger.BeginScope(new Dictionary<string, object>
+			{
+				["PublicationId"] = publication.Id,
+				["PublishTargetName"] = publication.PublishTarget?.Name,
+				["Platform"] = publication.PublishTarget?.Platform.ToString()
+			});
+
 			await PublishSingleAsync(
 				publication, publishers, publicationRepository,
 				mediaFileRepository, r2Options, cancellationToken);
@@ -128,6 +141,8 @@ public class PublishingWorker : BackgroundService
 	{
 		if (publication.SelectedMediaFileIds.Count == 0)
 			return [];
+
+		_logger.LogDebug("Resolving {Count} media files", publication.SelectedMediaFileIds.Count);
 
 		var mediaFiles = await mediaFileRepository.GetByIdsAsync(
 			publication.SelectedMediaFileIds, cancellationToken);

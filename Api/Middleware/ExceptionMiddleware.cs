@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.Json;
 
 namespace Api.Middleware;
@@ -13,22 +13,24 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
 		}
 		catch (Exception ex)
 		{
-			logger.LogError(ex, "Unhandled exception for {Method} {Path}",
-				context.Request.Method, context.Request.Path);
 			await HandleExceptionAsync(context, ex);
 		}
 	}
 
-	private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
+	private async Task HandleExceptionAsync(HttpContext context, Exception exception)
 	{
-		var (statusCode, message) = exception switch
+		var (statusCode, message) = MapException(exception);
+
+		if (statusCode == HttpStatusCode.InternalServerError)
 		{
-			KeyNotFoundException => (HttpStatusCode.NotFound, exception.Message),
-			InvalidOperationException => (HttpStatusCode.Conflict, exception.Message),
-			UnauthorizedAccessException => (HttpStatusCode.Forbidden, exception.Message),
-			ArgumentException => (HttpStatusCode.BadRequest, exception.Message),
-			_ => (HttpStatusCode.InternalServerError, "An unexpected error occurred")
-		};
+			logger.LogError(exception, "Unhandled exception for {Method} {Path}",
+				context.Request.Method, context.Request.Path);
+		}
+		else
+		{
+			logger.LogInformation("Request {Method} {Path} mapped to {StatusCode}",
+				context.Request.Method, context.Request.Path, (int)statusCode);
+		}
 
 		context.Response.ContentType = "application/json";
 		context.Response.StatusCode = (int)statusCode;
@@ -45,4 +47,14 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
 			PropertyNamingPolicy = JsonNamingPolicy.CamelCase
 		}));
 	}
+
+	private static (HttpStatusCode StatusCode, string Message) MapException(Exception exception) =>
+		exception switch
+		{
+			KeyNotFoundException => (HttpStatusCode.NotFound, exception.Message),
+			InvalidOperationException => (HttpStatusCode.Conflict, exception.Message),
+			UnauthorizedAccessException => (HttpStatusCode.Forbidden, exception.Message),
+			ArgumentException => (HttpStatusCode.BadRequest, exception.Message),
+			_ => (HttpStatusCode.InternalServerError, "An unexpected error occurred")
+		};
 }

@@ -46,7 +46,7 @@ public class TelegramClientService : IHostedService, IAsyncDisposable, ITelegram
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Telegram client failed to initialize. Run Tools/TelegramAuth to authenticate first.");
+			_logger.LogCritical(ex, "Telegram client failed to initialize. Run Tools/TelegramAuth to authenticate first.");
 		}
 	}
 

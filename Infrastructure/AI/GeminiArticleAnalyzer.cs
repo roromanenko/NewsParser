@@ -1,6 +1,8 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Core.DomainModels.AI;
 using Core.Interfaces.AI;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace Infrastructure.AI;
@@ -11,20 +13,27 @@ public class GeminiArticleAnalyzer : IArticleAnalyzer
 	private readonly string _model;
 	private readonly string _prompt;
 	private readonly HttpClient _httpClient;
+	private readonly ILogger<GeminiArticleAnalyzer> _logger;
 
-	public GeminiArticleAnalyzer(string apiKey, string model, string prompt, HttpClient httpClient)
+	public GeminiArticleAnalyzer(
+		string apiKey,
+		string model,
+		string prompt,
+		HttpClient httpClient,
+		ILogger<GeminiArticleAnalyzer> logger)
 	{
 		_apiKey = apiKey;
 		_model = model;
 		_prompt = prompt;
 		_httpClient = httpClient;
+		_logger = logger;
 	}
 
 	public async Task<ArticleAnalysisResult> AnalyzeAsync(Article article, CancellationToken cancellationToken = default)
 	{
 		var url = $"https://generativelanguage.googleapis.com/v1beta/models/{_model}:generateContent?key={_apiKey}";
 
-		var prompt = $"""
+		var userPrompt = $"""
         {_prompt}
 
         SOURCE METADATA:
@@ -43,11 +52,15 @@ public class GeminiArticleAnalyzer : IArticleAnalyzer
 			{
 				new
 				{
-					parts = new[] { new { text = prompt } }
+					parts = new[] { new { text = userPrompt } }
 				}
 			},
 			generationConfig = new { responseMimeType = "application/json" }
 		});
+
+		var sw = Stopwatch.StartNew();
+		_logger.LogDebug("Calling {Provider} {Model} with {PromptChars} chars",
+			"Gemini", _model, userPrompt.Length);
 
 		var httpResponse = await _httpClient.PostAsync(
 			url,
@@ -55,6 +68,10 @@ public class GeminiArticleAnalyzer : IArticleAnalyzer
 			cancellationToken);
 
 		httpResponse.EnsureSuccessStatusCode();
+
+		sw.Stop();
+		_logger.LogDebug("{Provider} {Model} succeeded in {DurationMs}ms",
+			"Gemini", _model, sw.ElapsedMilliseconds);
 
 		var responseJson = await httpResponse.Content.ReadAsStringAsync(cancellationToken);
 
@@ -66,6 +83,15 @@ public class GeminiArticleAnalyzer : IArticleAnalyzer
 			.GetProperty("text")
 			.GetString() ?? string.Empty;
 
-		return ArticleJsonHelper.ParseAnalysisResult(text);
+		try
+		{
+			return ArticleJsonHelper.ParseAnalysisResult(text);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogWarning(ex, "{Provider} {Model} returned unparseable response",
+				"Gemini", _model);
+			throw;
+		}
 	}
 }

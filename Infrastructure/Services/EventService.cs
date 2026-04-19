@@ -36,6 +36,7 @@ internal class EventService(
 		{
 			await eventRepository.MergeAsync(sourceEventId, targetEventId, cancellationToken);
 			await uow.CommitAsync(cancellationToken);
+			logger.LogInformation("Event {TargetEventId} merged from {SourceEventId}", targetEventId, sourceEventId);
 		}
 		catch (Exception ex) when (ex is not OperationCanceledException)
 		{
@@ -93,5 +94,6 @@ internal class EventService(
 			articleId, targetEventId, role, cancellationToken);
 
 		await eventRepository.MarkAsReclassifiedAsync(articleId, cancellationToken);
+		logger.LogInformation("Article {ArticleId} reclassified to event {EventId}", articleId, targetEventId);
 	}
 }

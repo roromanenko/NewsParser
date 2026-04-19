@@ -1,10 +1,13 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
-public class SourceService(ISourceRepository sourceRepository) : ISourceService
+public class SourceService(
+	ISourceRepository sourceRepository,
+	ILogger<SourceService> logger) : ISourceService
 {
 	public async Task<List<Source>> GetAllAsync(CancellationToken cancellationToken = default)
 	{
@@ -36,7 +39,9 @@ public class SourceService(ISourceRepository sourceRepository) : ISourceService
 			IsActive = true,
 		};
 
-		return await sourceRepository.CreateAsync(source, cancellationToken);
+		var created = await sourceRepository.CreateAsync(source, cancellationToken);
+		logger.LogInformation("Source {SourceId} created: {SourceName}", created.Id, created.Name);
+		return created;
 	}
 
 	public async Task<Source> UpdateAsync(
@@ -61,6 +66,7 @@ public class SourceService(ISourceRepository sourceRepository) : ISourceService
 		source.IsActive = isActive;
 
 		await sourceRepository.UpdateAsync(source, cancellationToken);
+		logger.LogInformation("Source {SourceId} updated", source.Id);
 		return source;
 	}
 
@@ -71,5 +77,6 @@ public class SourceService(ISourceRepository sourceRepository) : ISourceService
 			throw new KeyNotFoundException($"Source {id} not found");
 
 		await sourceRepository.DeleteAsync(id, cancellationToken);
+		logger.LogInformation("Source {SourceId} deleted", id);
 	}
 }

@@ -4,6 +4,8 @@ using Anthropic.SDK.Messaging;
 using Core.DomainModels;
 using Core.DomainModels.AI;
 using Core.Interfaces.AI;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -16,12 +18,18 @@ public class ClaudeContradictionDetector : IContradictionDetector
 	private readonly AnthropicClient _client;
 	private readonly string _model;
 	private readonly string _prompt;
+	private readonly ILogger<ClaudeContradictionDetector> _logger;
 
-	public ClaudeContradictionDetector(string apiKey, string model, string prompt)
+	public ClaudeContradictionDetector(
+		string apiKey,
+		string model,
+		string prompt,
+		ILogger<ClaudeContradictionDetector> logger)
 	{
 		_client = new AnthropicClient(new APIAuthentication(apiKey));
 		_model = model;
 		_prompt = prompt;
+		_logger = logger;
 	}
 
 	public async Task<List<ContradictionInput>> DetectAsync(
@@ -84,7 +92,15 @@ public class ClaudeContradictionDetector : IContradictionDetector
 			}
 		};
 
+		var sw = Stopwatch.StartNew();
+		_logger.LogDebug("Calling {Provider} {Model} with {PromptChars} chars",
+			"Anthropic", _model, userPrompt.Length);
+
 		var response = await _client.Messages.GetClaudeMessageAsync(request, cancellationToken);
+
+		sw.Stop();
+		_logger.LogDebug("{Provider} {Model} succeeded in {DurationMs}ms",
+			"Anthropic", _model, sw.ElapsedMilliseconds);
 
 		// Extract the tool_use block — guaranteed to exist because ToolChoice forces it
 		var toolUse = response.Content.OfType<ToolUseContent>().FirstOrDefault();
@@ -98,7 +114,16 @@ public class ClaudeContradictionDetector : IContradictionDetector
 		using var doc = JsonDocument.Parse(json);
 		var contradictionsJson = doc.RootElement.GetProperty("contradictions").GetRawText();
 
-		return ParseResult(contradictionsJson);
+		try
+		{
+			return ParseResult(contradictionsJson);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogWarning(ex, "{Provider} {Model} returned unparseable response",
+				"Anthropic", _model);
+			throw;
+		}
 	}
 
 	private static string BuildUserPrompt(Article article, Event targetEvent)

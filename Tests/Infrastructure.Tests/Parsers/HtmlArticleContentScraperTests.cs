@@ -61,7 +61,8 @@ public class HtmlArticleContentScraperTests
 
         _sut = new HtmlArticleContentScraper(
             _httpClientFactoryMock.Object,
-            Options.Create(_optionsValue));
+            Options.Create(_optionsValue),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<HtmlArticleContentScraper>.Instance);
     }
 
     // ------------------------------------------------------------------

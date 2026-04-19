@@ -50,6 +50,12 @@ public class ArticleAnalysisWorker : BackgroundService
 
 	private async Task ProcessAsync(CancellationToken cancellationToken)
 	{
+		using var cycleScope = _logger.BeginScope(new Dictionary<string, object>
+		{
+			["Worker"] = nameof(ArticleAnalysisWorker),
+			["CycleId"] = Guid.NewGuid()
+		});
+
 		using var scope = _scopeFactory.CreateScope();
 		var ctx = new AnalysisContext(
 			ArticleRepository: scope.ServiceProvider.GetRequiredService<IArticleRepository>(),
@@ -75,6 +81,10 @@ public class ArticleAnalysisWorker : BackgroundService
 
 		foreach (var article in articles)
 		{
+			using var itemScope = _logger.BeginScope(new Dictionary<string, object>
+			{
+				["ArticleId"] = article.Id
+			});
 			await ProcessArticleAsync(article, ctx, cancellationToken);
 		}
 	}
@@ -187,7 +197,7 @@ public class ArticleAnalysisWorker : BackgroundService
 			if (topSimilarity >= _options.AutoSameEventThreshold)
 			{
 				(targetEvent, role) = await HandleAutoMatchAsync(
-					article, topEvent, embedding, ctx, cancellationToken);
+					article, topEvent, topSimilarity, embedding, ctx, cancellationToken);
 			}
 			else
 			{
@@ -202,12 +212,13 @@ public class ArticleAnalysisWorker : BackgroundService
 	private async Task<(Event TargetEvent, ArticleRole Role)> HandleAutoMatchAsync(
 		Article article,
 		Event topEvent,
+		double topSimilarity,
 		float[] embedding,
 		AnalysisContext ctx,
 		CancellationToken cancellationToken)
 	{
-		_logger.LogInformation("Article {Id} auto-matched to event {EventId} (similarity: {S})",
-			article.Id, topEvent.Id, topEvent.Id);
+		_logger.LogInformation("Article {ArticleId} auto-matched to event {EventId} (similarity: {Similarity})",
+			article.Id, topEvent.Id, topSimilarity);
 
 		var enrichedEvent = await ctx.EventRepository.GetWithContextAsync(topEvent.Id, cancellationToken);
 		if (enrichedEvent is null)

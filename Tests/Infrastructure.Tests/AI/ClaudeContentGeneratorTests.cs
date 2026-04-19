@@ -42,7 +42,8 @@ public class ClaudeContentGeneratorTests
 			basePrompts: new Dictionary<Platform, string>
 			{
 				{ Platform.Telegram, "You are a Telegram news bot." }
-			});
+			},
+			logger: Microsoft.Extensions.Logging.Abstractions.NullLogger<ClaudeContentGenerator>.Instance);
 
 		_telegramTarget = new PublishTarget
 		{

@@ -39,6 +39,12 @@ public class SourceFetcherWorker : BackgroundService
 
 	private async Task ProcessAsync(CancellationToken cancellationToken)
 	{
+		using var cycleScope = _logger.BeginScope(new Dictionary<string, object>
+		{
+			["Worker"] = nameof(SourceFetcherWorker),
+			["CycleId"] = Guid.NewGuid()
+		});
+
 		using var scope = _scopeFactory.CreateScope();
 		var sourceRepository = scope.ServiceProvider.GetRequiredService<ISourceRepository>();
 		var articleRepository = scope.ServiceProvider.GetRequiredService<IArticleRepository>();
@@ -49,11 +55,22 @@ public class SourceFetcherWorker : BackgroundService
 
 		foreach (var (sourceType, parser) in parsers)
 		{
+			using var sourceTypeScope = _logger.BeginScope(new Dictionary<string, object>
+			{
+				["SourceType"] = sourceType.ToString()
+			});
+
 			var sources = await sourceRepository.GetActiveAsync(sourceType, cancellationToken);
 			_logger.LogInformation("Found {Count} active {Type} sources", sources.Count, sourceType);
 
 			foreach (var source in sources)
 			{
+				using var sourceScope = _logger.BeginScope(new Dictionary<string, object>
+				{
+					["SourceId"] = source.Id,
+					["SourceName"] = source.Name
+				});
+
 				try
 				{
 					await ProcessSourceAsync(source, parser, articleRepository, validator, mediaIngestionService, cancellationToken);
@@ -75,6 +92,7 @@ public class SourceFetcherWorker : BackgroundService
 		IMediaIngestionService mediaIngestionService,
 		CancellationToken cancellationToken)
 	{
+		_logger.LogDebug("Begin parse for {SourceName}", source.Name);
 		var articles = await parser.ParseAsync(source, cancellationToken);
 		_logger.LogInformation("Parsed {Count} articles from {SourceName}", articles.Count, source.Name);
 

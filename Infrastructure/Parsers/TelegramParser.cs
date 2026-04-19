@@ -2,11 +2,14 @@ using Core.DomainModels;
 using Core.Interfaces.Parsers;
 using Infrastructure.Models;
 using Infrastructure.Storage;
+using Microsoft.Extensions.Logging;
 using TL;
 
 namespace Infrastructure.Parsers;
 
-public class TelegramParser(ITelegramChannelReader channelReader) : ISourceParser
+public class TelegramParser(
+	ITelegramChannelReader channelReader,
+	ILogger<TelegramParser> logger) : ISourceParser
 {
 	public SourceType SourceType => SourceType.Telegram;
 
@@ -31,6 +34,9 @@ public class TelegramParser(ITelegramChannelReader channelReader) : ISourceParse
 
 		// Preserve chronological order (Telegram returns messages newest-first by ID)
 		articles.Sort((a, b) => int.Parse(b.ExternalId).CompareTo(int.Parse(a.ExternalId)));
+
+		logger.LogInformation("Parsed {AlbumCount} albums and {SingleCount} singles from {Username}",
+			albums.Count, singles.Count, username);
 
 		return articles;
 	}

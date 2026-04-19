@@ -1,0 +1,313 @@
+using Core.DomainModels;
+using Core.DomainModels.AI;
+using Core.Interfaces.AI;
+using Core.Interfaces.Repositories;
+using Core.Interfaces.Services;
+using FluentAssertions;
+using Infrastructure.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Moq;
+using NUnit.Framework;
+using Worker.Configuration;
+using Worker.Workers;
+
+namespace Worker.Tests.Workers;
+
+/// <summary>
+/// Verifies the structured-logging bug fix in ArticleAnalysisWorker.HandleAutoMatchAsync.
+///
+/// The third format argument in the auto-match log message must be topSimilarity
+/// (the double similarity score), NOT topEvent.Id (the event GUID).
+///
+/// Bug: before the fix the call was
+///   _logger.LogInformation("... {Similarity}", article.Id, topEvent.Id, topEvent.Id)
+/// After the fix it is
+///   _logger.LogInformation("... {Similarity}", article.Id, topEvent.Id, topSimilarity)
+/// </summary>
+[TestFixture]
+public class ArticleAnalysisWorkerAutoMatchLogTests
+{
+    private Mock<IServiceScopeFactory> _scopeFactoryMock = null!;
+    private Mock<ILogger<ArticleAnalysisWorker>> _loggerMock = null!;
+    private Mock<IArticleRepository> _articleRepoMock = null!;
+    private Mock<IEventRepository> _eventRepoMock = null!;
+    private Mock<IArticleAnalyzer> _analyzerMock = null!;
+    private Mock<IGeminiEmbeddingService> _embeddingServiceMock = null!;
+    private Mock<IEventClassifier> _classifierMock = null!;
+    private Mock<IEventSummaryUpdater> _summaryUpdaterMock = null!;
+    private Mock<IKeyFactsExtractor> _keyFactsExtractorMock = null!;
+    private Mock<IContradictionDetector> _contradictionDetectorMock = null!;
+    private Mock<IEventTitleGenerator> _titleGeneratorMock = null!;
+    private Mock<IEventImportanceScorer> _scorerMock = null!;
+
+    private IOptions<ArticleProcessingOptions> _processingOptions = null!;
+    private IOptions<AiOptions> _aiOptions = null!;
+
+    [SetUp]
+    public void SetUp()
+    {
+        _scopeFactoryMock = new Mock<IServiceScopeFactory>();
+        _loggerMock = new Mock<ILogger<ArticleAnalysisWorker>>();
+        _articleRepoMock = new Mock<IArticleRepository>();
+        _eventRepoMock = new Mock<IEventRepository>();
+        _analyzerMock = new Mock<IArticleAnalyzer>();
+        _embeddingServiceMock = new Mock<IGeminiEmbeddingService>();
+        _classifierMock = new Mock<IEventClassifier>();
+        _summaryUpdaterMock = new Mock<IEventSummaryUpdater>();
+        _keyFactsExtractorMock = new Mock<IKeyFactsExtractor>();
+        _contradictionDetectorMock = new Mock<IContradictionDetector>();
+        _titleGeneratorMock = new Mock<IEventTitleGenerator>();
+        _scorerMock = new Mock<IEventImportanceScorer>();
+
+        _processingOptions = Options.Create(new ArticleProcessingOptions
+        {
+            AnalysisIntervalSeconds = 9999,
+            BatchSize = 10,
+            MaxRetryCount = 5,
+            DeduplicationThreshold = 0.95,
+            DeduplicationWindowHours = 72,
+            AutoSameEventThreshold = 0.90,
+            AutoNewEventThreshold = 0.70,
+            SimilarityWindowHours = 24,
+            AnalyzeAutoMatchUpdates = false,
+            MaxUpdatesPerDay = 10,
+            MinUpdateIntervalMinutes = 30,
+        });
+
+        _aiOptions = Options.Create(new AiOptions
+        {
+            Gemini = new GeminiOptions { AnalyzerModel = "gemini-2.0-flash" },
+            Anthropic = new AnthropicOptions()
+        });
+
+        SetupDefaultRepositoryBehaviours();
+        WireUpScopeFactory();
+
+        // ILogger IsEnabled must return true so that Log calls are not filtered
+        _loggerMock
+            .Setup(l => l.IsEnabled(It.IsAny<LogLevel>()))
+            .Returns(true);
+    }
+
+    // ------------------------------------------------------------------
+    // P0 — The {Similarity} placeholder receives the similarity score (double),
+    //       not the event GUID. The formatted log message must contain the
+    //       numeric similarity value rather than the event's GUID string.
+    // ------------------------------------------------------------------
+
+    [Test]
+    public async Task HandleAutoMatchAsync_WhenAutoMatchOccurs_LogsSimilarityScoreNotEventId()
+    {
+        // Arrange
+        const double topSimilarity = 0.9342;
+
+        var article = CreatePendingArticle();
+        var autoMatchedEvent = CreateActiveEvent();
+
+        _articleRepoMock
+            .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([article]);
+
+        _eventRepoMock
+            .Setup(r => r.FindSimilarEventsAsync(
+                It.IsAny<float[]>(),
+                It.IsAny<double>(),
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([(autoMatchedEvent, topSimilarity)]);
+
+        WireUpScopeFactory();
+
+        var capturedMessages = new List<string>();
+        _loggerMock
+            .Setup(l => l.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) => true),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+            .Callback(new InvocationAction(invocation =>
+            {
+                var formatter = invocation.Arguments[4] as Delegate;
+                var state = invocation.Arguments[2];
+                var exception = invocation.Arguments[3] as Exception;
+                var message = formatter?.DynamicInvoke(state, exception) as string ?? state?.ToString();
+                if (message != null)
+                    capturedMessages.Add(message);
+            }));
+
+        var sut = CreateWorker();
+
+        // Act
+        await RunOneIterationAsync(sut);
+
+        // Assert — the auto-match log line must be emitted
+        var autoMatchMessage = capturedMessages.FirstOrDefault(m => m.Contains("auto-matched"));
+        autoMatchMessage.Should().NotBeNull("the auto-match log line must be emitted");
+
+        // {Similarity} must contain the numeric score, not a duplicate GUID
+        autoMatchMessage!.Should().Contain(
+            topSimilarity.ToString("G", System.Globalization.CultureInfo.InvariantCulture)[..4],
+            "the {Similarity} placeholder must be filled with the numeric score");
+
+        // The event GUID must appear exactly once (as {EventId}), not twice (old bug)
+        var eventIdStr = autoMatchedEvent.Id.ToString();
+        var occurrences = CountOccurrences(autoMatchMessage!, eventIdStr);
+        occurrences.Should().Be(1,
+            "topEvent.Id should appear once as {{EventId}}, not twice as both {{EventId}} and {{Similarity}}");
+    }
+
+    private static int CountOccurrences(string source, string value)
+    {
+        int count = 0;
+        int index = 0;
+        while ((index = source.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+        return count;
+    }
+
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
+
+    private ArticleAnalysisWorker CreateWorker() =>
+        new(_scopeFactoryMock.Object,
+            _loggerMock.Object,
+            _processingOptions,
+            _aiOptions);
+
+    private static async Task RunOneIterationAsync(ArticleAnalysisWorker sut)
+    {
+        using var cts = new CancellationTokenSource();
+        await sut.StartAsync(cts.Token);
+        await Task.Delay(300);
+        await sut.StopAsync(CancellationToken.None);
+    }
+
+    private void SetupDefaultRepositoryBehaviours()
+    {
+        _articleRepoMock
+            .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        _analyzerMock
+            .Setup(a => a.AnalyzeAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ArticleAnalysisResult
+            {
+                Category = "Technology",
+                Tags = ["ai"],
+                Sentiment = "Neutral",
+                Language = "en",
+                Summary = "Test summary."
+            });
+
+        _embeddingServiceMock
+            .Setup(s => s.GenerateEmbeddingAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new float[384]);
+
+        _keyFactsExtractorMock
+            .Setup(e => e.ExtractAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        _eventRepoMock
+            .Setup(r => r.FindSimilarEventsAsync(
+                It.IsAny<float[]>(),
+                It.IsAny<double>(),
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        _eventRepoMock
+            .Setup(r => r.CreateAsync(It.IsAny<Event>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Event e, CancellationToken _) => e);
+
+        _eventRepoMock
+            .Setup(r => r.GetImportanceStatsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EventImportanceStats(0, 0, 0, null));
+
+        _eventRepoMock
+            .Setup(r => r.UpdateImportanceAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<ImportanceTier>(),
+                It.IsAny<double>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        _contradictionDetectorMock
+            .Setup(d => d.DetectAsync(It.IsAny<Article>(), It.IsAny<Event>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        _titleGeneratorMock
+            .Setup(g => g.GenerateTitleAsync(It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Generated Title");
+
+        _summaryUpdaterMock
+            .Setup(u => u.UpdateSummaryAsync(It.IsAny<Event>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Event evt, List<string> _, CancellationToken _) =>
+                new EventSummaryUpdateResult(evt.Summary ?? string.Empty, "medium"));
+
+        _scorerMock
+            .Setup(s => s.Calculate(It.IsAny<ImportanceInputs>()))
+            .Returns(new ImportanceScoreResult(0.0, 0.0, ImportanceTier.Low));
+    }
+
+    private void WireUpScopeFactory()
+    {
+        var scopeMock = new Mock<IServiceScope>();
+        var serviceProviderMock = new Mock<IServiceProvider>();
+
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IArticleRepository)))
+            .Returns(_articleRepoMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IEventRepository)))
+            .Returns(_eventRepoMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IArticleAnalyzer)))
+            .Returns(_analyzerMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IGeminiEmbeddingService)))
+            .Returns(_embeddingServiceMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IEventClassifier)))
+            .Returns(_classifierMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IEventSummaryUpdater)))
+            .Returns(_summaryUpdaterMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IKeyFactsExtractor)))
+            .Returns(_keyFactsExtractorMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IContradictionDetector)))
+            .Returns(_contradictionDetectorMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IEventTitleGenerator)))
+            .Returns(_titleGeneratorMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IEventImportanceScorer)))
+            .Returns(_scorerMock.Object);
+
+        scopeMock.Setup(s => s.ServiceProvider).Returns(serviceProviderMock.Object);
+        _scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
+    }
+
+    private static Article CreatePendingArticle() => new()
+    {
+        Id = Guid.NewGuid(),
+        Title = "Auto Match Log Test Article",
+        Status = ArticleStatus.Pending,
+        ProcessedAt = DateTimeOffset.UtcNow,
+        KeyFacts = [],
+    };
+
+    private static Event CreateActiveEvent() => new()
+    {
+        Id = Guid.NewGuid(),
+        Title = "Existing Active Event",
+        Summary = "Event summary text.",
+        Status = EventStatus.Active,
+        FirstSeenAt = DateTimeOffset.UtcNow,
+        LastUpdatedAt = DateTimeOffset.UtcNow,
+        Embedding = new float[384],
+        ArticleCount = 2,
+        EventUpdates = []
+    };
+}

@@ -1,15 +1,18 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Core.DomainModels;
 using Core.Interfaces.Services;
 using Core.Options;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Infrastructure.Services;
 
-public class JwtService(IOptions<JwtOptions> jwtOptions) : IJwtService
+public class JwtService(
+	IOptions<JwtOptions> jwtOptions,
+	ILogger<JwtService> logger) : IJwtService
 {
 	private readonly JwtOptions _jwtOptions = jwtOptions.Value;
 
@@ -35,6 +38,8 @@ public class JwtService(IOptions<JwtOptions> jwtOptions) : IJwtService
 			signingCredentials: credentials
 		);
 
-		return new JwtSecurityTokenHandler().WriteToken(token);
+		var tokenValue = new JwtSecurityTokenHandler().WriteToken(token);
+		logger.LogInformation("JWT issued for user {UserId} role {Role}", user.Id, user.Role);
+		return tokenValue;
 	}
 }

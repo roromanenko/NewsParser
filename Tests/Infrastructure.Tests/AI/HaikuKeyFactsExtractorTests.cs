@@ -148,7 +148,8 @@ public class HaikuKeyFactsExtractorTests
 		var sut = new HaikuKeyFactsExtractor(
 			apiKey: "dummy-key",
 			model: "claude-haiku-4-5",
-			systemPrompt: systemPrompt);
+			systemPrompt: systemPrompt,
+			logger: Microsoft.Extensions.Logging.Abstractions.NullLogger<HaikuKeyFactsExtractor>.Instance);
 
 		// Assert
 		var stored = (string)SystemPromptField.GetValue(sut)!;
@@ -165,7 +166,11 @@ public class HaikuKeyFactsExtractorTests
 	public async Task ExtractAsync_WhenCancellationTokenAlreadyCancelled_ThrowsOperationCanceledException()
 	{
 		// Arrange
-		var sut = new HaikuKeyFactsExtractor(apiKey: "dummy-key", model: "claude-haiku-4-5", systemPrompt: "You are a factual extraction assistant.");
+		var sut = new HaikuKeyFactsExtractor(
+			apiKey: "dummy-key",
+			model: "claude-haiku-4-5",
+			systemPrompt: "You are a factual extraction assistant.",
+			logger: Microsoft.Extensions.Logging.Abstractions.NullLogger<HaikuKeyFactsExtractor>.Instance);
 		var article = CreateArticle();
 		using var cts = new CancellationTokenSource();
 		await cts.CancelAsync();

@@ -1,10 +1,13 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
-public class PublishTargetService(IPublishTargetRepository publishTargetRepository) : IPublishTargetService
+public class PublishTargetService(
+	IPublishTargetRepository publishTargetRepository,
+	ILogger<PublishTargetService> logger) : IPublishTargetService
 {
 	public async Task<List<PublishTarget>> GetAllAsync(CancellationToken cancellationToken = default)
 	{
@@ -39,7 +42,9 @@ public class PublishTargetService(IPublishTargetRepository publishTargetReposito
 			IsActive = true,
 		};
 
-		return await publishTargetRepository.CreateAsync(target, cancellationToken);
+		var created = await publishTargetRepository.CreateAsync(target, cancellationToken);
+		logger.LogInformation("PublishTarget {PublishTargetId} created: {Name}", created.Id, created.Name);
+		return created;
 	}
 
 	public async Task<PublishTarget> UpdateAsync(
@@ -59,6 +64,7 @@ public class PublishTargetService(IPublishTargetRepository publishTargetReposito
 		target.IsActive = isActive;
 
 		await publishTargetRepository.UpdateAsync(target, cancellationToken);
+		logger.LogInformation("PublishTarget {PublishTargetId} updated", target.Id);
 		return target;
 	}
 
@@ -68,5 +74,6 @@ public class PublishTargetService(IPublishTargetRepository publishTargetReposito
 			?? throw new KeyNotFoundException($"PublishTarget {id} not found");
 
 		await publishTargetRepository.DeleteAsync(target.Id, cancellationToken);
+		logger.LogInformation("PublishTarget {PublishTargetId} deleted", id);
 	}
 }

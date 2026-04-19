@@ -24,7 +24,9 @@ public class TelegramParserTests
 	{
 		_channelReaderMock = new Mock<ITelegramChannelReader>();
 		_channelReaderMock.Setup(r => r.IsReady).Returns(true);
-		_sut = new TelegramParser(_channelReaderMock.Object);
+		_sut = new TelegramParser(
+			_channelReaderMock.Object,
+			Microsoft.Extensions.Logging.Abstractions.NullLogger<TelegramParser>.Instance);
 	}
 
 	// ------------------------------------------------------------------

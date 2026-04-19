@@ -2,6 +2,8 @@ using Anthropic.SDK;
 using Anthropic.SDK.Messaging;
 using Core.DomainModels;
 using Core.Interfaces.AI;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace Infrastructure.AI;
@@ -11,15 +13,18 @@ public class ClaudeContentGenerator : IContentGenerator
 	private readonly string _apiKey;
 	private readonly string _model;
 	private readonly Dictionary<Platform, string> _basePrompts;
+	private readonly ILogger<ClaudeContentGenerator> _logger;
 
 	public ClaudeContentGenerator(
 		string apiKey,
 		string model,
-		Dictionary<Platform, string> basePrompts)
+		Dictionary<Platform, string> basePrompts,
+		ILogger<ClaudeContentGenerator> logger)
 	{
 		_apiKey = apiKey;
 		_model = model;
 		_basePrompts = basePrompts;
+		_logger = logger;
 	}
 
 	public async Task<string> GenerateForPlatformAsync(
@@ -50,9 +55,28 @@ public class ClaudeContentGenerator : IContentGenerator
 			Messages = [new Message(RoleType.User, userPrompt)]
 		};
 
+		var sw = Stopwatch.StartNew();
+		_logger.LogDebug("Calling {Provider} {Model} with {PromptChars} chars",
+			"Anthropic", _model, userPrompt.Length);
+
 		var response = await client.Messages.GetClaudeMessageAsync(request, cancellationToken);
+
+		sw.Stop();
+		_logger.LogDebug("{Provider} {Model} succeeded in {DurationMs}ms",
+			"Anthropic", _model, sw.ElapsedMilliseconds);
+
 		var raw = response.Content.FirstOrDefault()?.ToString() ?? string.Empty;
-		return ParseContent(raw, target.Platform);
+
+		try
+		{
+			return ParseContent(raw, target.Platform);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogWarning(ex, "{Provider} {Model} returned unparseable response",
+				"Anthropic", _model);
+			throw;
+		}
 	}
 
 	private static string BuildEventPrompt(Event evt, PublishTarget target)

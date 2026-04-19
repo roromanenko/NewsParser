@@ -25,7 +25,8 @@ public class PublicationServiceTests
         _sut = new PublicationService(
             _eventRepoMock.Object,
             _publicationRepoMock.Object,
-            _publishTargetRepoMock.Object);
+            _publishTargetRepoMock.Object,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<PublicationService>.Instance);
     }
 
     // ------------------------------------------------------------------

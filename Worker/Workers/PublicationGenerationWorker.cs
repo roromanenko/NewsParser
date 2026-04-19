@@ -35,6 +35,12 @@ public class PublicationGenerationWorker : BackgroundService
 
 	private async Task ProcessBatchAsync(CancellationToken cancellationToken)
 	{
+		using var cycleScope = _logger.BeginScope(new Dictionary<string, object>
+		{
+			["Worker"] = nameof(PublicationGenerationWorker),
+			["CycleId"] = Guid.NewGuid()
+		});
+
 		using var scope = _scopeFactory.CreateScope();
 		var publicationRepository = scope.ServiceProvider.GetRequiredService<IPublicationRepository>();
 		var contentGenerator = scope.ServiceProvider.GetRequiredService<IContentGenerator>();
@@ -49,6 +55,12 @@ public class PublicationGenerationWorker : BackgroundService
 
 		foreach (var publication in publications)
 		{
+			using var itemScope = _logger.BeginScope(new Dictionary<string, object>
+			{
+				["PublicationId"] = publication.Id,
+				["EventId"] = publication.EventId
+			});
+
 			await publicationRepository.UpdateStatusAsync(
 				publication.Id, PublicationStatus.GenerationInProgress, cancellationToken);
 

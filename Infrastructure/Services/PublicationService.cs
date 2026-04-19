@@ -1,13 +1,15 @@
 using Core.DomainModels;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
 public class PublicationService(
 	IEventRepository eventRepository,
 	IPublicationRepository publicationRepository,
-	IPublishTargetRepository publishTargetRepository) : IPublicationService
+	IPublishTargetRepository publishTargetRepository,
+	ILogger<PublicationService> logger) : IPublicationService
 {
 	public async Task<Publication> CreateForEventAsync(
 		Guid eventId,
@@ -48,6 +50,8 @@ public class PublicationService(
 		};
 
 		await publicationRepository.AddAsync(publication, cancellationToken);
+		logger.LogInformation("Publication {PublicationId} created for event {EventId} by editor {EditorId}",
+			publication.Id, eventId, editorId);
 
 		return publication;
 	}
@@ -66,6 +70,8 @@ public class PublicationService(
 				$"Publication {publicationId} cannot be updated: status is {publication.Status}");
 
 		await publicationRepository.UpdateContentAndMediaAsync(publicationId, content, selectedMediaFileIds, cancellationToken);
+		logger.LogInformation("Publication {PublicationId} content updated by editor {EditorId}",
+			publicationId, publication.ReviewedByEditorId);
 
 		publication.GeneratedContent = content;
 		publication.SelectedMediaFileIds = selectedMediaFileIds;
@@ -87,6 +93,8 @@ public class PublicationService(
 
 		var approvedAt = DateTimeOffset.UtcNow;
 		await publicationRepository.UpdateApprovalAsync(publicationId, editorId, approvedAt, cancellationToken);
+		logger.LogInformation("Publication {PublicationId} status set to {NewStatus} by editor {EditorId}",
+			publicationId, PublicationStatus.Approved, editorId);
 
 		publication.Status = PublicationStatus.Approved;
 		publication.ApprovedAt = approvedAt;
@@ -110,6 +118,8 @@ public class PublicationService(
 
 		var rejectedAt = DateTimeOffset.UtcNow;
 		await publicationRepository.UpdateRejectionAsync(publicationId, editorId, reason, rejectedAt, cancellationToken);
+		logger.LogInformation("Publication {PublicationId} status set to {NewStatus} by editor {EditorId}",
+			publicationId, PublicationStatus.Rejected, editorId);
 
 		publication.Status = PublicationStatus.Rejected;
 		publication.RejectedAt = rejectedAt;
@@ -133,6 +143,8 @@ public class PublicationService(
 
 		var approvedAt = DateTimeOffset.UtcNow;
 		await publicationRepository.UpdateApprovalAsync(publicationId, editorId, approvedAt, cancellationToken);
+		logger.LogInformation("Publication {PublicationId} status set to {NewStatus} by editor {EditorId}",
+			publicationId, PublicationStatus.Approved, editorId);
 
 		publication.Status = PublicationStatus.Approved;
 		publication.ApprovedAt = approvedAt;

@@ -122,6 +122,8 @@ public class RssParser(
         refs.Add(new MediaReference(enclosure.Url, kind, enclosure.MediaType));
     }
 
+    private const int MinImageDimension = 200;
+
     private static void AddXmlMediaElements(XElement? element, List<MediaReference> refs)
     {
         if (element is null) return;
@@ -136,16 +138,33 @@ public class RssParser(
             var kind = ResolveKindFromStrings(type, medium);
             if (kind is null) continue;
 
+            if (kind == MediaKind.Image && IsBelowMinDimension(el)) continue;
+
             refs.Add(new MediaReference(url, kind.Value, type));
         }
 
-        foreach (var el in element.Descendants(MediaNs + "thumbnail"))
+        // Only use thumbnails when no proper image was found — they are always low-res fallbacks.
+        if (refs.All(r => r.Kind != MediaKind.Image))
         {
-            var url = (string?)el.Attribute("url");
-            if (string.IsNullOrEmpty(url)) continue;
+            foreach (var el in element.Descendants(MediaNs + "thumbnail"))
+            {
+                var url = (string?)el.Attribute("url");
+                if (string.IsNullOrEmpty(url)) continue;
 
-            refs.Add(new MediaReference(url, MediaKind.Image, null));
+                if (IsBelowMinDimension(el)) continue;
+
+                refs.Add(new MediaReference(url, MediaKind.Image, null));
+            }
         }
+    }
+
+    private static bool IsBelowMinDimension(XElement el)
+    {
+        var width = (int?)el.Attribute("width");
+        var height = (int?)el.Attribute("height");
+        if (width is > 0 && width < MinImageDimension) return true;
+        if (height is > 0 && height < MinImageDimension) return true;
+        return false;
     }
 
     private static MediaKind? ResolveKindFromTypeAndMedium(string? type, Medium medium)

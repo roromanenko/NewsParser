@@ -1,4 +1,4 @@
-﻿using Api.Mappers;
+using Api.Mappers;
 using Api.Models;
 using Core.DomainModels;
 using Core.Interfaces.Services;
@@ -10,7 +10,8 @@ namespace Api.Controllers;
 [Route("auth")]
 public class AuthController(
 	IUserService userService,
-	IJwtService jwtService) : ControllerBase
+	IJwtService jwtService,
+	ILogger<AuthController> logger) : ControllerBase
 {
 	[HttpPost("login")]
 	public async Task<ActionResult<LoginResponse>> Login(
@@ -20,9 +21,13 @@ public class AuthController(
 		var user = await userService.VerifyLoginAsync(request.Email, request.Password, cancellationToken);
 
 		if (user is null)
+		{
+			logger.LogWarning("Failed login attempt for {Email}", request.Email);
 			return Unauthorized("Invalid email or password");
+		}
 
 		var token = jwtService.GenerateToken(user);
+		logger.LogInformation("User {Email} logged in", user.Email);
 
 		return Ok(user.ToLoginResponse(token));
 	}
@@ -43,6 +48,7 @@ public class AuthController(
 				cancellationToken);
 
 			var token = jwtService.GenerateToken(user);
+			logger.LogInformation("User {UserId} registered with role {Role}", user.Id, user.Role);
 
 			return CreatedAtAction(nameof(Login), user.ToLoginResponse(token));
 		}
