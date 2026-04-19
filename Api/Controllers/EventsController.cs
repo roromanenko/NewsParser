@@ -27,14 +27,23 @@ public class EventsController(
 		[FromQuery] int pageSize = PaginationDefaults.DefaultPageSize,
 		[FromQuery] string? search = null,
 		[FromQuery] string? sortBy = null,
+		[FromQuery] string? tier = null,
 		CancellationToken cancellationToken = default)
 	{
 		if (page < 1) page = 1;
 		if (pageSize is < 1 or > PaginationDefaults.MaxPageSize) pageSize = PaginationDefaults.DefaultPageSize;
-		if (!SortOptions.BasicSortValues.Contains(sortBy ?? "")) sortBy = "newest";
+		if (!SortOptions.EventSortValues.Contains(sortBy ?? "")) sortBy = SortOptions.Newest;
 
-		var events = await eventRepository.GetPagedAsync(page, pageSize, search, sortBy!, cancellationToken);
-		var total = await eventRepository.CountAsync(search, cancellationToken);
+		ImportanceTier? parsedTier = null;
+		if (tier is not null)
+		{
+			if (!Enum.TryParse<ImportanceTier>(tier, ignoreCase: true, out var tierValue))
+				return BadRequest($"Invalid tier: {tier}. Valid values: {string.Join(", ", Enum.GetNames<ImportanceTier>())}");
+			parsedTier = tierValue;
+		}
+
+		var events = await eventRepository.GetPagedAsync(page, pageSize, search, sortBy!, parsedTier, cancellationToken);
+		var total = await eventRepository.CountAsync(search, parsedTier, cancellationToken);
 
 		var items = events.Select(e => e.ToListItemDto()).ToList();
 

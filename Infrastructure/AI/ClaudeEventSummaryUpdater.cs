@@ -1,6 +1,7 @@
 ﻿using Anthropic.SDK;
 using Anthropic.SDK.Messaging;
 using Core.DomainModels;
+using Core.DomainModels.AI;
 using Core.Interfaces.AI;
 using System.Text.Json;
 
@@ -19,7 +20,7 @@ public class ClaudeEventSummaryUpdater : IEventSummaryUpdater
 		_prompt = prompt;
 	}
 
-	public async Task<string> UpdateSummaryAsync(
+	public async Task<EventSummaryUpdateResult> UpdateSummaryAsync(
 		Event evt,
 		List<string> newFacts,
 		CancellationToken cancellationToken = default)
@@ -48,7 +49,7 @@ public class ClaudeEventSummaryUpdater : IEventSummaryUpdater
 		return ParseResult(raw);
 	}
 
-	private static string ParseResult(string json)
+	private static EventSummaryUpdateResult ParseResult(string json)
 	{
 		json = json
 			.Replace("```json", string.Empty)
@@ -65,6 +66,10 @@ public class ClaudeEventSummaryUpdater : IEventSummaryUpdater
 		if (string.IsNullOrWhiteSpace(summary))
 			throw new InvalidOperationException("Claude returned empty updated_summary");
 
-		return summary;
+		var intrinsicImportance = doc.TryGetProperty("intrinsic_importance", out var importanceElement)
+			? importanceElement.GetString() ?? "medium"
+			: "medium";
+
+		return new EventSummaryUpdateResult(summary, intrinsicImportance);
 	}
 }

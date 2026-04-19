@@ -12,6 +12,16 @@ public class Event
 
 	public int ArticleCount { get; set; } = 0;
 
+	public ImportanceTier? ImportanceTier { get; set; }
+	public double? ImportanceBaseScore { get; set; }
+	public DateTimeOffset? ImportanceCalculatedAt { get; set; }
+
+	/// <remarks>
+	/// Only populated by paged and detail queries (via JOIN COUNT DISTINCT). Will be <c>0</c> in
+	/// all other contexts (e.g. GetByIdAsync, GetActiveEventsAsync).
+	/// </remarks>
+	public int DistinctSourceCount { get; set; }
+
 	public List<Article> Articles { get; set; } = [];
 	public List<EventUpdate> EventUpdates { get; set; } = [];
 	public List<Contradiction> Contradictions { get; set; } = [];
@@ -21,4 +31,12 @@ public enum EventStatus
 {
 	Active,
 	Archived
+}
+
+public enum ImportanceTier
+{
+	Breaking,
+	High,
+	Normal,
+	Low
 }

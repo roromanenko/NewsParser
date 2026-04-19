@@ -66,9 +66,19 @@ public interface IEventRepository
 		int pageSize,
 		string? search,
 		string sortBy,
+		ImportanceTier? tier,
 		CancellationToken cancellationToken = default);
 
-	Task<int> CountAsync(string? search, CancellationToken cancellationToken = default);
+	Task<int> CountAsync(string? search, ImportanceTier? tier, CancellationToken cancellationToken = default);
+
+	Task<EventImportanceStats> GetImportanceStatsAsync(Guid eventId, CancellationToken ct = default);
+
+	Task UpdateImportanceAsync(
+		Guid eventId,
+		ImportanceTier tier,
+		double baseScore,
+		DateTimeOffset calculatedAt,
+		CancellationToken ct = default);
 
 	Task<Event?> GetDetailAsync(Guid id, CancellationToken cancellationToken = default);
 

@@ -2,6 +2,7 @@ using Core.DomainModels;
 using Core.DomainModels.AI;
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
+using Core.Interfaces.Services;
 using FluentAssertions;
 using Infrastructure.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,6 +48,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
     private Mock<IKeyFactsExtractor> _keyFactsExtractorMock = null!;
     private Mock<IContradictionDetector> _contradictionDetectorMock = null!;
     private Mock<IEventTitleGenerator> _titleGeneratorMock = null!;
+    private Mock<IEventImportanceScorer> _scorerMock = null!;
 
     private IOptions<ArticleProcessingOptions> _processingOptions = null!;
     private IOptions<AiOptions> _aiOptions = null!;
@@ -64,6 +66,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
         _keyFactsExtractorMock = new Mock<IKeyFactsExtractor>();
         _contradictionDetectorMock = new Mock<IContradictionDetector>();
         _titleGeneratorMock = new Mock<IEventTitleGenerator>();
+        _scorerMock = new Mock<IEventImportanceScorer>();
 
         _processingOptions = Options.Create(new ArticleProcessingOptions
         {
@@ -768,6 +771,19 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .Setup(r => r.CreateAsync(It.IsAny<Event>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Event e, CancellationToken _) => e);
 
+        _eventRepoMock
+            .Setup(r => r.GetImportanceStatsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EventImportanceStats(0, 0, 0, null));
+
+        _eventRepoMock
+            .Setup(r => r.UpdateImportanceAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<ImportanceTier>(),
+                It.IsAny<double>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         _contradictionDetectorMock
             .Setup(d => d.DetectAsync(It.IsAny<Article>(), It.IsAny<Event>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
@@ -775,6 +791,15 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
         _titleGeneratorMock
             .Setup(g => g.GenerateTitleAsync(It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Тестовий заголовок події");
+
+        _summaryUpdaterMock
+            .Setup(u => u.UpdateSummaryAsync(It.IsAny<Event>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Event evt, List<string> _, CancellationToken _) =>
+                new EventSummaryUpdateResult(evt.Summary ?? string.Empty, "medium"));
+
+        _scorerMock
+            .Setup(s => s.Calculate(It.IsAny<ImportanceInputs>()))
+            .Returns(new ImportanceScoreResult(0.0, 0.0, ImportanceTier.Low));
     }
 
     private void WireUpScopeFactory()
@@ -800,6 +825,8 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .Returns(_contradictionDetectorMock.Object);
         serviceProviderMock.Setup(sp => sp.GetService(typeof(IEventTitleGenerator)))
             .Returns(_titleGeneratorMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IEventImportanceScorer)))
+            .Returns(_scorerMock.Object);
 
         scopeMock.Setup(s => s.ServiceProvider).Returns(serviceProviderMock.Object);
         _scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);

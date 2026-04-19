@@ -7,8 +7,11 @@ import { Pagination } from '@/components/shared/Pagination'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { EventListItemDto } from '@/api/generated'
 
-const SORT_OPTIONS = ['newest', 'oldest'] as const
+const SORT_OPTIONS = ['newest', 'oldest', 'importance'] as const
 type SortOption = (typeof SORT_OPTIONS)[number]
+
+const TIER_FILTERS = ['all', 'Breaking', 'High', 'Normal', 'Low'] as const
+type TierFilter = (typeof TIER_FILTERS)[number]
 
 const PAGE_SIZE = 20
 const DEBOUNCE_MS = 300
@@ -26,6 +29,14 @@ function statusColor(status?: string | null): string {
   return '#6b7280'
 }
 
+function tierColor(tier?: string | null): string {
+  if (tier === 'Breaking') return 'var(--crimson)'
+  if (tier === 'High') return 'var(--rust)'
+  if (tier === 'Normal') return '#6b7280'
+  if (tier === 'Low') return '#4b5563'
+  return '#6b7280'
+}
+
 export function EventsPage() {
   const navigate = useNavigate()
   const { isAdmin } = usePermissions()
@@ -33,6 +44,7 @@ export function EventsPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('newest')
+  const [tier, setTier] = useState<TierFilter>('all')
   const [mergeOpen, setMergeOpen] = useState(false)
 
   useEffect(() => {
@@ -42,9 +54,9 @@ export function EventsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [debouncedSearch, sortBy])
+  }, [debouncedSearch, sortBy, tier])
 
-  const { data, isLoading } = useEvents(page, PAGE_SIZE, debouncedSearch, sortBy)
+  const { data, isLoading } = useEvents(page, PAGE_SIZE, debouncedSearch, sortBy, tier === 'all' ? undefined : tier)
   const events = data?.items ?? []
 
   return (
@@ -101,6 +113,31 @@ export function EventsPage() {
               }}
             >
               {option.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-6 space-y-1">
+          <div className="font-caps text-xs tracking-widest mb-3" style={{ color: 'var(--caramel)' }}>
+            IMPORTANCE
+          </div>
+          {TIER_FILTERS.map(s => (
+            <button
+              key={s}
+              onClick={() => setTier(s)}
+              className="w-full text-left px-3 py-2 font-mono text-xs transition-colors"
+              style={{
+                background: tier === s ? 'var(--burgundy)' : 'transparent',
+                color: tier === s ? '#E8E8E8' : '#9ca3af',
+              }}
+              onMouseEnter={e => {
+                if (tier !== s) e.currentTarget.style.color = 'var(--caramel)'
+              }}
+              onMouseLeave={e => {
+                if (tier !== s) e.currentTarget.style.color = '#9ca3af'
+              }}
+            >
+              {s.toUpperCase()}
             </button>
           ))}
         </div>
@@ -223,6 +260,14 @@ function EventCard({ event, onClick }: EventCardProps) {
           <span className="font-caps text-xs tracking-widest" style={{ color }}>
             {event.status?.toUpperCase() ?? 'UNKNOWN'}
           </span>
+          {event.importanceTier && (
+            <span
+              className="font-caps text-xs tracking-widest"
+              style={{ color: tierColor(event.importanceTier) }}
+            >
+              {event.importanceTier.toUpperCase()}
+            </span>
+          )}
           <span
             className="px-2 py-0.5 font-mono text-[10px]"
             style={{ background: 'var(--near-black)', color: '#9ca3af' }}

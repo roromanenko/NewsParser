@@ -2,7 +2,12 @@ namespace Api.Controllers;
 
 internal static class SortOptions
 {
-	public static readonly HashSet<string> BasicSortValues = ["newest", "oldest"];
+	public const string Newest = "newest";
+	public const string Oldest = "oldest";
+	public const string Importance = "importance";
+
+	public static readonly HashSet<string> BasicSortValues = [Newest, Oldest];
+	public static readonly HashSet<string> EventSortValues = [Newest, Oldest, Importance];
 }
 
 internal static class PaginationDefaults

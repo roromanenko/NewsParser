@@ -45,22 +45,23 @@ internal class EventService(
 
 		try
 		{
-			var mergedSummary = await summaryUpdater.UpdateSummaryAsync(
+			// importance recalc on merge is deferred to the roadmap refresher worker
+			var summaryResult = await summaryUpdater.UpdateSummaryAsync(
 				target, [source.Summary], cancellationToken);
 
 			var mergedTitle = await titleGenerator.GenerateTitleAsync(
-				mergedSummary,
+				summaryResult.UpdatedSummary,
 				[source.Title, target.Title],
 				cancellationToken);
 			var finalTitle = string.IsNullOrWhiteSpace(mergedTitle) ? target.Title : mergedTitle;
 
 			var newEmbedding = await embeddingService.GenerateEmbeddingAsync(
-				mergedSummary, cancellationToken);
+				summaryResult.UpdatedSummary, cancellationToken);
 
 			await eventRepository.UpdateSummaryTitleAndEmbeddingAsync(
 				targetEventId,
 				finalTitle,
-				mergedSummary,
+				summaryResult.UpdatedSummary,
 				newEmbedding,
 				cancellationToken);
 		}

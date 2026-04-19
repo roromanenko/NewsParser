@@ -26,6 +26,14 @@ function statusColor(status?: string | null): string {
   return '#6b7280'
 }
 
+function tierColor(tier?: string | null): string {
+  if (tier === 'Breaking') return 'var(--crimson)'
+  if (tier === 'High') return 'var(--rust)'
+  if (tier === 'Normal') return '#6b7280'
+  if (tier === 'Low') return '#4b5563'
+  return '#6b7280'
+}
+
 function roleColor(role?: string | null): string {
   if (role === 'Initiator') return 'var(--caramel)'
   if (role === 'Contradiction') return 'var(--rust)'
@@ -450,6 +458,14 @@ export function EventDetailPage() {
             <span className="font-caps text-xs tracking-widest" style={{ color }}>
               {event.status?.toUpperCase() ?? 'UNKNOWN'}
             </span>
+            {event.importanceTier && (
+              <span
+                className="font-caps text-xs tracking-widest"
+                style={{ color: tierColor(event.importanceTier) }}
+              >
+                {event.importanceTier.toUpperCase()}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {(isAdmin || isEditor) && event.status === 'Active' && (
@@ -538,6 +554,24 @@ export function EventDetailPage() {
               </span>
               <span className="font-mono text-sm" style={{ color: '#E8E8E8' }}>
                 {event.reclassifiedCount}
+              </span>
+            </div>
+          )}
+          <div className="px-3 py-1.5" style={{ background: 'var(--near-black)' }}>
+            <span className="font-caps text-[10px] tracking-widest" style={{ color: '#6b7280' }}>
+              SOURCES{' '}
+            </span>
+            <span className="font-mono text-sm" style={{ color: '#E8E8E8' }}>
+              {event.distinctSourceCount ?? 0}
+            </span>
+          </div>
+          {event.importanceBaseScore != null && (
+            <div className="px-3 py-1.5" style={{ background: 'var(--near-black)' }}>
+              <span className="font-caps text-[10px] tracking-widest" style={{ color: '#6b7280' }}>
+                BASE SCORE{' '}
+              </span>
+              <span className="font-mono text-sm" style={{ color: '#E8E8E8' }}>
+                {event.importanceBaseScore.toFixed(1)}
               </span>
             </div>
           )}

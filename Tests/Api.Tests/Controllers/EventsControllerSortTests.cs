@@ -90,11 +90,12 @@ public class EventsControllerSortTests
             .Setup(r => r.GetPagedAsync(
                 It.IsAny<int>(), It.IsAny<int>(),
                 It.IsAny<string?>(), It.IsAny<string>(),
+                It.IsAny<ImportanceTier?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         _eventRepoMock
-            .Setup(r => r.CountAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.CountAsync(It.IsAny<string?>(), It.IsAny<ImportanceTier?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
     }
 
@@ -135,6 +136,7 @@ public class EventsControllerSortTests
             r => r.GetPagedAsync(
                 It.IsAny<int>(), It.IsAny<int>(),
                 It.IsAny<string?>(), "newest",
+                It.IsAny<ImportanceTier?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }

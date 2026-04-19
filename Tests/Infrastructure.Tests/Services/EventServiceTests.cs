@@ -1,4 +1,5 @@
 using Core.DomainModels;
+using Core.DomainModels.AI;
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
 using FluentAssertions;
@@ -186,7 +187,7 @@ public class EventServiceMergeAsyncTests
             .Returns(Task.CompletedTask)
             .Callback(() => callOrder.Add("commit"));
         _summaryUpdaterMock.Setup(s => s.UpdateSummaryAsync(It.IsAny<Event>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("updated summary")
+            .ReturnsAsync(new EventSummaryUpdateResult("updated summary", "medium"))
             .Callback(() => callOrder.Add("ai_summary"));
         _titleGeneratorMock.Setup(t => t.GenerateTitleAsync(It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("generated title");
@@ -247,7 +248,7 @@ public class EventServiceMergeAsyncTests
     private void SetupAiEnrichmentDefaults()
     {
         _summaryUpdaterMock.Setup(s => s.UpdateSummaryAsync(It.IsAny<Event>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("merged summary");
+            .ReturnsAsync(new EventSummaryUpdateResult("merged summary", "medium"));
         _titleGeneratorMock.Setup(t => t.GenerateTitleAsync(It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("merged title");
         _embeddingServiceMock.Setup(e => e.GenerateEmbeddingAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))

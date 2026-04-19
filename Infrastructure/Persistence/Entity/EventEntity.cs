@@ -12,6 +12,13 @@ public class EventEntity
 
 	public int ArticleCount { get; set; } = 0;
 
+	public string? ImportanceTier { get; set; }
+	public double? ImportanceBaseScore { get; set; }
+	public DateTimeOffset? ImportanceCalculatedAt { get; set; }
+
+	/// <summary>Populated by paged/detail queries via COUNT(DISTINCT), not a stored column.</summary>
+	public int DistinctSourceCount { get; set; }
+
 	public List<ArticleEntity> Articles { get; set; } = [];
 	public List<EventUpdateEntity> EventUpdates { get; set; } = [];
 	public List<ContradictionEntity> Contradictions { get; set; } = [];

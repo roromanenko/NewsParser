@@ -2,6 +2,7 @@ using Core.DomainModels;
 using Core.DomainModels.AI;
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
+using Core.Interfaces.Services;
 using Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
 using Worker.Configuration;
@@ -19,7 +20,8 @@ public class ArticleAnalysisWorker : BackgroundService
 		IEventSummaryUpdater SummaryUpdater,
 		IKeyFactsExtractor KeyFactsExtractor,
 		IContradictionDetector ContradictionDetector,
-		IEventTitleGenerator TitleGenerator);
+		IEventTitleGenerator TitleGenerator,
+		IEventImportanceScorer Scorer);
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly ILogger<ArticleAnalysisWorker> _logger;
 	private readonly ArticleProcessingOptions _options;
@@ -58,7 +60,8 @@ public class ArticleAnalysisWorker : BackgroundService
 			SummaryUpdater: scope.ServiceProvider.GetRequiredService<IEventSummaryUpdater>(),
 			KeyFactsExtractor: scope.ServiceProvider.GetRequiredService<IKeyFactsExtractor>(),
 			ContradictionDetector: scope.ServiceProvider.GetRequiredService<IContradictionDetector>(),
-			TitleGenerator: scope.ServiceProvider.GetRequiredService<IEventTitleGenerator>());
+			TitleGenerator: scope.ServiceProvider.GetRequiredService<IEventTitleGenerator>(),
+			Scorer: scope.ServiceProvider.GetRequiredService<IEventImportanceScorer>());
 
 		var articles = await ctx.ArticleRepository.GetPendingAsync(_options.BatchSize, cancellationToken);
 
@@ -411,21 +414,53 @@ public class ArticleAnalysisWorker : BackgroundService
 
 			var newFacts = string.IsNullOrWhiteSpace(newFact) ? [] : new List<string> { newFact };
 			string updatedSummary = evt.Summary;
+			string? intrinsicImportance = null;
 
 			if (newFacts.Count > 0)
 			{
-				updatedSummary = await ctx.SummaryUpdater.UpdateSummaryAsync(evt, newFacts, cancellationToken);
+				var summaryResult = await ctx.SummaryUpdater.UpdateSummaryAsync(evt, newFacts, cancellationToken);
+				updatedSummary = summaryResult.UpdatedSummary;
+				intrinsicImportance = summaryResult.IntrinsicImportance;
 			}
 
 			var updatedTitle = await GenerateTitleForUpdatedEventAsync(evt, updatedSummary, ctx.TitleGenerator, cancellationToken);
 
 			await ctx.EventRepository.UpdateSummaryTitleAndEmbeddingAsync(
 				evt.Id, updatedTitle, updatedSummary, updatedEmbedding, cancellationToken);
+
+			if (intrinsicImportance is not null)
+				await RecalculateImportanceAsync(evt, intrinsicImportance, ctx, cancellationToken);
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Failed to update embedding for event {EventId}, continuing", evt.Id);
 			await ctx.EventRepository.UpdateLastUpdatedAtAsync(evt.Id, DateTimeOffset.UtcNow, cancellationToken);
+		}
+	}
+
+	private async Task RecalculateImportanceAsync(
+		Event evt,
+		string intrinsicImportance,
+		AnalysisContext ctx,
+		CancellationToken cancellationToken)
+	{
+		try
+		{
+			var stats = await ctx.EventRepository.GetImportanceStatsAsync(evt.Id, cancellationToken);
+			var scored = ctx.Scorer.Calculate(new ImportanceInputs(
+				stats.ArticleCount,
+				stats.DistinctSourceCount,
+				stats.ArticlesLastHour,
+				intrinsicImportance,
+				stats.LastArticleAt ?? DateTimeOffset.UtcNow,
+				DateTimeOffset.UtcNow));
+
+			await ctx.EventRepository.UpdateImportanceAsync(
+				evt.Id, scored.Tier, scored.BaseScore, DateTimeOffset.UtcNow, cancellationToken);
+		}
+		catch (Exception ex) when (ex is not OperationCanceledException)
+		{
+			_logger.LogWarning(ex, "Importance scoring failed for event {EventId}; summary update succeeded", evt.Id);
 		}
 	}
 

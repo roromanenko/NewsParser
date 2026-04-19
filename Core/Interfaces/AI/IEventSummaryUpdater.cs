@@ -1,10 +1,11 @@
 ﻿using Core.DomainModels;
+using Core.DomainModels.AI;
 
 namespace Core.Interfaces.AI;
 
 public interface IEventSummaryUpdater
 {
-	Task<string> UpdateSummaryAsync(
+	Task<EventSummaryUpdateResult> UpdateSummaryAsync(
 		Event evt,
 		List<string> newFacts,
 		CancellationToken cancellationToken = default);

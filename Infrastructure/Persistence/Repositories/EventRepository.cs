@@ -1,18 +1,25 @@
 using Core.DomainModels;
 using Core.Interfaces.Repositories;
 using Dapper;
+using Infrastructure.Configuration;
 using Infrastructure.Persistence.Connection;
 using Infrastructure.Persistence.Entity;
 using Infrastructure.Persistence.Mappers;
 using Infrastructure.Persistence.Repositories.Sql;
 using Infrastructure.Persistence.UnitOfWork;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using Pgvector;
 
 namespace Infrastructure.Persistence.Repositories;
 
-internal class EventRepository(IDbConnectionFactory factory, IUnitOfWork uow) : IEventRepository
+internal class EventRepository(
+    IDbConnectionFactory factory,
+    IUnitOfWork uow,
+    IOptions<EventImportanceOptions> importanceOptions) : IEventRepository
 {
+    private readonly double _halfLifeHours = importanceOptions.Value.HalfLifeHours;
+
     public async Task<Event?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await using var conn = await factory.CreateOpenAsync(cancellationToken);
@@ -215,11 +222,12 @@ internal class EventRepository(IDbConnectionFactory factory, IUnitOfWork uow) : 
     }
 
     public async Task<List<Event>> GetPagedAsync(
-        int page, int pageSize, string? search, string sortBy,
+        int page, int pageSize, string? search, string sortBy, ImportanceTier? tier,
         CancellationToken cancellationToken = default)
     {
-        var direction = sortBy == "oldest" ? "ASC" : "DESC";
         var offset = (page - 1) * pageSize;
+        var tierClause = tier.HasValue ? EventSql.TierFilterPaged : string.Empty;
+        var orderByClause = BuildOrderByClause(sortBy);
 
         await using var conn = await factory.CreateOpenAsync(cancellationToken);
 
@@ -229,15 +237,17 @@ internal class EventRepository(IDbConnectionFactory factory, IUnitOfWork uow) : 
         {
             var escaped = QueryHelpers.EscapeILikePattern(search);
             var pattern = $"%{escaped}%";
-            var sql = string.Format(EventSql.GetPagedWithSearch, direction);
+            var sql = string.Format(EventSql.GetPagedWithSearch, orderByClause, tierClause);
+            var parameters = BuildPagedParameters(pageSize, offset, tier, pattern: pattern, sortBy: sortBy);
             eventEntities = (await conn.QueryAsync<EventEntity>(
-                new CommandDefinition(sql, new { pattern, pageSize, offset }, cancellationToken: cancellationToken))).ToList();
+                new CommandDefinition(sql, parameters, cancellationToken: cancellationToken))).ToList();
         }
         else
         {
-            var sql = string.Format(EventSql.GetPagedWithoutSearch, direction);
+            var sql = string.Format(EventSql.GetPagedWithoutSearch, orderByClause, tierClause);
+            var parameters = BuildPagedParameters(pageSize, offset, tier, sortBy: sortBy);
             eventEntities = (await conn.QueryAsync<EventEntity>(
-                new CommandDefinition(sql, new { pageSize, offset }, cancellationToken: cancellationToken))).ToList();
+                new CommandDefinition(sql, parameters, cancellationToken: cancellationToken))).ToList();
         }
 
         if (eventEntities.Count == 0) return [];
@@ -255,20 +265,28 @@ internal class EventRepository(IDbConnectionFactory factory, IUnitOfWork uow) : 
         return eventEntities.Select(e => e.ToDomain()).ToList();
     }
 
-    public async Task<int> CountAsync(string? search, CancellationToken cancellationToken = default)
+    public async Task<int> CountAsync(string? search, ImportanceTier? tier, CancellationToken cancellationToken = default)
     {
+        var tierClause = tier.HasValue ? EventSql.TierFilterCount : string.Empty;
+
         await using var conn = await factory.CreateOpenAsync(cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var escaped = QueryHelpers.EscapeILikePattern(search);
             var pattern = $"%{escaped}%";
+            var sql = string.Format(EventSql.CountWithSearch, tierClause);
             return await conn.ExecuteScalarAsync<int>(
-                new CommandDefinition(EventSql.CountWithSearch, new { pattern }, cancellationToken: cancellationToken));
+                new CommandDefinition(sql,
+                    tier.HasValue ? new { pattern, tier = tier.Value.ToString() } : (object)new { pattern },
+                    cancellationToken: cancellationToken));
         }
 
+        var countSql = string.Format(EventSql.CountWithoutSearch, tierClause);
         return await conn.ExecuteScalarAsync<int>(
-            new CommandDefinition(EventSql.CountWithoutSearch, cancellationToken: cancellationToken));
+            new CommandDefinition(countSql,
+                tier.HasValue ? new { tier = tier.Value.ToString() } : null,
+                cancellationToken: cancellationToken));
     }
 
     public async Task<Event?> GetDetailAsync(Guid id, CancellationToken cancellationToken = default)
@@ -359,6 +377,55 @@ internal class EventRepository(IDbConnectionFactory factory, IUnitOfWork uow) : 
             cancellationToken: cancellationToken));
     }
 
+    public async Task<EventImportanceStats> GetImportanceStatsAsync(Guid eventId, CancellationToken ct = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(ct);
+        var row = await conn.QuerySingleAsync<ImportanceStatsRow>(
+            new CommandDefinition(EventSql.GetImportanceStats, new { eventId }, cancellationToken: ct));
+        return new EventImportanceStats(
+            row.ArticleCount,
+            row.DistinctSourceCount,
+            row.ArticlesLastHour,
+            row.LastArticleAt);
+    }
+
+    public async Task UpdateImportanceAsync(
+        Guid eventId, ImportanceTier tier, double baseScore, DateTimeOffset calculatedAt,
+        CancellationToken ct = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(ct);
+        await conn.ExecuteAsync(new CommandDefinition(EventSql.UpdateImportance,
+            new { eventId, tier = tier.ToString(), baseScore, calculatedAt },
+            cancellationToken: ct));
+    }
+
+    private string BuildOrderByClause(string sortBy) => sortBy switch
+    {
+        EventSql.SortKeys.Oldest => """ORDER BY e."LastUpdatedAt" ASC""",
+        EventSql.SortKeys.Importance => EventSql.ImportanceOrderBy,
+        _ => """ORDER BY e."LastUpdatedAt" DESC"""
+    };
+
+    private object BuildPagedParameters(
+        int pageSize, int offset, ImportanceTier? tier,
+        string? pattern = null, string sortBy = EventSql.SortKeys.Newest)
+    {
+        var dp = new DynamicParameters();
+        dp.Add("pageSize", pageSize);
+        dp.Add("offset", offset);
+
+        if (pattern is not null)
+            dp.Add("pattern", pattern);
+
+        if (tier.HasValue)
+            dp.Add("tier", tier.Value.ToString());
+
+        if (sortBy == EventSql.SortKeys.Importance)
+            dp.Add("halfLifeHours", _halfLifeHours);
+
+        return dp;
+    }
+
     private static async Task<Event?> FetchEventWithRelationsAsync(
         NpgsqlConnection conn, Guid id, bool includeMedia,
         CancellationToken cancellationToken)
@@ -433,4 +500,12 @@ internal class EventRepository(IDbConnectionFactory factory, IUnitOfWork uow) : 
 internal sealed class EventWithSimilarityRow : EventEntity
 {
     public double Similarity { get; init; }
+}
+
+internal sealed class ImportanceStatsRow
+{
+    public int ArticleCount { get; init; }
+    public int DistinctSourceCount { get; init; }
+    public int ArticlesLastHour { get; init; }
+    public DateTimeOffset? LastArticleAt { get; init; }
 }

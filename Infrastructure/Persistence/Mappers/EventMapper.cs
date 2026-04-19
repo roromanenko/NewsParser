@@ -15,6 +15,12 @@ public static class EventMapper
 		LastUpdatedAt = entity.LastUpdatedAt,
 		Embedding = entity.Embedding?.ToArray(),
 		ArticleCount = entity.ArticleCount,
+		ImportanceTier = entity.ImportanceTier != null
+			? Enum.Parse<ImportanceTier>(entity.ImportanceTier)
+			: null,
+		ImportanceBaseScore = entity.ImportanceBaseScore,
+		ImportanceCalculatedAt = entity.ImportanceCalculatedAt,
+		DistinctSourceCount = entity.DistinctSourceCount,
 		Articles = entity.Articles?.Select(a => a.ToDomain()).ToList() ?? [],
 		EventUpdates = entity.EventUpdates?.Select(eu => eu.ToDomain()).ToList() ?? [],
 		Contradictions = entity.Contradictions?.Select(c => c.ToDomain()).ToList() ?? [],
@@ -30,6 +36,9 @@ public static class EventMapper
 		LastUpdatedAt = domain.LastUpdatedAt,
 		Embedding = domain.Embedding != null ? new Pgvector.Vector(domain.Embedding) : null,
 		ArticleCount = domain.ArticleCount,
+		ImportanceTier = domain.ImportanceTier?.ToString(),
+		ImportanceBaseScore = domain.ImportanceBaseScore,
+		ImportanceCalculatedAt = domain.ImportanceCalculatedAt,
 	};
 
 	public static EventUpdate ToDomain(this EventUpdateEntity entity) => new()

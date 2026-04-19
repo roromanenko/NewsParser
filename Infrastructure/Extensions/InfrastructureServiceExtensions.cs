@@ -193,6 +193,8 @@ public static class InfrastructureServiceExtensions
 		services.Configure<ValidationOptions>(configuration.GetSection(ValidationOptions.SectionName));
 		services.AddScoped<IArticleValidator, ArticleValidator>();
 		services.AddScoped<IEventService, EventService>();
+		services.Configure<EventImportanceOptions>(configuration.GetSection(EventImportanceOptions.SectionName));
+		services.AddScoped<IEventImportanceScorer, EventImportanceScorer>();
 
 		return services;
 	}

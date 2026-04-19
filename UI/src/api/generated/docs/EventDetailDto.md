@@ -15,6 +15,9 @@ Name | Type | Description | Notes
 **updates** | [**Array&lt;EventUpdateDto&gt;**](EventUpdateDto.md) |  | [optional] [default to undefined]
 **contradictions** | [**Array&lt;ContradictionDto&gt;**](ContradictionDto.md) |  | [optional] [default to undefined]
 **reclassifiedCount** | **number** |  | [optional] [default to undefined]
+**importanceTier** | **string** |  | [optional] [default to undefined]
+**importanceBaseScore** | **number** |  | [optional] [default to undefined]
+**distinctSourceCount** | **number** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -32,6 +35,9 @@ const instance: EventDetailDto = {
     updates,
     contradictions,
     reclassifiedCount,
+    importanceTier,
+    importanceBaseScore,
+    distinctSourceCount,
 };
 ```
 

@@ -13,6 +13,9 @@ Name | Type | Description | Notes
 **lastUpdatedAt** | **string** |  | [optional] [default to undefined]
 **articleCount** | **number** |  | [optional] [default to undefined]
 **unresolvedContradictions** | **number** |  | [optional] [default to undefined]
+**importanceTier** | **string** |  | [optional] [default to undefined]
+**importanceBaseScore** | **number** |  | [optional] [default to undefined]
+**distinctSourceCount** | **number** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -28,6 +31,9 @@ const instance: EventListItemDto = {
     lastUpdatedAt,
     articleCount,
     unresolvedContradictions,
+    importanceTier,
+    importanceBaseScore,
+    distinctSourceCount,
 };
 ```
 

@@ -13,7 +13,10 @@ public static class EventMapper
         evt.FirstSeenAt,
         evt.LastUpdatedAt,
         evt.Articles.Count,
-        evt.Contradictions.Count(c => !c.IsResolved)
+        evt.Contradictions.Count(c => !c.IsResolved),
+        evt.ImportanceTier?.ToString(),
+        evt.ImportanceBaseScore,
+        evt.DistinctSourceCount
     );
 
     public static EventDetailDto ToDetailDto(this Event evt, string publicBaseUrl) => new(
@@ -26,7 +29,10 @@ public static class EventMapper
         evt.Articles.Select(a => a.ToEventArticleDto(publicBaseUrl)).ToList(),
         evt.EventUpdates.Select(eu => eu.ToDto()).OrderBy(u => u.CreatedAt).ToList(),
         evt.Contradictions.Select(c => c.ToDto()).ToList(),
-        evt.Articles.Count(a => a.WasReclassified)
+        evt.Articles.Count(a => a.WasReclassified),
+        evt.ImportanceTier?.ToString(),
+        evt.ImportanceBaseScore,
+        evt.DistinctSourceCount
     );
 
     public static EventArticleDto ToEventArticleDto(this Article article, string publicBaseUrl) => new(

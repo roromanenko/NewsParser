@@ -8,7 +8,10 @@ public record EventListItemDto(
 	DateTimeOffset FirstSeenAt,
 	DateTimeOffset LastUpdatedAt,
 	int ArticleCount,
-	int UnresolvedContradictions
+	int UnresolvedContradictions,
+	string? ImportanceTier,
+	double? ImportanceBaseScore,
+	int DistinctSourceCount
 );
 
 public record EventDetailDto(
@@ -21,7 +24,10 @@ public record EventDetailDto(
 	List<EventArticleDto> Articles,
 	List<EventUpdateDto> Updates,
 	List<ContradictionDto> Contradictions,
-	int ReclassifiedCount
+	int ReclassifiedCount,
+	string? ImportanceTier,
+	double? ImportanceBaseScore,
+	int DistinctSourceCount
 );
 
 public record EventArticleDto(

@@ -15,5 +15,14 @@ RULES:
 
 Return exactly this JSON structure:
 {
-  "updated_summary": "string"
+  "updated_summary": "string",
+  "intrinsic_importance": "low" | "medium" | "high" | "breaking"
 }
+
+IMPORTANCE RUBRIC:
+- breaking = major breaking news with immediate wide impact
+- high = significant national or regional importance
+- medium = normal newsworthy event
+- low = minor or niche topic
+
+Evaluate the importance of the event as a whole, not just the new facts.

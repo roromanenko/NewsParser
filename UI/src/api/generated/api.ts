@@ -113,6 +113,9 @@ export interface EventDetailDto {
     'updates'?: Array<EventUpdateDto> | null;
     'contradictions'?: Array<ContradictionDto> | null;
     'reclassifiedCount'?: number;
+    'importanceTier'?: string | null;
+    'importanceBaseScore'?: number | null;
+    'distinctSourceCount'?: number;
 }
 export interface EventListItemDto {
     'id'?: string;
@@ -123,6 +126,9 @@ export interface EventListItemDto {
     'lastUpdatedAt'?: string;
     'articleCount'?: number;
     'unresolvedContradictions'?: number;
+    'importanceTier'?: string | null;
+    'importanceBaseScore'?: number | null;
+    'distinctSourceCount'?: number;
 }
 export interface EventListItemDtoPagedResult {
     'items'?: Array<EventListItemDto> | null;
@@ -669,10 +675,11 @@ export const EventsApiAxiosParamCreator = function (configuration?: Configuratio
          * @param {number} [pageSize] 
          * @param {string} [search] 
          * @param {string} [sortBy] 
+         * @param {string} [tier] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        eventsGet: async (page?: number, pageSize?: number, search?: string, sortBy?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        eventsGet: async (page?: number, pageSize?: number, search?: string, sortBy?: string, tier?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/events`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -702,6 +709,10 @@ export const EventsApiAxiosParamCreator = function (configuration?: Configuratio
 
             if (sortBy !== undefined) {
                 localVarQueryParameter['sortBy'] = sortBy;
+            }
+
+            if (tier !== undefined) {
+                localVarQueryParameter['tier'] = tier;
             }
 
             localVarHeaderParameter['Accept'] = 'text/plain,application/json,text/json';
@@ -914,11 +925,12 @@ export const EventsApiFp = function(configuration?: Configuration) {
          * @param {number} [pageSize] 
          * @param {string} [search] 
          * @param {string} [sortBy] 
+         * @param {string} [tier] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async eventsGet(page?: number, pageSize?: number, search?: string, sortBy?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<EventListItemDtoPagedResult>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.eventsGet(page, pageSize, search, sortBy, options);
+        async eventsGet(page?: number, pageSize?: number, search?: string, sortBy?: string, tier?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<EventListItemDtoPagedResult>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.eventsGet(page, pageSize, search, sortBy, tier, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['EventsApi.eventsGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1001,11 +1013,12 @@ export const EventsApiFactory = function (configuration?: Configuration, basePat
          * @param {number} [pageSize] 
          * @param {string} [search] 
          * @param {string} [sortBy] 
+         * @param {string} [tier] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        eventsGet(page?: number, pageSize?: number, search?: string, sortBy?: string, options?: RawAxiosRequestConfig): AxiosPromise<EventListItemDtoPagedResult> {
-            return localVarFp.eventsGet(page, pageSize, search, sortBy, options).then((request) => request(axios, basePath));
+        eventsGet(page?: number, pageSize?: number, search?: string, sortBy?: string, tier?: string, options?: RawAxiosRequestConfig): AxiosPromise<EventListItemDtoPagedResult> {
+            return localVarFp.eventsGet(page, pageSize, search, sortBy, tier, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1068,10 +1081,11 @@ export interface EventsApiInterface {
      * @param {number} [pageSize] 
      * @param {string} [search] 
      * @param {string} [sortBy] 
+     * @param {string} [tier] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    eventsGet(page?: number, pageSize?: number, search?: string, sortBy?: string, options?: RawAxiosRequestConfig): AxiosPromise<EventListItemDtoPagedResult>;
+    eventsGet(page?: number, pageSize?: number, search?: string, sortBy?: string, tier?: string, options?: RawAxiosRequestConfig): AxiosPromise<EventListItemDtoPagedResult>;
 
     /**
      * 
@@ -1128,11 +1142,12 @@ export class EventsApi extends BaseAPI implements EventsApiInterface {
      * @param {number} [pageSize] 
      * @param {string} [search] 
      * @param {string} [sortBy] 
+     * @param {string} [tier] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public eventsGet(page?: number, pageSize?: number, search?: string, sortBy?: string, options?: RawAxiosRequestConfig) {
-        return EventsApiFp(this.configuration).eventsGet(page, pageSize, search, sortBy, options).then((request) => request(this.axios, this.basePath));
+    public eventsGet(page?: number, pageSize?: number, search?: string, sortBy?: string, tier?: string, options?: RawAxiosRequestConfig) {
+        return EventsApiFp(this.configuration).eventsGet(page, pageSize, search, sortBy, tier, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

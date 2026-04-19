@@ -2,8 +2,29 @@ namespace Infrastructure.Persistence.Repositories.Sql;
 
 internal static class EventSql
 {
-    public const string GetById = """
-        SELECT "Id", "Title", "Summary", "Status", "FirstSeenAt", "LastUpdatedAt", "Embedding", "ArticleCount"
+    // Sort key constants — kept in sync with Api.Controllers.SortOptions.EventSortValues
+    internal static class SortKeys
+    {
+        public const string Newest = "newest";
+        public const string Oldest = "oldest";
+        public const string Importance = "importance";
+    }
+
+    // Tier-filter SQL fragments — inserted via string.Format into paged/count queries
+    // Paged query: column is prefixed with the table alias e.
+    public const string TierFilterPaged = """AND e."ImportanceTier" = @tier""";
+
+    // Count query: no table alias
+    public const string TierFilterCount = """AND "ImportanceTier" = @tier""";
+
+
+    private const string EventColumns = """
+        "Id", "Title", "Summary", "Status", "FirstSeenAt", "LastUpdatedAt", "Embedding", "ArticleCount",
+        "ImportanceTier", "ImportanceBaseScore", "ImportanceCalculatedAt"
+        """;
+
+    public const string GetById = $"""
+        SELECT {EventColumns}
         FROM events WHERE "Id" = @id
         """;
 
@@ -35,14 +56,14 @@ internal static class EventSql
         FROM media_files WHERE "ArticleId" = ANY(@ids)
         """;
 
-    public const string GetActiveEvents = """
-        SELECT "Id", "Title", "Summary", "Status", "FirstSeenAt", "LastUpdatedAt", "Embedding", "ArticleCount"
+    public const string GetActiveEvents = $"""
+        SELECT {EventColumns}
         FROM events WHERE "Status" = 'Active'
         ORDER BY "LastUpdatedAt" DESC
         """;
 
-    public const string FindSimilarEvents = """
-        SELECT "Id", "Title", "Summary", "Status", "FirstSeenAt", "LastUpdatedAt", "Embedding", "ArticleCount",
+    public const string FindSimilarEvents = $"""
+        SELECT {EventColumns},
                1 - ("Embedding" <=> @vector::vector) AS similarity
         FROM events
         WHERE "Status" = 'Active'
@@ -102,8 +123,8 @@ internal static class EventSql
         LIMIT @batchSize
         """;
 
-    public const string GetUnpublishedUpdateEvents = """
-        SELECT e."Id", e."Title", e."Summary", e."Status", e."FirstSeenAt", e."LastUpdatedAt", e."Embedding", e."ArticleCount"
+    public const string GetUnpublishedUpdateEvents = $"""
+        SELECT {EventColumns}
         FROM events e
         WHERE e."Id" = ANY(@eventIds)
         """;
@@ -128,28 +149,53 @@ internal static class EventSql
         SELECT "CreatedAt" FROM event_updates WHERE "EventId" = @eventId ORDER BY "CreatedAt" DESC LIMIT 1
         """;
 
+    // {0} = ORDER BY clause, {1} = optional tier filter clause (e.g. "AND \"ImportanceTier\" = @tier")
     public const string GetPagedWithSearch = """
-        SELECT "Id", "Title", "Summary", "Status", "FirstSeenAt", "LastUpdatedAt", "Embedding", "ArticleCount"
-        FROM events
-        WHERE ("Title" ILIKE @pattern ESCAPE '\' OR "Summary" ILIKE @pattern ESCAPE '\')
-        ORDER BY "LastUpdatedAt" {0}
+        SELECT e."Id", e."Title", e."Summary", e."Status", e."FirstSeenAt", e."LastUpdatedAt",
+               e."Embedding", e."ArticleCount",
+               e."ImportanceTier", e."ImportanceBaseScore", e."ImportanceCalculatedAt",
+               COUNT(DISTINCT a."SourceId") AS "DistinctSourceCount"
+        FROM events e
+        LEFT JOIN articles a ON a."EventId" = e."Id"
+        WHERE (e."Title" ILIKE @pattern ESCAPE '\' OR e."Summary" ILIKE @pattern ESCAPE '\')
+          {1}
+        GROUP BY e."Id"
+        {0}
         LIMIT @pageSize OFFSET @offset
         """;
 
     public const string GetPagedWithoutSearch = """
-        SELECT "Id", "Title", "Summary", "Status", "FirstSeenAt", "LastUpdatedAt", "Embedding", "ArticleCount"
-        FROM events
-        ORDER BY "LastUpdatedAt" {0}
+        SELECT e."Id", e."Title", e."Summary", e."Status", e."FirstSeenAt", e."LastUpdatedAt",
+               e."Embedding", e."ArticleCount",
+               e."ImportanceTier", e."ImportanceBaseScore", e."ImportanceCalculatedAt",
+               COUNT(DISTINCT a."SourceId") AS "DistinctSourceCount"
+        FROM events e
+        LEFT JOIN articles a ON a."EventId" = e."Id"
+        WHERE 1=1
+          {1}
+        GROUP BY e."Id"
+        {0}
         LIMIT @pageSize OFFSET @offset
         """;
 
+    // ORDER BY clause for importance sort using live decayed score
+    public const string ImportanceOrderBy = """
+        ORDER BY e."ImportanceBaseScore"
+          * POWER(0.5, EXTRACT(EPOCH FROM (NOW() - GREATEST(e."LastUpdatedAt", e."ImportanceCalculatedAt"))) / 3600.0 / @halfLifeHours)
+          DESC NULLS LAST
+        """;
+
+    // {0} = optional tier filter clause
     public const string CountWithSearch = """
         SELECT COUNT(*) FROM events
         WHERE ("Title" ILIKE @pattern ESCAPE '\' OR "Summary" ILIKE @pattern ESCAPE '\')
+          {0}
         """;
 
     public const string CountWithoutSearch = """
         SELECT COUNT(*) FROM events
+        WHERE 1=1
+          {0}
         """;
 
     public const string ResolveContradiction = """
@@ -199,5 +245,23 @@ internal static class EventSql
     public const string GetContradictionsByEventIds = """
         SELECT "Id", "EventId", "Description", "IsResolved", "CreatedAt"
         FROM contradictions WHERE "EventId" = ANY(@ids)
+        """;
+
+    public const string GetImportanceStats = """
+        SELECT
+          COUNT(*)                                                                   AS "ArticleCount",
+          COUNT(DISTINCT "SourceId")                                                 AS "DistinctSourceCount",
+          COUNT(*) FILTER (WHERE "AddedToEventAt" >= NOW() - INTERVAL '1 hour')     AS "ArticlesLastHour",
+          MAX("AddedToEventAt")                                                      AS "LastArticleAt"
+        FROM articles
+        WHERE "EventId" = @eventId
+        """;
+
+    public const string UpdateImportance = """
+        UPDATE events
+        SET "ImportanceTier"         = @tier,
+            "ImportanceBaseScore"    = @baseScore,
+            "ImportanceCalculatedAt" = @calculatedAt
+        WHERE "Id" = @eventId
         """;
 }
