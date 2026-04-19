@@ -178,6 +178,7 @@ public class ArticleAnalysisWorker : BackgroundService
 			_logger.LogInformation("No similar events for article {Id}, creating new event", article.Id);
 			targetEvent = await CreateNewEventAsync(article, embedding, ctx.EventRepository, ctx.TitleGenerator, cancellationToken);
 			role = ArticleRole.Initiator;
+			await UpdateEventEmbeddingAsync(targetEvent, article.Summary ?? string.Empty, embedding, ctx, cancellationToken);
 		}
 		else
 		{
@@ -305,11 +306,8 @@ public class ArticleAnalysisWorker : BackgroundService
 		if (role != ArticleRole.Initiator && result.IsSignificantUpdate && result.NewFacts.Count > 0)
 			await TrySaveEventUpdateAsync(targetEvent, article, result.NewFacts, ctx.EventRepository, cancellationToken);
 
-		if (role != ArticleRole.Initiator)
-		{
-			await UpdateEventEmbeddingAsync(
-				targetEvent, article.Summary ?? string.Empty, embedding, ctx, cancellationToken);
-		}
+		await UpdateEventEmbeddingAsync(
+			targetEvent, article.Summary ?? string.Empty, embedding, ctx, cancellationToken);
 
 		return (targetEvent, role);
 	}
