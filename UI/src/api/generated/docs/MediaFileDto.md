@@ -11,6 +11,7 @@ Name | Type | Description | Notes
 **kind** | **string** |  | [optional] [default to undefined]
 **contentType** | **string** |  | [optional] [default to undefined]
 **sizeBytes** | **number** |  | [optional] [default to undefined]
+**ownerKind** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -24,6 +25,7 @@ const instance: MediaFileDto = {
     kind,
     contentType,
     sizeBytes,
+    ownerKind,
 };
 ```
 

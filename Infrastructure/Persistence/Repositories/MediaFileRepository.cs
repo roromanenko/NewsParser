@@ -19,6 +19,9 @@ internal class MediaFileRepository(IDbConnectionFactory factory, IUnitOfWork uow
         {
             entity.Id,
             entity.ArticleId,
+            entity.PublicationId,
+            entity.OwnerKind,
+            entity.UploadedByUserId,
             entity.R2Key,
             entity.OriginalUrl,
             entity.ContentType,
@@ -51,5 +54,28 @@ internal class MediaFileRepository(IDbConnectionFactory factory, IUnitOfWork uow
         var entities = await conn.QueryAsync<MediaFileEntity>(
             new CommandDefinition(MediaFileSql.GetByIds, new { ids = ids.ToArray() }, cancellationToken: cancellationToken));
         return entities.Select(e => e.ToDomain()).ToList();
+    }
+
+    public async Task<List<MediaFile>> GetByPublicationIdAsync(Guid publicationId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var entities = await conn.QueryAsync<MediaFileEntity>(
+            new CommandDefinition(MediaFileSql.GetByPublicationId, new { publicationId }, cancellationToken: cancellationToken));
+        return entities.Select(e => e.ToDomain()).ToList();
+    }
+
+    public async Task<MediaFile?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var entity = await conn.QueryFirstOrDefaultAsync<MediaFileEntity>(
+            new CommandDefinition(MediaFileSql.GetById, new { id }, cancellationToken: cancellationToken));
+        return entity?.ToDomain();
+    }
+
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        await conn.ExecuteAsync(
+            new CommandDefinition(MediaFileSql.Delete, new { id }, cancellationToken: cancellationToken));
     }
 }

@@ -93,6 +93,9 @@ public class MediaIngestionService(
             {
                 Id = Guid.NewGuid(),
                 ArticleId = articleId,
+                OwnerKind = MediaOwnerKind.Article,
+                PublicationId = null,
+                UploadedByUserId = null,
                 R2Key = r2Key,
                 OriginalUrl = reference.Url,
                 ContentType = download.ContentType,

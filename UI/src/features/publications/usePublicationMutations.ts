@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/axios'
 import { useToast } from '@/context/ToastContext'
-import type { PublicationDetailDto, PublicationListItemDto } from './types'
+import type { MediaFileDto, PublicationDetailDto, PublicationListItemDto } from './types'
 
 export function usePublicationMutations(publicationId?: string) {
   const queryClient = useQueryClient()
@@ -79,5 +79,34 @@ export function usePublicationMutations(publicationId?: string) {
     },
   })
 
-  return { generateContent, updateContent, approve, reject, regenerate }
+  const uploadMedia = useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return apiClient
+        .post<MediaFileDto>(`/publications/${publicationId}/media`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+        .then(r => r.data)
+    },
+    onSuccess: () => {
+      toast('Media uploaded', 'success')
+      invalidateDetail()
+    },
+    onError: () => toast('Failed to upload media', 'error'),
+  })
+
+  const deleteMedia = useMutation({
+    mutationFn: (mediaId: string) =>
+      apiClient
+        .delete(`/publications/${publicationId}/media/${mediaId}`)
+        .then(r => r.data),
+    onSuccess: () => {
+      toast('Media deleted', 'success')
+      invalidateDetail()
+    },
+    onError: () => toast('Failed to delete media', 'error'),
+  })
+
+  return { generateContent, updateContent, approve, reject, regenerate, uploadMedia, deleteMedia }
 }

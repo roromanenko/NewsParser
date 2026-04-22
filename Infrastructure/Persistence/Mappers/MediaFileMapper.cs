@@ -9,6 +9,9 @@ public static class MediaFileMapper
 	{
 		Id = entity.Id,
 		ArticleId = entity.ArticleId,
+		PublicationId = entity.PublicationId,
+		OwnerKind = Enum.Parse<MediaOwnerKind>(entity.OwnerKind),
+		UploadedByUserId = entity.UploadedByUserId,
 		R2Key = entity.R2Key,
 		OriginalUrl = entity.OriginalUrl,
 		ContentType = entity.ContentType,
@@ -21,6 +24,9 @@ public static class MediaFileMapper
 	{
 		Id = domain.Id,
 		ArticleId = domain.ArticleId,
+		PublicationId = domain.PublicationId,
+		OwnerKind = domain.OwnerKind.ToString(),
+		UploadedByUserId = domain.UploadedByUserId,
 		R2Key = domain.R2Key,
 		OriginalUrl = domain.OriginalUrl,
 		ContentType = domain.ContentType,

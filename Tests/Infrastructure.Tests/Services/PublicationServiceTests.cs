@@ -13,6 +13,7 @@ public class PublicationServiceTests
     private Mock<IEventRepository> _eventRepoMock = null!;
     private Mock<IPublicationRepository> _publicationRepoMock = null!;
     private Mock<IPublishTargetRepository> _publishTargetRepoMock = null!;
+    private Mock<IMediaFileRepository> _mediaFileRepoMock = null!;
     private PublicationService _sut = null!;
 
     [SetUp]
@@ -21,11 +22,16 @@ public class PublicationServiceTests
         _eventRepoMock = new Mock<IEventRepository>();
         _publicationRepoMock = new Mock<IPublicationRepository>();
         _publishTargetRepoMock = new Mock<IPublishTargetRepository>();
+        _mediaFileRepoMock = new Mock<IMediaFileRepository>();
+        _mediaFileRepoMock
+            .Setup(r => r.GetByPublicationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
 
         _sut = new PublicationService(
             _eventRepoMock.Object,
             _publicationRepoMock.Object,
             _publishTargetRepoMock.Object,
+            _mediaFileRepoMock.Object,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<PublicationService>.Instance);
     }
 
@@ -237,14 +243,18 @@ public class PublicationServiceTests
         var publicationId = Guid.NewGuid();
         var publication = CreatePublication(publicationId, PublicationStatus.ContentReady);
         var newContent = "Updated post text.";
-        var newMediaIds = new List<Guid> { Guid.NewGuid() };
+        var eligibleMediaId = Guid.NewGuid();
+        var newMediaIds = new List<Guid> { eligibleMediaId };
 
         _publicationRepoMock
-            .Setup(r => r.GetByIdAsync(publicationId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetDetailAsync(publicationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(publication);
         _publicationRepoMock
             .Setup(r => r.UpdateContentAndMediaAsync(publicationId, newContent, newMediaIds, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+        _mediaFileRepoMock
+            .Setup(r => r.GetByPublicationIdAsync(publicationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([CreatePublicationMediaFile(eligibleMediaId, publicationId)]);
 
         // Act
         var result = await _sut.UpdateContentAsync(publicationId, newContent, newMediaIds);
@@ -268,7 +278,7 @@ public class PublicationServiceTests
         var publicationId = Guid.NewGuid();
 
         _publicationRepoMock
-            .Setup(r => r.GetByIdAsync(publicationId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetDetailAsync(publicationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Publication?)null);
 
         // Act
@@ -290,7 +300,7 @@ public class PublicationServiceTests
         var publication = CreatePublication(publicationId, PublicationStatus.Approved);
 
         _publicationRepoMock
-            .Setup(r => r.GetByIdAsync(publicationId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetDetailAsync(publicationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(publication);
 
         // Act
@@ -727,6 +737,21 @@ public class PublicationServiceTests
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
+
+    private static MediaFile CreatePublicationMediaFile(Guid id, Guid publicationId) => new()
+    {
+        Id = id,
+        OwnerKind = MediaOwnerKind.Publication,
+        PublicationId = publicationId,
+        ArticleId = null,
+        UploadedByUserId = null,
+        R2Key = $"publications/{publicationId}/{id}.jpg",
+        OriginalUrl = string.Empty,
+        ContentType = "image/jpeg",
+        SizeBytes = 1024,
+        Kind = MediaKind.Image,
+        CreatedAt = DateTimeOffset.UtcNow
+    };
 
     private static Article CreateArticle(ArticleRole? role = ArticleRole.Initiator) => new()
     {

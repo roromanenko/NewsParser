@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { usePublicationDetail } from './usePublicationDetail'
 import { usePublicationMutations } from './usePublicationMutations'
 import { PublicationEditor } from './PublicationEditor'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import type { PublicationDetailDto } from './types'
+
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+const MAX_FILES_PER_PUBLICATION = 10
 
 function statusAccentColor(status: string): string {
   if (status === 'ContentReady') return 'var(--caramel)'
@@ -32,14 +36,17 @@ export function PublicationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { publication, isLoading } = usePublicationDetail(id!)
-  const { updateContent, approve, reject, regenerate } = usePublicationMutations(id)
+  const { updateContent, approve, reject, regenerate, uploadMedia, deleteMedia } = usePublicationMutations(id)
 
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [editedContent, setEditedContent] = useState('')
   const [selectedMediaIds, setSelectedMediaIds] = useState<string[]>([])
   const [rejectReason, setRejectReason] = useState('')
   const [showRejectInput, setShowRejectInput] = useState(false)
   const [showRegenerateInput, setShowRegenerateInput] = useState(false)
   const [regenerateFeedback, setRegenerateFeedback] = useState('')
+  const [deletingMediaId, setDeletingMediaId] = useState<string | null>(null)
+  const [mediaToDeleteId, setMediaToDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!publication) return
@@ -113,6 +120,40 @@ export function PublicationDetailPage() {
       onSuccess: () => {
         setShowRegenerateInput(false)
         setRegenerateFeedback('')
+      },
+    })
+  }
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      alert(`File exceeds the 20 MB limit (${(file.size / 1024 / 1024).toFixed(1)} MB)`)
+      return
+    }
+
+    const customCount = publication?.availableMedia.filter(m => m.ownerKind === 'Publication').length ?? 0
+    if (customCount >= MAX_FILES_PER_PUBLICATION) {
+      alert(`Maximum of ${MAX_FILES_PER_PUBLICATION} custom media files reached`)
+      return
+    }
+
+    uploadMedia.mutate(file)
+  }
+
+  const handleDeleteMedia = (mediaId: string) => {
+    setMediaToDeleteId(mediaId)
+  }
+
+  const handleConfirmDeleteMedia = () => {
+    if (!mediaToDeleteId) return
+    setDeletingMediaId(mediaToDeleteId)
+    deleteMedia.mutate(mediaToDeleteId, {
+      onSettled: () => {
+        setDeletingMediaId(null)
+        setMediaToDeleteId(null)
       },
     })
   }
@@ -410,24 +451,56 @@ export function PublicationDetailPage() {
       </div>
 
       {/* Media selection */}
-      {publication.availableMedia.length > 0 && (
+      {(publication.availableMedia.length > 0 || canEdit) && (
         <div
           className="border"
           style={{ background: 'rgba(61,15,15,0.4)', borderColor: 'rgba(255,255,255,0.1)' }}
         >
-          <div className="p-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+          <div
+            className="p-5 border-b flex items-center justify-between"
+            style={{ borderColor: 'rgba(255,255,255,0.1)' }}
+          >
             <p className="font-caps text-[10px] tracking-widest" style={{ color: '#6b7280' }}>MEDIA</p>
+            {canEdit && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/mp4"
+                  className="hidden"
+                  onChange={handleFileSelected}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={!canEdit || uploadMedia.isPending}
+                  className="px-3 py-1 font-caps text-[10px] tracking-wider border transition-colors disabled:opacity-50"
+                  style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#9ca3af' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'var(--caramel)'
+                    e.currentTarget.style.color = 'var(--caramel)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'
+                    e.currentTarget.style.color = '#9ca3af'
+                  }}
+                >
+                  {uploadMedia.isPending ? 'UPLOADING…' : 'UPLOAD CUSTOM MEDIA'}
+                </button>
+              </>
+            )}
           </div>
           <div className="p-5 grid grid-cols-3 gap-3">
             {publication.availableMedia.map(media => {
               const isSelected = selectedMediaIds.includes(media.id)
+              const isCustom = media.ownerKind === 'Publication'
+              const isDeleting = deletingMediaId === media.id
               return (
                 <div
                   key={media.id}
-                  onClick={() => canEdit && handleToggleMedia(media.id)}
+                  onClick={() => canEdit && !isDeleting && handleToggleMedia(media.id)}
                   className="relative overflow-hidden"
                   style={{
-                    cursor: canEdit ? 'pointer' : 'default',
+                    cursor: canEdit && !isDeleting ? 'pointer' : 'default',
                     border: isSelected ? '2px solid var(--caramel)' : '1px solid rgba(255,255,255,0.1)',
                   }}
                 >
@@ -439,6 +512,14 @@ export function PublicationDetailPage() {
                       style={{ background: 'var(--near-black)' }}
                     >
                       <span className="font-mono text-xs" style={{ color: '#6b7280' }}>Video</span>
+                    </div>
+                  )}
+                  {isCustom && (
+                    <div
+                      className="absolute top-1 left-1 px-1 py-0.5 font-caps text-[9px] tracking-widest"
+                      style={{ background: 'rgba(0,0,0,0.7)', color: 'var(--caramel)' }}
+                    >
+                      CUSTOM
                     </div>
                   )}
                   {isSelected && (
@@ -453,6 +534,22 @@ export function PublicationDetailPage() {
                         SELECTED
                       </span>
                     </div>
+                  )}
+                  {isCustom && canEdit && (
+                    <button
+                      onClick={e => {
+                        e.stopPropagation()
+                        handleDeleteMedia(media.id)
+                      }}
+                      disabled={isDeleting}
+                      className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center font-mono text-xs transition-colors disabled:opacity-50"
+                      style={{ background: 'rgba(0,0,0,0.7)', color: '#9ca3af' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--crimson)')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#9ca3af')}
+                      title="Delete custom media"
+                    >
+                      ×
+                    </button>
                   )}
                 </div>
               )
@@ -485,6 +582,17 @@ export function PublicationDetailPage() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={mediaToDeleteId !== null}
+        onClose={() => setMediaToDeleteId(null)}
+        onConfirm={handleConfirmDeleteMedia}
+        title="Delete Media File"
+        message="Are you sure you want to delete this custom media file? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={deleteMedia.isPending}
+      />
     </div>
   )
 }

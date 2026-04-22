@@ -26,6 +26,8 @@ public class PublicationsControllerTests
 
     private Mock<IPublicationService> _publicationServiceMock = null!;
     private Mock<IPublicationRepository> _publicationRepoMock = null!;
+    private Mock<IMediaFileRepository> _mediaFileRepoMock = null!;
+    private Mock<IPublicationMediaService> _publicationMediaServiceMock = null!;
 
     // JWT config — must match the values supplied via UseSetting in OneTimeSetUp
     private const string JwtSecretKey = "65j781ddc991c216b5897b44bdsca4eff6ab75ea18448c9e43e0baasfbds4ef5";
@@ -37,6 +39,11 @@ public class PublicationsControllerTests
     {
         _publicationServiceMock = new Mock<IPublicationService>();
         _publicationRepoMock = new Mock<IPublicationRepository>();
+        _mediaFileRepoMock = new Mock<IMediaFileRepository>();
+        _mediaFileRepoMock
+            .Setup(r => r.GetByPublicationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _publicationMediaServiceMock = new Mock<IPublicationMediaService>();
 
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -47,9 +54,13 @@ public class PublicationsControllerTests
                 {
                     RemoveAllImplementations(services, typeof(IPublicationService));
                     RemoveAllImplementations(services, typeof(IPublicationRepository));
+                    RemoveAllImplementations(services, typeof(IMediaFileRepository));
+                    RemoveAllImplementations(services, typeof(IPublicationMediaService));
 
                     services.AddSingleton(_publicationServiceMock.Object);
                     services.AddSingleton(_publicationRepoMock.Object);
+                    services.AddSingleton(_mediaFileRepoMock.Object);
+                    services.AddSingleton(_publicationMediaServiceMock.Object);
                 });
 
                 builder.UseSetting("Jwt:SecretKey", JwtSecretKey);
@@ -80,6 +91,11 @@ public class PublicationsControllerTests
     {
         _publicationServiceMock.Reset();
         _publicationRepoMock.Reset();
+        _mediaFileRepoMock.Reset();
+        _mediaFileRepoMock
+            .Setup(r => r.GetByPublicationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _publicationMediaServiceMock.Reset();
     }
 
     // ------------------------------------------------------------------

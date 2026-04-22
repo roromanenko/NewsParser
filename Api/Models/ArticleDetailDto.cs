@@ -2,11 +2,12 @@ namespace Api.Models;
 
 public record MediaFileDto(
 	Guid Id,
-	Guid ArticleId,
+	Guid? ArticleId,
 	string Url,
 	string Kind,
 	string ContentType,
-	long SizeBytes
+	long SizeBytes,
+	string OwnerKind
 );
 
 public record ArticleDetailDto(

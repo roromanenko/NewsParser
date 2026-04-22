@@ -22,8 +22,8 @@ internal static class ArticleSql
                a."ProcessedAt", a."Status", a."ModelVersion", a."Language", a."Summary",
                a."KeyFacts", a."RejectionReason", a."RetryCount", a."EventId", a."Role",
                a."WasReclassified", a."AddedToEventAt",
-               m."Id", m."ArticleId", m."R2Key", m."OriginalUrl", m."ContentType",
-               m."SizeBytes", m."Kind", m."CreatedAt"
+               m."Id", m."ArticleId", m."PublicationId", m."OwnerKind", m."UploadedByUserId",
+               m."R2Key", m."OriginalUrl", m."ContentType", m."SizeBytes", m."Kind", m."CreatedAt"
         FROM articles a
         LEFT JOIN media_files m ON m."ArticleId" = a."Id"
         WHERE a."Id" = @id

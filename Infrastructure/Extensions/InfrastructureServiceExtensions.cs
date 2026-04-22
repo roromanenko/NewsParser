@@ -211,9 +211,11 @@ public static class InfrastructureServiceExtensions
 		IConfiguration configuration)
 	{
 		services.Configure<CloudflareR2Options>(configuration.GetSection(CloudflareR2Options.SectionName));
+		services.Configure<PublicationMediaOptions>(configuration.GetSection(PublicationMediaOptions.SectionName));
 		services.AddScoped<IMediaStorage>(sp =>
 			new CloudflareR2Storage(sp.GetRequiredService<IOptions<CloudflareR2Options>>().Value));
 		services.AddScoped<IMediaFileRepository, MediaFileRepository>();
+		services.AddScoped<IPublicationMediaService, PublicationMediaService>();
 		services.AddScoped<IMediaIngestionService, MediaIngestionService>();
 		services.AddScoped<IMediaContentDownloader, HttpMediaContentDownloader>();
 		services.AddScoped<IMediaContentDownloader, TelegramMediaContentDownloader>();

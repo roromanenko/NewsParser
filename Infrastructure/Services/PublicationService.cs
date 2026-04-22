@@ -9,6 +9,7 @@ public class PublicationService(
 	IEventRepository eventRepository,
 	IPublicationRepository publicationRepository,
 	IPublishTargetRepository publishTargetRepository,
+	IMediaFileRepository mediaFileRepository,
 	ILogger<PublicationService> logger) : IPublicationService
 {
 	public async Task<Publication> CreateForEventAsync(
@@ -62,12 +63,21 @@ public class PublicationService(
 		List<Guid> selectedMediaFileIds,
 		CancellationToken cancellationToken = default)
 	{
-		var publication = await publicationRepository.GetByIdAsync(publicationId, cancellationToken)
+		var publication = await publicationRepository.GetDetailAsync(publicationId, cancellationToken)
 			?? throw new KeyNotFoundException($"Publication {publicationId} not found");
 
 		if (publication.Status != PublicationStatus.ContentReady)
 			throw new InvalidOperationException(
 				$"Publication {publicationId} cannot be updated: status is {publication.Status}");
+
+		var eligibleIds = (await mediaFileRepository.GetByPublicationIdAsync(publicationId, cancellationToken))
+			.Select(m => m.Id)
+			.Concat(publication.Event?.Articles.SelectMany(a => a.MediaFiles).Select(m => m.Id) ?? [])
+			.ToHashSet();
+
+		var invalid = selectedMediaFileIds.Where(id => !eligibleIds.Contains(id)).ToList();
+		if (invalid.Count > 0)
+			throw new ArgumentException($"Media file ids not eligible for this publication: {string.Join(",", invalid)}");
 
 		await publicationRepository.UpdateContentAndMediaAsync(publicationId, content, selectedMediaFileIds, cancellationToken);
 		logger.LogInformation("Publication {PublicationId} content updated by editor {EditorId}",

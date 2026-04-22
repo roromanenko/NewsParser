@@ -11,11 +11,12 @@ export interface PublicationListItemDto {
 
 export interface MediaFileDto {
   id: string
-  articleId: string
+  articleId: string | null
   url: string
   kind: string
   contentType: string
   sizeBytes: number
+  ownerKind: string
 }
 
 export interface PublicationDetailDto {

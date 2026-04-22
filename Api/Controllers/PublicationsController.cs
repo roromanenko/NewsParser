@@ -14,178 +14,221 @@ namespace Api.Controllers;
 [Route("publications")]
 [Authorize(Roles = nameof(UserRole.Editor) + "," + nameof(UserRole.Admin))]
 public class PublicationsController(
-	IPublicationService publicationService,
-	IPublicationRepository publicationRepository,
-	IOptions<CloudflareR2Options> r2Options) : BaseController
+    IPublicationService publicationService,
+    IPublicationRepository publicationRepository,
+    IMediaFileRepository mediaFileRepository,
+    IPublicationMediaService publicationMediaService,
+    IOptions<CloudflareR2Options> r2Options) : BaseController
 {
-	private readonly string _publicBaseUrl = r2Options.Value.PublicBaseUrl;
+    // 25 MB allows multipart framing overhead above the enforced 20 MB file cap (PublicationMediaOptions.MaxUploadBytes)
+    private const long UploadRequestSizeLimit = 25L * 1024 * 1024;
 
-	[HttpGet]
-	public async Task<ActionResult<PagedResult<PublicationListItemDto>>> GetAll(
-		[FromQuery] int page = 1,
-		[FromQuery] int pageSize = 20,
-		CancellationToken cancellationToken = default)
-	{
-		var publications = await publicationRepository.GetAllAsync(page, pageSize, cancellationToken);
-		var total = await publicationRepository.CountAllAsync(cancellationToken);
+    private readonly string _publicBaseUrl = r2Options.Value.PublicBaseUrl;
 
-		return Ok(new PagedResult<PublicationListItemDto>(
-			publications.Select(p => p.ToListItemDto()).ToList(),
-			page,
-			pageSize,
-			total));
-	}
+    [HttpGet]
+    public async Task<ActionResult<PagedResult<PublicationListItemDto>>> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var publications = await publicationRepository.GetAllAsync(page, pageSize, cancellationToken);
+        var total = await publicationRepository.CountAllAsync(cancellationToken);
 
-	[HttpPost("generate")]
-	public async Task<ActionResult<PublicationListItemDto>> Generate(
-		[FromBody] CreatePublicationRequest request,
-		CancellationToken cancellationToken = default)
-	{
-		if (UserId is null)
-			return Unauthorized();
+        return Ok(new PagedResult<PublicationListItemDto>(
+            publications.Select(p => p.ToListItemDto()).ToList(),
+            page,
+            pageSize,
+            total));
+    }
 
-		var publication = await publicationService.CreateForEventAsync(
-			request.EventId, request.PublishTargetId, UserId.Value, cancellationToken);
+    [HttpPost("generate")]
+    public async Task<ActionResult<PublicationListItemDto>> Generate(
+        [FromBody] CreatePublicationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (UserId is null)
+            return Unauthorized();
 
-		return CreatedAtAction(
-			nameof(GetById),
-			new { id = publication.Id },
-			publication.ToListItemDto());
-	}
+        var publication = await publicationService.CreateForEventAsync(
+            request.EventId, request.PublishTargetId, UserId.Value, cancellationToken);
 
-	[HttpGet("{id:guid}")]
-	public async Task<ActionResult<PublicationDetailDto>> GetById(
-		Guid id,
-		CancellationToken cancellationToken = default)
-	{
-		var publication = await publicationRepository.GetDetailAsync(id, cancellationToken);
-		if (publication is null)
-			return NotFound();
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = publication.Id },
+            publication.ToListItemDto());
+    }
 
-		var availableMedia = ExtractAvailableMedia(publication);
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<PublicationDetailDto>> GetById(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var publication = await publicationRepository.GetDetailAsync(id, cancellationToken);
+        if (publication is null)
+            return NotFound();
 
-		return Ok(publication.ToDetailDto(availableMedia, _publicBaseUrl));
-	}
+        var availableMedia = await ExtractAvailableMediaAsync(publication, cancellationToken);
 
-	[HttpGet("by-event/{eventId:guid}")]
-	public async Task<ActionResult<List<PublicationListItemDto>>> GetByEvent(
-		Guid eventId,
-		CancellationToken cancellationToken = default)
-	{
-		var publications = await publicationRepository.GetByEventIdAsync(eventId, cancellationToken);
-		var items = publications.Select(p => p.ToListItemDto()).ToList();
+        return Ok(publication.ToDetailDto(availableMedia, _publicBaseUrl));
+    }
 
-		return Ok(items);
-	}
+    [HttpGet("by-event/{eventId:guid}")]
+    public async Task<ActionResult<List<PublicationListItemDto>>> GetByEvent(
+        Guid eventId,
+        CancellationToken cancellationToken = default)
+    {
+        var publications = await publicationRepository.GetByEventIdAsync(eventId, cancellationToken);
+        var items = publications.Select(p => p.ToListItemDto()).ToList();
 
-	[HttpPut("{id:guid}/content")]
-	public async Task<ActionResult<PublicationDetailDto>> UpdateContent(
-		Guid id,
-		[FromBody] UpdatePublicationContentRequest request,
-		CancellationToken cancellationToken = default)
-	{
-		if (UserId is null)
-			return Unauthorized();
+        return Ok(items);
+    }
 
-		var publication = await publicationService.UpdateContentAsync(
-			id, request.Content, request.SelectedMediaFileIds, cancellationToken);
+    [HttpPut("{id:guid}/content")]
+    public async Task<ActionResult<PublicationDetailDto>> UpdateContent(
+        Guid id,
+        [FromBody] UpdatePublicationContentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (UserId is null)
+            return Unauthorized();
 
-		var detail = await publicationRepository.GetDetailAsync(id, cancellationToken);
-		if (detail is null)
-			return NotFound();
+        await publicationService.UpdateContentAsync(
+            id, request.Content, request.SelectedMediaFileIds, cancellationToken);
 
-		var availableMedia = ExtractAvailableMedia(detail);
+        var detail = await publicationRepository.GetDetailAsync(id, cancellationToken);
+        if (detail is null)
+            return NotFound();
 
-		return Ok(detail.ToDetailDto(availableMedia, _publicBaseUrl));
-	}
+        var availableMedia = await ExtractAvailableMediaAsync(detail, cancellationToken);
 
-	[HttpPost("{id:guid}/approve")]
-	public async Task<ActionResult<PublicationDetailDto>> Approve(
-		Guid id,
-		CancellationToken cancellationToken = default)
-	{
-		if (UserId is null)
-			return Unauthorized();
+        return Ok(detail.ToDetailDto(availableMedia, _publicBaseUrl));
+    }
 
-		await publicationService.ApproveAsync(id, UserId.Value, cancellationToken);
+    [HttpPost("{id:guid}/approve")]
+    public async Task<ActionResult<PublicationDetailDto>> Approve(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        if (UserId is null)
+            return Unauthorized();
 
-		var detail = await publicationRepository.GetDetailAsync(id, cancellationToken);
-		if (detail is null)
-			return NotFound();
+        await publicationService.ApproveAsync(id, UserId.Value, cancellationToken);
 
-		var availableMedia = ExtractAvailableMedia(detail);
+        var detail = await publicationRepository.GetDetailAsync(id, cancellationToken);
+        if (detail is null)
+            return NotFound();
 
-		return Ok(detail.ToDetailDto(availableMedia, _publicBaseUrl));
-	}
+        var availableMedia = await ExtractAvailableMediaAsync(detail, cancellationToken);
 
-	[HttpPost("{id:guid}/reject")]
-	public async Task<ActionResult<PublicationDetailDto>> Reject(
-		Guid id,
-		[FromBody] RejectPublicationRequest request,
-		CancellationToken cancellationToken = default)
-	{
-		if (UserId is null)
-			return Unauthorized();
+        return Ok(detail.ToDetailDto(availableMedia, _publicBaseUrl));
+    }
 
-		if (string.IsNullOrWhiteSpace(request.Reason))
-			return BadRequest("Rejection reason is required");
+    [HttpPost("{id:guid}/reject")]
+    public async Task<ActionResult<PublicationDetailDto>> Reject(
+        Guid id,
+        [FromBody] RejectPublicationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (UserId is null)
+            return Unauthorized();
 
-		await publicationService.RejectAsync(id, UserId.Value, request.Reason, cancellationToken);
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return BadRequest("Rejection reason is required");
 
-		var detail = await publicationRepository.GetDetailAsync(id, cancellationToken);
-		if (detail is null)
-			return NotFound();
+        await publicationService.RejectAsync(id, UserId.Value, request.Reason, cancellationToken);
 
-		var availableMedia = ExtractAvailableMedia(detail);
+        var detail = await publicationRepository.GetDetailAsync(id, cancellationToken);
+        if (detail is null)
+            return NotFound();
 
-		return Ok(detail.ToDetailDto(availableMedia, _publicBaseUrl));
-	}
+        var availableMedia = await ExtractAvailableMediaAsync(detail, cancellationToken);
 
-	[HttpPost("{id:guid}/send")]
-	public async Task<ActionResult<PublicationDetailDto>> Send(
-		Guid id,
-		CancellationToken cancellationToken = default)
-	{
-		if (UserId is null)
-			return Unauthorized();
+        return Ok(detail.ToDetailDto(availableMedia, _publicBaseUrl));
+    }
 
-		await publicationService.SendAsync(id, UserId.Value, cancellationToken);
+    [HttpPost("{id:guid}/send")]
+    public async Task<ActionResult<PublicationDetailDto>> Send(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        if (UserId is null)
+            return Unauthorized();
 
-		var detail = await publicationRepository.GetDetailAsync(id, cancellationToken);
-		if (detail is null)
-			return NotFound();
+        await publicationService.SendAsync(id, UserId.Value, cancellationToken);
 
-		var availableMedia = ExtractAvailableMedia(detail);
+        var detail = await publicationRepository.GetDetailAsync(id, cancellationToken);
+        if (detail is null)
+            return NotFound();
 
-		return Ok(detail.ToDetailDto(availableMedia, _publicBaseUrl));
-	}
+        var availableMedia = await ExtractAvailableMediaAsync(detail, cancellationToken);
 
-	[HttpPost("{id:guid}/regenerate")]
-	public async Task<ActionResult<PublicationDetailDto>> Regenerate(
-		Guid id,
-		[FromBody] RegeneratePublicationRequest request,
-		CancellationToken cancellationToken = default)
-	{
-		if (UserId is null)
-			return Unauthorized();
+        return Ok(detail.ToDetailDto(availableMedia, _publicBaseUrl));
+    }
 
-		await publicationService.RegenerateAsync(id, request.Feedback, cancellationToken);
+    [HttpPost("{id:guid}/regenerate")]
+    public async Task<ActionResult<PublicationDetailDto>> Regenerate(
+        Guid id,
+        [FromBody] RegeneratePublicationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (UserId is null)
+            return Unauthorized();
 
-		var detail = await publicationRepository.GetDetailAsync(id, cancellationToken);
-		if (detail is null)
-			return NotFound();
+        await publicationService.RegenerateAsync(id, request.Feedback, cancellationToken);
 
-		var availableMedia = ExtractAvailableMedia(detail);
-		return Ok(detail.ToDetailDto(availableMedia, _publicBaseUrl));
-	}
+        var detail = await publicationRepository.GetDetailAsync(id, cancellationToken);
+        if (detail is null)
+            return NotFound();
 
-	private static List<MediaFile> ExtractAvailableMedia(Publication publication)
-	{
-		if (publication.Event is null)
-			return [];
+        var availableMedia = await ExtractAvailableMediaAsync(detail, cancellationToken);
+        return Ok(detail.ToDetailDto(availableMedia, _publicBaseUrl));
+    }
 
-		return publication.Event.Articles
-			.SelectMany(a => a.MediaFiles)
-			.ToList();
-	}
+    [HttpPost("{id:guid}/media")]
+    [RequestSizeLimit(UploadRequestSizeLimit)]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<MediaFileDto>> UploadMedia(
+        Guid id,
+        IFormFile file,
+        CancellationToken cancellationToken = default)
+    {
+        if (UserId is null)
+            return Unauthorized();
+
+        if (file is null || file.Length == 0)
+            return BadRequest("A non-empty file is required");
+
+        var mediaFile = await publicationMediaService.UploadAsync(
+            id, UserId.Value, file.OpenReadStream(), file.FileName, file.ContentType, file.Length, cancellationToken);
+
+        var dto = mediaFile.ToDto(_publicBaseUrl);
+
+        return CreatedAtAction(nameof(GetById), new { id }, dto);
+    }
+
+    [HttpDelete("{id:guid}/media/{mediaId:guid}")]
+    public async Task<IActionResult> DeleteMedia(
+        Guid id,
+        Guid mediaId,
+        CancellationToken cancellationToken = default)
+    {
+        if (UserId is null)
+            return Unauthorized();
+
+        await publicationMediaService.DeleteAsync(id, mediaId, UserId.Value, cancellationToken);
+
+        return NoContent();
+    }
+
+    private async Task<List<MediaFile>> ExtractAvailableMediaAsync(
+        Publication publication,
+        CancellationToken cancellationToken)
+    {
+        var eventMedia = publication.Event is null
+            ? []
+            : publication.Event.Articles.SelectMany(a => a.MediaFiles).ToList();
+        var customMedia = await mediaFileRepository.GetByPublicationIdAsync(
+            publication.Id, cancellationToken);
+        return [.. eventMedia, .. customMedia];
+    }
 }

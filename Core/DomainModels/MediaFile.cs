@@ -3,7 +3,10 @@ namespace Core.DomainModels;
 public class MediaFile
 {
 	public Guid Id { get; init; }
-	public Guid ArticleId { get; init; }
+	public Guid? ArticleId { get; init; }
+	public Guid? PublicationId { get; init; }
+	public MediaOwnerKind OwnerKind { get; init; }
+	public Guid? UploadedByUserId { get; init; }
 	public string R2Key { get; init; } = string.Empty;
 	public string OriginalUrl { get; init; } = string.Empty;
 	public string ContentType { get; init; } = string.Empty;
@@ -16,4 +19,10 @@ public enum MediaKind
 {
 	Image,
 	Video
+}
+
+public enum MediaOwnerKind
+{
+	Article,
+	Publication
 }

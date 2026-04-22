@@ -134,7 +134,8 @@ internal static class PublicationSql
         """;
 
     public const string GetDetailMediaFiles = """
-        SELECT "Id", "ArticleId", "R2Key", "OriginalUrl", "ContentType", "SizeBytes", "Kind", "CreatedAt"
+        SELECT "Id", "ArticleId", "PublicationId", "OwnerKind", "UploadedByUserId",
+               "R2Key", "OriginalUrl", "ContentType", "SizeBytes", "Kind", "CreatedAt"
         FROM media_files WHERE "ArticleId" = ANY(@articleIds)
         """;
 

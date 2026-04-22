@@ -28,6 +28,17 @@ public class CloudflareR2Storage : IMediaStorage
 
 	public void Dispose() => _client.Dispose();
 
+	public async Task DeleteAsync(string key, CancellationToken cancellationToken = default)
+	{
+		var request = new DeleteObjectRequest
+		{
+			BucketName = _bucketName,
+			Key = key
+		};
+
+		await _client.DeleteObjectAsync(request, cancellationToken);
+	}
+
 	public async Task UploadAsync(
 		string key,
 		Stream content,

@@ -10,6 +10,8 @@ All URIs are relative to *http://localhost*
 |[**publicationsIdApprovePost**](#publicationsidapprovepost) | **POST** /publications/{id}/approve | |
 |[**publicationsIdContentPut**](#publicationsidcontentput) | **PUT** /publications/{id}/content | |
 |[**publicationsIdGet**](#publicationsidget) | **GET** /publications/{id} | |
+|[**publicationsIdMediaMediaIdDelete**](#publicationsidmediamediaiddelete) | **DELETE** /publications/{id}/media/{mediaId} | |
+|[**publicationsIdMediaPost**](#publicationsidmediapost) | **POST** /publications/{id}/media | |
 |[**publicationsIdRegeneratePost**](#publicationsidregeneratepost) | **POST** /publications/{id}/regenerate | |
 |[**publicationsIdRejectPost**](#publicationsidrejectpost) | **POST** /publications/{id}/reject | |
 |[**publicationsIdSendPost**](#publicationsidsendpost) | **POST** /publications/{id}/send | |
@@ -312,6 +314,112 @@ const { status, data } = await apiInstance.publicationsIdGet(
 ### HTTP request headers
 
  - **Content-Type**: Not defined
+ - **Accept**: text/plain, application/json, text/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **publicationsIdMediaMediaIdDelete**
+> publicationsIdMediaMediaIdDelete()
+
+
+### Example
+
+```typescript
+import {
+    PublicationsApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new PublicationsApi(configuration);
+
+let id: string; // (default to undefined)
+let mediaId: string; // (default to undefined)
+
+const { status, data } = await apiInstance.publicationsIdMediaMediaIdDelete(
+    id,
+    mediaId
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **id** | [**string**] |  | defaults to undefined|
+| **mediaId** | [**string**] |  | defaults to undefined|
+
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **publicationsIdMediaPost**
+> MediaFileDto publicationsIdMediaPost()
+
+
+### Example
+
+```typescript
+import {
+    PublicationsApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new PublicationsApi(configuration);
+
+let id: string; // (default to undefined)
+let file: File; // (optional) (default to undefined)
+
+const { status, data } = await apiInstance.publicationsIdMediaPost(
+    id,
+    file
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **id** | [**string**] |  | defaults to undefined|
+| **file** | [**File**] |  | (optional) defaults to undefined|
+
+
+### Return type
+
+**MediaFileDto**
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+ - **Content-Type**: multipart/form-data
  - **Accept**: text/plain, application/json, text/json
 
 

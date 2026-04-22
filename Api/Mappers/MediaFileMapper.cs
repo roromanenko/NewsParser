@@ -11,7 +11,8 @@ public static class MediaFileMapper
         BuildUrl(publicBaseUrl, media.R2Key),
         media.Kind.ToString(),
         media.ContentType,
-        media.SizeBytes
+        media.SizeBytes,
+        media.OwnerKind.ToString()
     );
 
     private static string BuildUrl(string publicBaseUrl, string r2Key)
