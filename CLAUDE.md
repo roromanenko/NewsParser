@@ -88,11 +88,15 @@ See `UI/CLAUDE.md`.
 
 ## Available Agents
 
+Agents fall into two groups: **feature-cycle** agents (plan → implement → review) and **audit-cycle** agents (specialist reviewers invoked per scope).
+
+### Feature-cycle agents
+
 <available_agents>
   <agent>
-    <name>test-writer</name>
-    <description>Generates enterprise-grade NUnit tests for NewsParser. Use for: Core domain, EF Core repositories, services, API endpoints, and background workers.</description>
-    <location>.claude/agents/test-writer.md</location>
+    <name>architect</name>
+    <description>Two modes: (1) Design — given a task description, saves an ADR to docs/architecture/decisions/; (2) Review Tasklist — given a path to docs/tasks/active/X.md, verifies the tasklist against its ADR and outputs APPROVED or ISSUES FOUND. Does NOT write code or create tasklists.</description>
+    <location>.claude/agents/architect.md</location>
   </agent>
   <agent>
     <name>feature-planner</name>
@@ -100,18 +104,68 @@ See `UI/CLAUDE.md`.
     <location>.claude/agents/feature-planner.md</location>
   </agent>
   <agent>
-    <name>architect</name>
-    <description>Two modes: (1) Design — given a task description, saves an ADR to docs/architecture/decisions/; (2) Review Tasklist — given a path to docs/tasks/active/X.md, verifies the tasklist against its ADR and outputs APPROVED or ISSUES FOUND. Does NOT write code or create tasklists.</description>
-    <location>.claude/agents/architect.md</location>
+    <name>implementer</name>
+    <description>Implements an approved tasklist from docs/tasks/active/, writing production .NET code across Core, Infrastructure, Api, and Worker. Delegates tests to test-writer. Call after a tasklist exists and is approved.</description>
+    <location>.claude/agents/implementer.md</location>
+  </agent>
+  <agent>
+    <name>test-writer</name>
+    <description>Generates NUnit + Moq + FluentAssertions tests for NewsParser. Use for: Core domain, Dapper repositories, services, API endpoints, and background workers.</description>
+    <location>.claude/agents/test-writer.md</location>
   </agent>
   <agent>
     <name>reviewer</name>
     <description>Reviews implemented code for quality and convention violations. Produces a BLOCKER / WARNING / SUGGESTION report and a "Ready to commit" / "Committable with warnings" / "Do not commit" verdict. Call after implementation, before committing. Does NOT write or modify code.</description>
     <location>.claude/agents/reviewer.md</location>
   </agent>
+</available_agents>
+
+### Audit-cycle agents (specialist reviewers)
+
+Each writes findings to `reviews/<area>-findings.md` and is wired to a matching slash command (see below).
+
+<available_agents>
   <agent>
-    <name>implementer</name>
-    <description>Implements an approved tasklist from docs/tasks/active/, writing production .NET code across Core, Infrastructure, Api, and Worker. Uses context7 for external library docs. Delegates tests to test-writer. Call after a tasklist exists and is approved.</description>
-    <location>.claude/agents/implementer.md</location>
+    <name>csharp-architecture-reviewer</name>
+    <description>Reviews C# code quality, async correctness, DI patterns, exception handling, and layer organization across Api/, Core/, Infrastructure/, and Worker/. Writes to reviews/architecture-findings.md.</description>
+    <location>.claude/agents/csharp-architecture-reviewer.md</location>
+  </agent>
+  <agent>
+    <name>data-access-reviewer</name>
+    <description>Reviews Dapper + PostgreSQL + pgvector code: connection lifecycle, IUnitOfWork transactions, SQL safety, pgvector/JSONB/text[] type-handler binding, DbUp migrations. Writes to reviews/data-access-findings.md.</description>
+    <location>.claude/agents/data-access-reviewer.md</location>
+  </agent>
+  <agent>
+    <name>react-ui-reviewer</name>
+    <description>Reviews the React 19 + TypeScript SPA: hook hygiene, TanStack React Query cache/invalidation, Zustand store usage, React Hook Form + Zod, React Router v7 guards, Tailwind v4 + CVA styling. Skips UI/src/api/generated/. Writes to reviews/frontend-findings.md.</description>
+    <location>.claude/agents/react-ui-reviewer.md</location>
+  </agent>
+  <agent>
+    <name>security-reviewer</name>
+    <description>Reviews ASP.NET Core code for OWASP Top 10, auth/authorization gaps, and .NET-specific pitfalls. Writes to reviews/security-findings.md.</description>
+    <location>.claude/agents/security-reviewer.md</location>
+  </agent>
+  <agent>
+    <name>dependency-auditor</name>
+    <description>Audits NuGet (.csproj PackageReference) and npm (UI/package.json) dependencies for outdated versions, known vulnerabilities, and abandoned packages. Can run dotnet and npm CLI. Writes to reviews/dependencies-findings.md.</description>
+    <location>.claude/agents/dependency-auditor.md</location>
   </agent>
 </available_agents>
+
+## Available Slash Commands
+
+Slash commands drive the two workflows above.
+
+### Feature workflow
+- `/ship <feature description>` — orchestrator: architect → planner → architect review → implementer → reviewer, with gates between each step.
+
+### Audit workflow
+Run `/map-project` once, then any review command, then `/triage-findings` to consolidate.
+
+- `/map-project` — generates `reviews/PROJECT_MAP.md` (solution layout, packages, entry points, data access, auth, frontend, tests). Run first.
+- `/review-architecture [scope]` — C# architecture + code quality pass via `csharp-architecture-reviewer`.
+- `/review-data [scope]` — Dapper + PostgreSQL + pgvector pass via `data-access-reviewer`. Suggested scopes: `Infrastructure/Persistence/Repositories/`, `Infrastructure/Persistence/Sql/`, services that call `IUnitOfWork.BeginAsync`.
+- `/review-frontend [scope]` — React + TypeScript pass via `react-ui-reviewer`. Suggested scopes: `UI/src/features/`, `UI/src/store/`, `UI/src/router/`. Skips `UI/src/api/generated/`.
+- `/review-security [scope]` — OWASP + .NET auth pass via `security-reviewer`.
+- `/review-dependencies` — NuGet + npm audit via `dependency-auditor`.
+- `/triage-findings` — reads every `reviews/*-findings.md`, deduplicates, and produces `reviews/ACTION_PLAN.md` with Critical / Warnings / Improvements sections.
