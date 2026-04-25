@@ -14,6 +14,7 @@ import { EventsPage } from '@/features/events/EventsPage'
 import { EventDetailPage } from '@/features/events/EventDetailPage'
 import { PublicationDetailPage } from '@/features/publications/PublicationDetailPage'
 import { PublicationsPage } from '@/features/publications/PublicationsPage'
+import { AiOperationsPage } from '@/features/aiOperations/AiOperationsPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore(state => state.user)
@@ -84,6 +85,14 @@ export function AppRouter() {
               element={
                 <AdminRoute>
                   <PublishTargetsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="ai-operations"
+              element={
+                <AdminRoute>
+                  <AiOperationsPage />
                 </AdminRoute>
               }
             />

@@ -26,6 +26,7 @@
     "tailwind-merge": "^3.5.0",
     "tslib": "^2.8.1",
     "zod": "^4.3.6",
+    "recharts": "^3.0.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

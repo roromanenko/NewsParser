@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Newspaper, Database, Users, LogOut, ChevronLeft, ChevronRight, Send, Network, BookOpen } from 'lucide-react'
+import { Newspaper, Database, Users, LogOut, ChevronLeft, ChevronRight, Send, Network, BookOpen, Activity } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -17,6 +17,7 @@ const navItems = [
   { to: '/publications', icon: BookOpen, label: 'Publications', adminOnly: false },
   { to: '/sources', icon: Database, label: 'Sources', adminOnly: true },
   { to: '/publish-targets', icon: Send, label: 'Publish Targets', adminOnly: true },
+  { to: '/ai-operations', icon: Activity, label: 'AI Operations', adminOnly: true },
   { to: '/users', icon: Users, label: 'Users', adminOnly: true },
 ]
 
