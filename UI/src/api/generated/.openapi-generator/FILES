@@ -4,6 +4,12 @@ api.ts
 base.ts
 common.ts
 configuration.ts
+docs/AiMetricsBreakdownRowDto.md
+docs/AiMetricsTimeBucketDto.md
+docs/AiOperationsApi.md
+docs/AiOperationsMetricsDto.md
+docs/AiRequestLogDto.md
+docs/AiRequestLogDtoPagedResult.md
 docs/ArticleDetailDto.md
 docs/ArticleEventDto.md
 docs/ArticleListItemDto.md

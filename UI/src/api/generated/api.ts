@@ -23,6 +23,62 @@ import type { RequestArgs } from './base';
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, BaseAPI, RequiredError, operationServerMap } from './base';
 
+export interface AiMetricsBreakdownRowDto {
+    'key'?: string | null;
+    'calls'?: number;
+    'costUsd'?: number;
+    'tokens'?: number;
+}
+export interface AiMetricsTimeBucketDto {
+    'bucket'?: string;
+    'provider'?: string | null;
+    'costUsd'?: number;
+    'calls'?: number;
+    'tokens'?: number;
+}
+export interface AiOperationsMetricsDto {
+    'totalCostUsd'?: number;
+    'totalCalls'?: number;
+    'successCalls'?: number;
+    'errorCalls'?: number;
+    'averageLatencyMs'?: number;
+    'totalInputTokens'?: number;
+    'totalOutputTokens'?: number;
+    'totalCacheCreationInputTokens'?: number;
+    'totalCacheReadInputTokens'?: number;
+    'timeSeries'?: Array<AiMetricsTimeBucketDto> | null;
+    'byModel'?: Array<AiMetricsBreakdownRowDto> | null;
+    'byWorker'?: Array<AiMetricsBreakdownRowDto> | null;
+    'byProvider'?: Array<AiMetricsBreakdownRowDto> | null;
+}
+export interface AiRequestLogDto {
+    'id'?: string;
+    'timestamp'?: string;
+    'worker'?: string | null;
+    'provider'?: string | null;
+    'operation'?: string | null;
+    'model'?: string | null;
+    'inputTokens'?: number;
+    'outputTokens'?: number;
+    'cacheCreationInputTokens'?: number;
+    'cacheReadInputTokens'?: number;
+    'totalTokens'?: number;
+    'costUsd'?: number;
+    'latencyMs'?: number;
+    'status'?: string | null;
+    'errorMessage'?: string | null;
+    'correlationId'?: string;
+    'articleId'?: string | null;
+}
+export interface AiRequestLogDtoPagedResult {
+    'items'?: Array<AiRequestLogDto> | null;
+    'page'?: number;
+    'pageSize'?: number;
+    'totalCount'?: number;
+    'totalPages'?: number;
+    'hasNextPage'?: boolean;
+    'hasPreviousPage'?: boolean;
+}
 export interface ArticleDetailDto {
     'id'?: string;
     'title'?: string | null;
@@ -264,6 +320,388 @@ export interface UserDto {
     'lastName'?: string | null;
     'role'?: string | null;
 }
+
+/**
+ * AiOperationsApi - axios parameter creator
+ */
+export const AiOperationsApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @param {string} [from] 
+         * @param {string} [to] 
+         * @param {string} [provider] 
+         * @param {string} [worker] 
+         * @param {string} [model] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        aiOperationsMetricsGet: async (from?: string, to?: string, provider?: string, worker?: string, model?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/ai-operations/metrics`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (from !== undefined) {
+                localVarQueryParameter['From'] = (from as any instanceof Date) ?
+                    (from as any).toISOString() :
+                    from;
+            }
+
+            if (to !== undefined) {
+                localVarQueryParameter['To'] = (to as any instanceof Date) ?
+                    (to as any).toISOString() :
+                    to;
+            }
+
+            if (provider !== undefined) {
+                localVarQueryParameter['Provider'] = provider;
+            }
+
+            if (worker !== undefined) {
+                localVarQueryParameter['Worker'] = worker;
+            }
+
+            if (model !== undefined) {
+                localVarQueryParameter['Model'] = model;
+            }
+
+            localVarHeaderParameter['Accept'] = 'text/plain,application/json,text/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} [from] 
+         * @param {string} [to] 
+         * @param {string} [provider] 
+         * @param {string} [worker] 
+         * @param {string} [model] 
+         * @param {string} [status] 
+         * @param {string} [search] 
+         * @param {number} [page] 
+         * @param {number} [pageSize] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        aiOperationsRequestsGet: async (from?: string, to?: string, provider?: string, worker?: string, model?: string, status?: string, search?: string, page?: number, pageSize?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/ai-operations/requests`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (from !== undefined) {
+                localVarQueryParameter['From'] = (from as any instanceof Date) ?
+                    (from as any).toISOString() :
+                    from;
+            }
+
+            if (to !== undefined) {
+                localVarQueryParameter['To'] = (to as any instanceof Date) ?
+                    (to as any).toISOString() :
+                    to;
+            }
+
+            if (provider !== undefined) {
+                localVarQueryParameter['Provider'] = provider;
+            }
+
+            if (worker !== undefined) {
+                localVarQueryParameter['Worker'] = worker;
+            }
+
+            if (model !== undefined) {
+                localVarQueryParameter['Model'] = model;
+            }
+
+            if (status !== undefined) {
+                localVarQueryParameter['Status'] = status;
+            }
+
+            if (search !== undefined) {
+                localVarQueryParameter['Search'] = search;
+            }
+
+            if (page !== undefined) {
+                localVarQueryParameter['Page'] = page;
+            }
+
+            if (pageSize !== undefined) {
+                localVarQueryParameter['PageSize'] = pageSize;
+            }
+
+            localVarHeaderParameter['Accept'] = 'text/plain,application/json,text/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} id 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        aiOperationsRequestsIdGet: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('aiOperationsRequestsIdGet', 'id', id)
+            const localVarPath = `/ai-operations/requests/{id}`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            localVarHeaderParameter['Accept'] = 'text/plain,application/json,text/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * AiOperationsApi - functional programming interface
+ */
+export const AiOperationsApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = AiOperationsApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @param {string} [from] 
+         * @param {string} [to] 
+         * @param {string} [provider] 
+         * @param {string} [worker] 
+         * @param {string} [model] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async aiOperationsMetricsGet(from?: string, to?: string, provider?: string, worker?: string, model?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<AiOperationsMetricsDto>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.aiOperationsMetricsGet(from, to, provider, worker, model, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AiOperationsApi.aiOperationsMetricsGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} [from] 
+         * @param {string} [to] 
+         * @param {string} [provider] 
+         * @param {string} [worker] 
+         * @param {string} [model] 
+         * @param {string} [status] 
+         * @param {string} [search] 
+         * @param {number} [page] 
+         * @param {number} [pageSize] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async aiOperationsRequestsGet(from?: string, to?: string, provider?: string, worker?: string, model?: string, status?: string, search?: string, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<AiRequestLogDtoPagedResult>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.aiOperationsRequestsGet(from, to, provider, worker, model, status, search, page, pageSize, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AiOperationsApi.aiOperationsRequestsGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} id 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async aiOperationsRequestsIdGet(id: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<AiRequestLogDto>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.aiOperationsRequestsIdGet(id, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AiOperationsApi.aiOperationsRequestsIdGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * AiOperationsApi - factory interface
+ */
+export const AiOperationsApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = AiOperationsApiFp(configuration)
+    return {
+        /**
+         * 
+         * @param {string} [from] 
+         * @param {string} [to] 
+         * @param {string} [provider] 
+         * @param {string} [worker] 
+         * @param {string} [model] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        aiOperationsMetricsGet(from?: string, to?: string, provider?: string, worker?: string, model?: string, options?: RawAxiosRequestConfig): AxiosPromise<AiOperationsMetricsDto> {
+            return localVarFp.aiOperationsMetricsGet(from, to, provider, worker, model, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {string} [from] 
+         * @param {string} [to] 
+         * @param {string} [provider] 
+         * @param {string} [worker] 
+         * @param {string} [model] 
+         * @param {string} [status] 
+         * @param {string} [search] 
+         * @param {number} [page] 
+         * @param {number} [pageSize] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        aiOperationsRequestsGet(from?: string, to?: string, provider?: string, worker?: string, model?: string, status?: string, search?: string, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<AiRequestLogDtoPagedResult> {
+            return localVarFp.aiOperationsRequestsGet(from, to, provider, worker, model, status, search, page, pageSize, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {string} id 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        aiOperationsRequestsIdGet(id: string, options?: RawAxiosRequestConfig): AxiosPromise<AiRequestLogDto> {
+            return localVarFp.aiOperationsRequestsIdGet(id, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * AiOperationsApi - interface
+ */
+export interface AiOperationsApiInterface {
+    /**
+     * 
+     * @param {string} [from] 
+     * @param {string} [to] 
+     * @param {string} [provider] 
+     * @param {string} [worker] 
+     * @param {string} [model] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    aiOperationsMetricsGet(from?: string, to?: string, provider?: string, worker?: string, model?: string, options?: RawAxiosRequestConfig): AxiosPromise<AiOperationsMetricsDto>;
+
+    /**
+     * 
+     * @param {string} [from] 
+     * @param {string} [to] 
+     * @param {string} [provider] 
+     * @param {string} [worker] 
+     * @param {string} [model] 
+     * @param {string} [status] 
+     * @param {string} [search] 
+     * @param {number} [page] 
+     * @param {number} [pageSize] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    aiOperationsRequestsGet(from?: string, to?: string, provider?: string, worker?: string, model?: string, status?: string, search?: string, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<AiRequestLogDtoPagedResult>;
+
+    /**
+     * 
+     * @param {string} id 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    aiOperationsRequestsIdGet(id: string, options?: RawAxiosRequestConfig): AxiosPromise<AiRequestLogDto>;
+
+}
+
+/**
+ * AiOperationsApi - object-oriented interface
+ */
+export class AiOperationsApi extends BaseAPI implements AiOperationsApiInterface {
+    /**
+     * 
+     * @param {string} [from] 
+     * @param {string} [to] 
+     * @param {string} [provider] 
+     * @param {string} [worker] 
+     * @param {string} [model] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public aiOperationsMetricsGet(from?: string, to?: string, provider?: string, worker?: string, model?: string, options?: RawAxiosRequestConfig) {
+        return AiOperationsApiFp(this.configuration).aiOperationsMetricsGet(from, to, provider, worker, model, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} [from] 
+     * @param {string} [to] 
+     * @param {string} [provider] 
+     * @param {string} [worker] 
+     * @param {string} [model] 
+     * @param {string} [status] 
+     * @param {string} [search] 
+     * @param {number} [page] 
+     * @param {number} [pageSize] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public aiOperationsRequestsGet(from?: string, to?: string, provider?: string, worker?: string, model?: string, status?: string, search?: string, page?: number, pageSize?: number, options?: RawAxiosRequestConfig) {
+        return AiOperationsApiFp(this.configuration).aiOperationsRequestsGet(from, to, provider, worker, model, status, search, page, pageSize, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} id 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public aiOperationsRequestsIdGet(id: string, options?: RawAxiosRequestConfig) {
+        return AiOperationsApiFp(this.configuration).aiOperationsRequestsIdGet(id, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
 
 /**
  * ArticlesApi - axios parameter creator
