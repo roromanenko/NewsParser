@@ -8,6 +8,7 @@ using Core.Interfaces.Services;
 using Core.Interfaces.Storage;
 using Core.Interfaces.Validators;
 using Infrastructure.AI;
+using Infrastructure.AI.Telemetry;
 using Infrastructure.Configuration;
 using Infrastructure.Parsers;
 using Infrastructure.Persistence.Connection;
@@ -68,6 +69,7 @@ public static class InfrastructureServiceExtensions
 		services.AddScoped<IUserRepository, UserRepository>();
 		services.AddScoped<IPublishTargetRepository, PublishTargetRepository>();
 		services.AddScoped<IEventRepository, EventRepository>();
+		services.AddScoped<IAiRequestLogRepository, AiRequestLogRepository>();
 
 		return services;
 	}
@@ -102,6 +104,9 @@ public static class InfrastructureServiceExtensions
 		services.AddHttpClient();
 
 		services.Configure<AiOptions>(configuration.GetSection(AiOptions.SectionName));
+		services.Configure<ModelPricingOptions>(configuration.GetSection(ModelPricingOptions.SectionName));
+		services.AddScoped<IAiCostCalculator, AiCostCalculator>();
+		services.AddScoped<IAiRequestLogger, AiRequestLogger>();
 
 		var aiOptions = configuration.GetSection(AiOptions.SectionName).Get<AiOptions>() ?? new AiOptions();
 		var promptsOptions = new PromptsOptions(aiOptions.Normalization.TargetLanguageName);
@@ -111,14 +116,16 @@ public static class InfrastructureServiceExtensions
 			aiOptions.Gemini.AnalyzerModel,
 			promptsOptions.Analyzer,
 			sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(GeminiArticleAnalyzer)),
-			sp.GetRequiredService<ILogger<GeminiArticleAnalyzer>>()
+			sp.GetRequiredService<ILogger<GeminiArticleAnalyzer>>(),
+			sp.GetRequiredService<IAiRequestLogger>()
 		));
 
 		services.AddScoped<IEventSummaryUpdater>(sp => new ClaudeEventSummaryUpdater(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.SummaryUpdaterModel,
 			promptsOptions.EventSummaryUpdater,
-			sp.GetRequiredService<ILogger<ClaudeEventSummaryUpdater>>()
+			sp.GetRequiredService<ILogger<ClaudeEventSummaryUpdater>>(),
+			sp.GetRequiredService<IAiRequestLogger>()
 		));
 
 		var contentGeneratorPrompts = new Dictionary<Platform, string>
@@ -130,42 +137,48 @@ public static class InfrastructureServiceExtensions
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.ContentGeneratorModel,
 			contentGeneratorPrompts,
-			sp.GetRequiredService<ILogger<ClaudeContentGenerator>>()
+			sp.GetRequiredService<ILogger<ClaudeContentGenerator>>(),
+			sp.GetRequiredService<IAiRequestLogger>()
 		));
 
 		services.AddScoped<IKeyFactsExtractor>(sp => new HaikuKeyFactsExtractor(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.KeyFactsExtractorModel,
 			promptsOptions.HaikuKeyFacts,
-			sp.GetRequiredService<ILogger<HaikuKeyFactsExtractor>>()
+			sp.GetRequiredService<ILogger<HaikuKeyFactsExtractor>>(),
+			sp.GetRequiredService<IAiRequestLogger>()
 		));
 
 		services.AddScoped<IEventTitleGenerator>(sp => new HaikuEventTitleGenerator(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.TitleGeneratorModel,
 			promptsOptions.HaikuEventTitle,
-			sp.GetRequiredService<ILogger<HaikuEventTitleGenerator>>()
+			sp.GetRequiredService<ILogger<HaikuEventTitleGenerator>>(),
+			sp.GetRequiredService<IAiRequestLogger>()
 		));
 
 		services.AddScoped<IEventClassifier>(sp => new ClaudeEventClassifier(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.ClassifierModel,
 			promptsOptions.EventClassifier,
-			sp.GetRequiredService<ILogger<ClaudeEventClassifier>>()
+			sp.GetRequiredService<ILogger<ClaudeEventClassifier>>(),
+			sp.GetRequiredService<IAiRequestLogger>()
 		));
 
 		services.AddScoped<IContradictionDetector>(sp => new ClaudeContradictionDetector(
 			aiOptions.Anthropic.ApiKey,
 			aiOptions.Anthropic.ContradictionDetectorModel,
 			promptsOptions.ContradictionDetector,
-			sp.GetRequiredService<ILogger<ClaudeContradictionDetector>>()
+			sp.GetRequiredService<ILogger<ClaudeContradictionDetector>>(),
+			sp.GetRequiredService<IAiRequestLogger>()
 		));
 
 		services.AddScoped<IGeminiEmbeddingService>(sp => new GeminiEmbeddingService(
 			aiOptions.Gemini.ApiKey,
 			aiOptions.Gemini.EmbeddingModel,
 			sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(GeminiEmbeddingService)),
-			sp.GetRequiredService<ILogger<GeminiEmbeddingService>>()
+			sp.GetRequiredService<ILogger<GeminiEmbeddingService>>(),
+			sp.GetRequiredService<IAiRequestLogger>()
 		));
 
 		return services;

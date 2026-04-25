@@ -1,6 +1,8 @@
 using Core.DomainModels;
+using Core.Interfaces.AI;
 using FluentAssertions;
 using Infrastructure.AI;
+using Moq;
 using NUnit.Framework;
 using System.Reflection;
 
@@ -43,7 +45,8 @@ public class ClaudeContentGeneratorTests
 			{
 				{ Platform.Telegram, "You are a Telegram news bot." }
 			},
-			logger: Microsoft.Extensions.Logging.Abstractions.NullLogger<ClaudeContentGenerator>.Instance);
+			logger: Microsoft.Extensions.Logging.Abstractions.NullLogger<ClaudeContentGenerator>.Instance,
+			aiRequestLogger: new Mock<IAiRequestLogger>().Object);
 
 		_telegramTarget = new PublishTarget
 		{

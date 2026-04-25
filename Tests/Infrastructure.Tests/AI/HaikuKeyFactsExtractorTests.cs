@@ -1,6 +1,8 @@
 using Core.DomainModels;
+using Core.Interfaces.AI;
 using FluentAssertions;
 using Infrastructure.AI;
+using Moq;
 using NUnit.Framework;
 using System.Reflection;
 
@@ -149,7 +151,8 @@ public class HaikuKeyFactsExtractorTests
 			apiKey: "dummy-key",
 			model: "claude-haiku-4-5",
 			systemPrompt: systemPrompt,
-			logger: Microsoft.Extensions.Logging.Abstractions.NullLogger<HaikuKeyFactsExtractor>.Instance);
+			logger: Microsoft.Extensions.Logging.Abstractions.NullLogger<HaikuKeyFactsExtractor>.Instance,
+			aiRequestLogger: new Mock<IAiRequestLogger>().Object);
 
 		// Assert
 		var stored = (string)SystemPromptField.GetValue(sut)!;
@@ -170,7 +173,8 @@ public class HaikuKeyFactsExtractorTests
 			apiKey: "dummy-key",
 			model: "claude-haiku-4-5",
 			systemPrompt: "You are a factual extraction assistant.",
-			logger: Microsoft.Extensions.Logging.Abstractions.NullLogger<HaikuKeyFactsExtractor>.Instance);
+			logger: Microsoft.Extensions.Logging.Abstractions.NullLogger<HaikuKeyFactsExtractor>.Instance,
+			aiRequestLogger: new Mock<IAiRequestLogger>().Object);
 		var article = CreateArticle();
 		using var cts = new CancellationTokenSource();
 		await cts.CancelAsync();

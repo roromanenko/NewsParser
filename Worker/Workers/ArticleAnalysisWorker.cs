@@ -3,6 +3,7 @@ using Core.DomainModels.AI;
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
+using Infrastructure.AI.Telemetry;
 using Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
 using Worker.Configuration;
@@ -50,10 +51,11 @@ public class ArticleAnalysisWorker : BackgroundService
 
 	private async Task ProcessAsync(CancellationToken cancellationToken)
 	{
+		var cycleId = Guid.NewGuid();
 		using var cycleScope = _logger.BeginScope(new Dictionary<string, object>
 		{
 			["Worker"] = nameof(ArticleAnalysisWorker),
-			["CycleId"] = Guid.NewGuid()
+			["CycleId"] = cycleId
 		});
 
 		using var scope = _scopeFactory.CreateScope();
@@ -85,17 +87,19 @@ public class ArticleAnalysisWorker : BackgroundService
 			{
 				["ArticleId"] = article.Id
 			});
-			await ProcessArticleAsync(article, ctx, cancellationToken);
+			await ProcessArticleAsync(article, ctx, cycleId, cancellationToken);
 		}
 	}
 
 	private async Task ProcessArticleAsync(
 		Article article,
 		AnalysisContext ctx,
+		Guid cycleId,
 		CancellationToken cancellationToken)
 	{
 		try
 		{
+			using var _ = AiCallContext.Push(cycleId, article.Id, nameof(ArticleAnalysisWorker));
 			_logger.LogInformation("Analyzing article {Id}: {Title}", article.Id, article.Title);
 			await ctx.ArticleRepository.UpdateStatusAsync(article.Id, ArticleStatus.Analyzing, cancellationToken);
 

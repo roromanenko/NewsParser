@@ -3,29 +3,33 @@ using Anthropic.SDK.Messaging;
 using Core.DomainModels;
 using Core.DomainModels.AI;
 using Core.Interfaces.AI;
+using Infrastructure.AI.Telemetry;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Text.Json;
 
 namespace Infrastructure.AI;
 
-public class ClaudeEventClassifier : IEventClassifier
+internal class ClaudeEventClassifier : IEventClassifier
 {
 	private readonly string _apiKey;
 	private readonly string _model;
 	private readonly string _prompt;
+	private readonly IAiRequestLogger _aiRequestLogger;
 	private readonly ILogger<ClaudeEventClassifier> _logger;
 
 	public ClaudeEventClassifier(
 		string apiKey,
 		string model,
 		string prompt,
-		ILogger<ClaudeEventClassifier> logger)
+		ILogger<ClaudeEventClassifier> logger,
+		IAiRequestLogger aiRequestLogger)
 	{
 		_apiKey = apiKey;
 		_model = model;
 		_prompt = prompt;
 		_logger = logger;
+		_aiRequestLogger = aiRequestLogger;
 	}
 
 	public async Task<EventClassificationResult> ClassifyAsync(
@@ -69,13 +73,37 @@ public class ClaudeEventClassifier : IEventClassifier
 		_logger.LogDebug("Calling {Provider} {Model} with {PromptChars} chars",
 			"Anthropic", _model, userPrompt.Length);
 
-		var response = await client.Messages.GetClaudeMessageAsync(request, cancellationToken);
-
+		MessageResponse? response = null;
+		Exception? failure = null;
+		try
+		{
+			response = await client.Messages.GetClaudeMessageAsync(request, cancellationToken);
+		}
+		catch (OperationCanceledException) { throw; }
+		catch (Exception ex) { failure = ex; }
 		sw.Stop();
-		_logger.LogDebug("{Provider} {Model} succeeded in {DurationMs}ms",
-			"Anthropic", _model, sw.ElapsedMilliseconds);
 
-		var content = response.Content.FirstOrDefault()?.ToString() ?? string.Empty;
+		if (failure is null)
+			_logger.LogDebug("{Provider} {Model} succeeded in {DurationMs}ms",
+				"Anthropic", _model, sw.ElapsedMilliseconds);
+
+		var usage = BuildUsage(response);
+		await _aiRequestLogger.LogAsync(new AiRequestLogEntry(
+			Provider: "Anthropic",
+			Operation: nameof(ClassifyAsync),
+			Model: _model,
+			Usage: usage,
+			LatencyMs: (int)sw.ElapsedMilliseconds,
+			Status: failure is null ? AiRequestStatus.Success : AiRequestStatus.Error,
+			ErrorMessage: failure?.Message,
+			CorrelationId: AiCallContext.CurrentCorrelationId,
+			ArticleId: AiCallContext.CurrentArticleId,
+			Worker: AiCallContext.CurrentWorker),
+			cancellationToken);
+
+		if (failure is not null) throw failure;
+
+		var content = response!.Content.FirstOrDefault()?.ToString() ?? string.Empty;
 
 		try
 		{
@@ -88,6 +116,15 @@ public class ClaudeEventClassifier : IEventClassifier
 			throw;
 		}
 	}
+
+	private static AiUsage BuildUsage(MessageResponse? response) =>
+		response is null
+			? new AiUsage(0, 0, 0, 0)
+			: new AiUsage(
+				response.Usage.InputTokens,
+				response.Usage.OutputTokens,
+				response.Usage.CacheCreationInputTokens,
+				response.Usage.CacheReadInputTokens);
 
 	private static string BuildCandidateBlock(Event e, int index)
 	{

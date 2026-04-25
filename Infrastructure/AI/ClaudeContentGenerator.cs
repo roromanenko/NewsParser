@@ -1,18 +1,21 @@
 using Anthropic.SDK;
 using Anthropic.SDK.Messaging;
 using Core.DomainModels;
+using Core.DomainModels.AI;
 using Core.Interfaces.AI;
+using Infrastructure.AI.Telemetry;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Text.Json;
 
 namespace Infrastructure.AI;
 
-public class ClaudeContentGenerator(
+internal class ClaudeContentGenerator(
 	string apiKey,
 	string model,
 	Dictionary<Platform, string> basePrompts,
-	ILogger<ClaudeContentGenerator> logger) : IContentGenerator
+	ILogger<ClaudeContentGenerator> logger,
+	IAiRequestLogger aiRequestLogger) : IContentGenerator
 {
 	public async Task<string> GenerateForPlatformAsync(
 		Event evt,
@@ -49,13 +52,37 @@ public class ClaudeContentGenerator(
 		logger.LogDebug("Calling {Provider} {Model} with {PromptChars} chars",
 			"Anthropic", model, userPrompt.Length);
 
-		var response = await client.Messages.GetClaudeMessageAsync(request, cancellationToken);
-
+		MessageResponse? response = null;
+		Exception? failure = null;
+		try
+		{
+			response = await client.Messages.GetClaudeMessageAsync(request, cancellationToken);
+		}
+		catch (OperationCanceledException) { throw; }
+		catch (Exception ex) { failure = ex; }
 		sw.Stop();
-		logger.LogDebug("{Provider} {Model} succeeded in {DurationMs}ms",
-			"Anthropic", model, sw.ElapsedMilliseconds);
 
-		var raw = response.Content.FirstOrDefault()?.ToString() ?? string.Empty;
+		if (failure is null)
+			logger.LogDebug("{Provider} {Model} succeeded in {DurationMs}ms",
+				"Anthropic", model, sw.ElapsedMilliseconds);
+
+		var usage = BuildUsage(response);
+		await aiRequestLogger.LogAsync(new AiRequestLogEntry(
+			Provider: "Anthropic",
+			Operation: nameof(GenerateForPlatformAsync),
+			Model: model,
+			Usage: usage,
+			LatencyMs: (int)sw.ElapsedMilliseconds,
+			Status: failure is null ? AiRequestStatus.Success : AiRequestStatus.Error,
+			ErrorMessage: failure?.Message,
+			CorrelationId: AiCallContext.CurrentCorrelationId,
+			ArticleId: AiCallContext.CurrentArticleId,
+			Worker: AiCallContext.CurrentWorker),
+			cancellationToken);
+
+		if (failure is not null) throw failure;
+
+		var raw = response!.Content.FirstOrDefault()?.ToString() ?? string.Empty;
 
 		try
 		{
@@ -68,6 +95,15 @@ public class ClaudeContentGenerator(
 			throw;
 		}
 	}
+
+	private static AiUsage BuildUsage(MessageResponse? response) =>
+		response is null
+			? new AiUsage(0, 0, 0, 0)
+			: new AiUsage(
+				response.Usage.InputTokens,
+				response.Usage.OutputTokens,
+				response.Usage.CacheCreationInputTokens,
+				response.Usage.CacheReadInputTokens);
 
 	private static string BuildEventPrompt(Event evt, PublishTarget target)
 	{

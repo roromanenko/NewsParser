@@ -1,6 +1,7 @@
 using Core.DomainModels;
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
+using Infrastructure.AI.Telemetry;
 using Microsoft.Extensions.Options;
 using Worker.Configuration;
 
@@ -35,10 +36,11 @@ public class PublicationGenerationWorker : BackgroundService
 
 	private async Task ProcessBatchAsync(CancellationToken cancellationToken)
 	{
+		var cycleId = Guid.NewGuid();
 		using var cycleScope = _logger.BeginScope(new Dictionary<string, object>
 		{
 			["Worker"] = nameof(PublicationGenerationWorker),
-			["CycleId"] = Guid.NewGuid()
+			["CycleId"] = cycleId
 		});
 
 		using var scope = _scopeFactory.CreateScope();
@@ -65,7 +67,7 @@ public class PublicationGenerationWorker : BackgroundService
 				publication.Id, PublicationStatus.GenerationInProgress, cancellationToken);
 
 			await GenerateContentForPublicationAsync(
-				publication, contentGenerator, publicationRepository, cancellationToken);
+				publication, contentGenerator, publicationRepository, cycleId, cancellationToken);
 		}
 	}
 
@@ -73,6 +75,7 @@ public class PublicationGenerationWorker : BackgroundService
 		Publication publication,
 		IContentGenerator contentGenerator,
 		IPublicationRepository publicationRepository,
+		Guid cycleId,
 		CancellationToken cancellationToken)
 	{
 		if (publication.Event is null)
@@ -84,6 +87,7 @@ public class PublicationGenerationWorker : BackgroundService
 
 		try
 		{
+			using var _ = AiCallContext.Push(cycleId, null, nameof(PublicationGenerationWorker));
 			_logger.LogInformation("Generating content for publication {Id}, event {EventTitle}, target {Target}",
 				publication.Id, publication.Event.Title, publication.PublishTarget.Name);
 

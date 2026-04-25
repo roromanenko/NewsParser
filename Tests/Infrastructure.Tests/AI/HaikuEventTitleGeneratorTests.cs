@@ -1,6 +1,8 @@
+using Core.Interfaces.AI;
 using FluentAssertions;
 using Infrastructure.AI;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using NUnit.Framework;
 using System.Reflection;
 
@@ -38,7 +40,8 @@ public class HaikuEventTitleGeneratorTests
 			apiKey: "any-api-key-value",
 			model: "claude-haiku-4-5-20251001",
 			systemPrompt: "You are a news headline writer.",
-			logger: NullLogger<HaikuEventTitleGenerator>.Instance);
+			logger: NullLogger<HaikuEventTitleGenerator>.Instance,
+			aiRequestLogger: new Mock<IAiRequestLogger>().Object);
 
 		// Assert
 		act.Should().NotThrow();
@@ -52,7 +55,8 @@ public class HaikuEventTitleGeneratorTests
 			apiKey: string.Empty,
 			model: string.Empty,
 			systemPrompt: string.Empty,
-			logger: NullLogger<HaikuEventTitleGenerator>.Instance);
+			logger: NullLogger<HaikuEventTitleGenerator>.Instance,
+			aiRequestLogger: new Mock<IAiRequestLogger>().Object);
 
 		// Assert
 		act.Should().NotThrow();
@@ -78,7 +82,8 @@ public class HaikuEventTitleGeneratorTests
 			apiKey: "dummy-key",
 			model: "claude-haiku-4-5-20251001",
 			systemPrompt: systemPrompt,
-			logger: NullLogger<HaikuEventTitleGenerator>.Instance);
+			logger: NullLogger<HaikuEventTitleGenerator>.Instance,
+			aiRequestLogger: new Mock<IAiRequestLogger>().Object);
 
 		// Assert
 		var stored = (string)SystemPromptField.GetValue(sut)!;
@@ -99,7 +104,8 @@ public class HaikuEventTitleGeneratorTests
 			apiKey: "dummy-key",
 			model: "claude-haiku-4-5-20251001",
 			systemPrompt: "You are a news headline writer.",
-			logger: NullLogger<HaikuEventTitleGenerator>.Instance);
+			logger: NullLogger<HaikuEventTitleGenerator>.Instance,
+			aiRequestLogger: new Mock<IAiRequestLogger>().Object);
 
 		using var cts = new CancellationTokenSource();
 		await cts.CancelAsync();

@@ -1,3 +1,4 @@
+using Core.Interfaces.AI;
 using FluentAssertions;
 using Infrastructure.AI;
 using Microsoft.Extensions.Logging;
@@ -55,7 +56,7 @@ public class GeminiEmbeddingServiceSecurityTests
         // Arrange
         SetupSuccessfulHttpResponse();
 
-        var sut = new GeminiEmbeddingService(ApiKey, Model, _httpClient, _loggerMock.Object);
+        var sut = new GeminiEmbeddingService(ApiKey, Model, _httpClient, _loggerMock.Object, new Mock<IAiRequestLogger>().Object);
 
         // Act
         await sut.GenerateEmbeddingAsync("some text to embed");
@@ -82,7 +83,7 @@ public class GeminiEmbeddingServiceSecurityTests
         // Arrange
         SetupSuccessfulHttpResponse();
 
-        var sut = new GeminiEmbeddingService(ApiKey, Model, _httpClient, _loggerMock.Object);
+        var sut = new GeminiEmbeddingService(ApiKey, Model, _httpClient, _loggerMock.Object, new Mock<IAiRequestLogger>().Object);
 
         // Act
         await sut.GenerateEmbeddingAsync("some text to embed");
@@ -110,7 +111,7 @@ public class GeminiEmbeddingServiceSecurityTests
         // Arrange
         SetupSuccessfulHttpResponse();
 
-        var sut = new GeminiEmbeddingService(ApiKey, Model, _httpClient, _loggerMock.Object);
+        var sut = new GeminiEmbeddingService(ApiKey, Model, _httpClient, _loggerMock.Object, new Mock<IAiRequestLogger>().Object);
 
         // Act
         await sut.GenerateEmbeddingAsync("some text to embed");
