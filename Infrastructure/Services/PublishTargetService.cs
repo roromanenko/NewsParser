@@ -14,10 +14,18 @@ public class PublishTargetService(
 		return await publishTargetRepository.GetAllAsync(cancellationToken);
 	}
 
+	public async Task<List<PublishTarget>> GetAllByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
+	{
+		return await publishTargetRepository.GetAllByProjectAsync(projectId, cancellationToken);
+	}
+
 	public async Task<List<PublishTarget>> GetActiveAsync(CancellationToken cancellationToken = default)
 	{
 		return await publishTargetRepository.GetActiveAsync(cancellationToken);
 	}
+
+	public Task<List<PublishTarget>> GetActiveByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
+		=> publishTargetRepository.GetActiveByProjectAsync(projectId, cancellationToken);
 
 	public async Task<PublishTarget> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
 	{
@@ -30,6 +38,7 @@ public class PublishTargetService(
 		Platform platform,
 		string identifier,
 		string systemPrompt,
+		Guid projectId,
 		CancellationToken cancellationToken = default)
 	{
 		var target = new PublishTarget
@@ -40,6 +49,7 @@ public class PublishTargetService(
 			Identifier = identifier,
 			SystemPrompt = systemPrompt,
 			IsActive = true,
+			ProjectId = projectId,
 		};
 
 		var created = await publishTargetRepository.CreateAsync(target, cancellationToken);

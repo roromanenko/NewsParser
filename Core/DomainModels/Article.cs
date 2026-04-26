@@ -38,6 +38,8 @@ public class Article
 	public ArticleRole? Role { get; set; }
 	public bool WasReclassified { get; set; }
 	public DateTimeOffset? AddedToEventAt { get; set; }
+
+	public Guid ProjectId { get; set; }
 }
 
 public enum Sentiment

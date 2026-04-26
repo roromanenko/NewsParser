@@ -153,7 +153,7 @@ internal class PublicationRepository(IDbConnectionFactory factory) : IPublicatio
         }).ToList();
     }
 
-    public async Task<List<Publication>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<List<Publication>> GetAllAsync(Guid projectId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var offset = (page - 1) * pageSize;
         await using var conn = await factory.CreateOpenAsync(cancellationToken);
@@ -161,7 +161,7 @@ internal class PublicationRepository(IDbConnectionFactory factory) : IPublicatio
         var rows = new List<(PublicationEntity pub, PublishTargetEntity target, EventEntity? evt)>();
 
         await conn.QueryAsync<PublicationEntity, PublishTargetEntity, EventEntity?, PublicationEntity>(
-            new CommandDefinition(PublicationSql.GetAll, new { pageSize, offset }, cancellationToken: cancellationToken),
+            new CommandDefinition(PublicationSql.GetAll, new { projectId, pageSize, offset }, cancellationToken: cancellationToken),
             (p, t, e) => { rows.Add((p, t, e)); return p; },
             splitOn: "Id,Id");
 
@@ -173,11 +173,11 @@ internal class PublicationRepository(IDbConnectionFactory factory) : IPublicatio
         }).ToList();
     }
 
-    public async Task<int> CountAllAsync(CancellationToken cancellationToken = default)
+    public async Task<int> CountAllAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
         await using var conn = await factory.CreateOpenAsync(cancellationToken);
         return await conn.ExecuteScalarAsync<int>(
-            new CommandDefinition(PublicationSql.CountAll, cancellationToken: cancellationToken));
+            new CommandDefinition(PublicationSql.CountAll, new { projectId }, cancellationToken: cancellationToken));
     }
 
     public async Task UpdateStatusAsync(Guid id, PublicationStatus status, CancellationToken cancellationToken = default)
@@ -305,6 +305,7 @@ internal class PublicationRepository(IDbConnectionFactory factory) : IPublicatio
             ParentPublicationId = pub.ParentPublicationId,
             UpdateContext = pub.UpdateContext,
             EditorFeedback = pub.EditorFeedback,
+            ProjectId = pub.ProjectId,
             SelectedMediaFileIds = pub.SelectedMediaFileIds ?? [],
             ReviewedByEditorId = pub.ReviewedByEditorId,
             RejectedAt = pub.RejectedAt,
@@ -329,6 +330,7 @@ internal class PublicationRepository(IDbConnectionFactory factory) : IPublicatio
             ParentPublicationId = pub.ParentPublicationId,
             UpdateContext = pub.UpdateContext,
             EditorFeedback = pub.EditorFeedback,
+            ProjectId = pub.ProjectId,
             SelectedMediaFileIds = pub.SelectedMediaFileIds ?? [],
             ReviewedByEditorId = pub.ReviewedByEditorId,
             RejectedAt = pub.RejectedAt,
@@ -364,6 +366,7 @@ internal class PublicationRepository(IDbConnectionFactory factory) : IPublicatio
         parameters.Add("ReviewedByEditorId", entity.ReviewedByEditorId);
         parameters.Add("RejectedAt", entity.RejectedAt);
         parameters.Add("RejectionReason", entity.RejectionReason);
+        parameters.Add("ProjectId", entity.ProjectId);
         return parameters;
     }
 }

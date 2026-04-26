@@ -1,4 +1,5 @@
 using Core.DomainModels;
+using Core.Interfaces;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
 using Microsoft.Extensions.Logging;
@@ -10,6 +11,7 @@ public class PublicationService(
 	IPublicationRepository publicationRepository,
 	IPublishTargetRepository publishTargetRepository,
 	IMediaFileRepository mediaFileRepository,
+	IProjectContext projectContext,
 	ILogger<PublicationService> logger) : IPublicationService
 {
 	public async Task<Publication> CreateForEventAsync(
@@ -38,6 +40,9 @@ public class PublicationService(
 			.FirstOrDefault(a => a.Role == ArticleRole.Initiator)
 			?? relatedEvent.Articles.First();
 
+		if (projectContext.IsSet && initiatorArticle.ProjectId != projectContext.ProjectId)
+			throw new InvalidOperationException("Article does not belong to the current project");
+
 		var publication = new Publication
 		{
 			Id = Guid.NewGuid(),
@@ -48,6 +53,7 @@ public class PublicationService(
 			CreatedAt = DateTimeOffset.UtcNow,
 			EventId = relatedEvent.Id,
 			Event = relatedEvent,
+			ProjectId = projectContext.IsSet ? projectContext.ProjectId : initiatorArticle.ProjectId,
 		};
 
 		await publicationRepository.AddAsync(publication, cancellationToken);

@@ -19,8 +19,8 @@ public interface IPublicationRepository
 	Task<Publication?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 	Task<Publication?> GetDetailAsync(Guid id, CancellationToken cancellationToken = default);
 	Task<List<Publication>> GetByEventIdAsync(Guid eventId, CancellationToken cancellationToken = default);
-	Task<List<Publication>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default);
-	Task<int> CountAllAsync(CancellationToken cancellationToken = default);
+	Task<List<Publication>> GetAllAsync(Guid projectId, int page, int pageSize, CancellationToken cancellationToken = default);
+	Task<int> CountAllAsync(Guid projectId, CancellationToken cancellationToken = default);
 
 	Task UpdateStatusAsync(Guid id, PublicationStatus status, CancellationToken cancellationToken = default);
 	Task UpdateGeneratedContentAsync(Guid id, string content, CancellationToken cancellationToken = default);

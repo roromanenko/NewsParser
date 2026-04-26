@@ -20,7 +20,7 @@ internal static class EventSql
 
     private const string EventColumns = """
         "Id", "Title", "Summary", "Status", "FirstSeenAt", "LastUpdatedAt", "Embedding", "ArticleCount",
-        "ImportanceTier", "ImportanceBaseScore", "ImportanceCalculatedAt"
+        "ImportanceTier", "ImportanceBaseScore", "ImportanceCalculatedAt", "ProjectId"
         """;
 
     public const string GetById = $"""
@@ -32,7 +32,8 @@ internal static class EventSql
         SELECT "Id", "OriginalContent", "SourceId", "OriginalUrl", "PublishedAt", "ExternalId",
                "Embedding", "Title", "Tags", "Category", "Sentiment", "ProcessedAt",
                "Status", "ModelVersion", "Language", "Summary", "KeyFacts",
-               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt"
+               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt",
+               "ProjectId"
         FROM articles WHERE "EventId" = @id
         """;
 
@@ -59,7 +60,7 @@ internal static class EventSql
 
     public const string GetActiveEvents = $"""
         SELECT {EventColumns}
-        FROM events WHERE "Status" = 'Active'
+        FROM events WHERE "Status" = 'Active' AND "ProjectId" = @projectId
         ORDER BY "LastUpdatedAt" DESC
         """;
 
@@ -67,7 +68,8 @@ internal static class EventSql
         SELECT {EventColumns},
                1 - ("Embedding" <=> @vector::vector) AS similarity
         FROM events
-        WHERE "Status" = 'Active'
+        WHERE "ProjectId" = @projectId
+          AND "Status" = 'Active'
           AND "LastUpdatedAt" >= @windowStart
           AND "Embedding" IS NOT NULL
           AND (1 - ("Embedding" <=> @vector::vector)) >= @threshold
@@ -76,8 +78,8 @@ internal static class EventSql
         """;
 
     public const string Insert = """
-        INSERT INTO events ("Id", "Title", "Summary", "Status", "FirstSeenAt", "LastUpdatedAt", "Embedding", "ArticleCount")
-        VALUES (@Id, @Title, @Summary, @Status, @FirstSeenAt, @LastUpdatedAt, @Embedding, @ArticleCount)
+        INSERT INTO events ("Id", "Title", "Summary", "Status", "FirstSeenAt", "LastUpdatedAt", "Embedding", "ArticleCount", "ProjectId")
+        VALUES (@Id, @Title, @Summary, @Status, @FirstSeenAt, @LastUpdatedAt, @Embedding, @ArticleCount, @ProjectId)
         """;
 
     public const string UpdateSummaryTitleAndEmbedding = """
@@ -134,7 +136,8 @@ internal static class EventSql
         SELECT "Id", "OriginalContent", "SourceId", "OriginalUrl", "PublishedAt", "ExternalId",
                "Embedding", "Title", "Tags", "Category", "Sentiment", "ProcessedAt",
                "Status", "ModelVersion", "Language", "Summary", "KeyFacts",
-               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt"
+               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt",
+               "ProjectId"
         FROM articles WHERE "Id" = ANY(@articleIds)
         """;
 
@@ -155,10 +158,12 @@ internal static class EventSql
         SELECT e."Id", e."Title", e."Summary", e."Status", e."FirstSeenAt", e."LastUpdatedAt",
                e."Embedding", e."ArticleCount",
                e."ImportanceTier", e."ImportanceBaseScore", e."ImportanceCalculatedAt",
+               e."ProjectId",
                COUNT(DISTINCT a."SourceId") AS "DistinctSourceCount"
         FROM events e
         LEFT JOIN articles a ON a."EventId" = e."Id"
-        WHERE (e."Title" ILIKE @pattern ESCAPE '\' OR e."Summary" ILIKE @pattern ESCAPE '\')
+        WHERE e."ProjectId" = @projectId
+          AND (e."Title" ILIKE @pattern ESCAPE '\' OR e."Summary" ILIKE @pattern ESCAPE '\')
           {1}
         GROUP BY e."Id"
         {0}
@@ -169,10 +174,11 @@ internal static class EventSql
         SELECT e."Id", e."Title", e."Summary", e."Status", e."FirstSeenAt", e."LastUpdatedAt",
                e."Embedding", e."ArticleCount",
                e."ImportanceTier", e."ImportanceBaseScore", e."ImportanceCalculatedAt",
+               e."ProjectId",
                COUNT(DISTINCT a."SourceId") AS "DistinctSourceCount"
         FROM events e
         LEFT JOIN articles a ON a."EventId" = e."Id"
-        WHERE 1=1
+        WHERE e."ProjectId" = @projectId
           {1}
         GROUP BY e."Id"
         {0}
@@ -189,13 +195,14 @@ internal static class EventSql
     // {0} = optional tier filter clause
     public const string CountWithSearch = """
         SELECT COUNT(*) FROM events
-        WHERE ("Title" ILIKE @pattern ESCAPE '\' OR "Summary" ILIKE @pattern ESCAPE '\')
+        WHERE "ProjectId" = @projectId
+          AND ("Title" ILIKE @pattern ESCAPE '\' OR "Summary" ILIKE @pattern ESCAPE '\')
           {0}
         """;
 
     public const string CountWithoutSearch = """
         SELECT COUNT(*) FROM events
-        WHERE 1=1
+        WHERE "ProjectId" = @projectId
           {0}
         """;
 
@@ -239,7 +246,8 @@ internal static class EventSql
         SELECT "Id", "OriginalContent", "SourceId", "OriginalUrl", "PublishedAt", "ExternalId",
                "Embedding", "Title", "Tags", "Category", "Sentiment", "ProcessedAt",
                "Status", "ModelVersion", "Language", "Summary", "KeyFacts",
-               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt"
+               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt",
+               "ProjectId"
         FROM articles WHERE "EventId" = ANY(@ids)
         """;
 

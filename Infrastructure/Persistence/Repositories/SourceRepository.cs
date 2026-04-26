@@ -35,6 +35,14 @@ internal class SourceRepository(IDbConnectionFactory factory, IUnitOfWork uow) :
         return entities.Select(e => e.ToDomain()).ToList();
     }
 
+    public async Task<List<Source>> GetAllByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var entities = await conn.QueryAsync<SourceEntity>(
+            new CommandDefinition(SourceSql.GetAllByProject, new { projectId }, cancellationToken: cancellationToken));
+        return entities.Select(e => e.ToDomain()).ToList();
+    }
+
     public async Task<Source?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await using var conn = await factory.CreateOpenAsync(cancellationToken);
@@ -50,6 +58,13 @@ internal class SourceRepository(IDbConnectionFactory factory, IUnitOfWork uow) :
             new CommandDefinition(SourceSql.ExistsByUrl, new { url }, cancellationToken: cancellationToken));
     }
 
+    public async Task<bool> ExistsByProjectAndUrlAsync(Guid projectId, string url, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        return await conn.ExecuteScalarAsync<bool>(
+            new CommandDefinition(SourceSql.ExistsByProjectAndUrl, new { projectId, url }, cancellationToken: cancellationToken));
+    }
+
     public async Task<Source> CreateAsync(Source source, CancellationToken cancellationToken = default)
     {
         var entity = source.ToEntity();
@@ -60,6 +75,7 @@ internal class SourceRepository(IDbConnectionFactory factory, IUnitOfWork uow) :
             entity.Name,
             entity.Url,
             entity.Type,
+            entity.ProjectId,
             entity.IsActive,
             entity.LastFetchedAt,
         }, cancellationToken: cancellationToken));

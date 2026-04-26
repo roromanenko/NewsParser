@@ -1,6 +1,7 @@
-﻿using Api.Mappers;
+using Api.Mappers;
 using Api.Models;
 using Core.DomainModels;
+using Core.Interfaces;
 using Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,14 +9,14 @@ using Microsoft.AspNetCore.Mvc;
 namespace Api.Controllers;
 
 [ApiController]
-[Route("sources")]
+[Route("projects/{projectId:guid}/sources")]
 [Authorize(Roles = nameof(UserRole.Admin))]
-public class SourcesController(ISourceService sourceService) : BaseController
+public class SourcesController(ISourceService sourceService, IProjectContext projectContext) : BaseController
 {
 	[HttpGet]
 	public async Task<ActionResult<List<SourceDto>>> GetAll(CancellationToken cancellationToken = default)
 	{
-		var sources = await sourceService.GetAllAsync(cancellationToken);
+		var sources = await sourceService.GetAllByProjectAsync(projectContext.ProjectId, cancellationToken);
 		return Ok(sources.Select(s => s.ToDto()).ToList());
 	}
 
@@ -40,8 +41,8 @@ public class SourcesController(ISourceService sourceService) : BaseController
 		if (!Enum.TryParse<SourceType>(request.Type, ignoreCase: true, out var sourceType))
 			return BadRequest($"Invalid source type. Valid values: {string.Join(", ", Enum.GetNames<SourceType>())}");
 
-		var source = await sourceService.CreateAsync(request.Name, request.Url, sourceType, cancellationToken);
-		return CreatedAtAction(nameof(GetById), new { id = source.Id }, source.ToDto());
+		var source = await sourceService.CreateAsync(request.Name, request.Url, sourceType, projectContext.ProjectId, cancellationToken);
+		return CreatedAtAction(nameof(GetById), new { projectId = projectContext.ProjectId, id = source.Id }, source.ToDto());
 	}
 
 	[HttpPut("{id:guid}")]
@@ -66,5 +67,4 @@ public class SourcesController(ISourceService sourceService) : BaseController
 		await sourceService.DeleteAsync(id, cancellationToken);
 		return NoContent();
 	}
-
 }

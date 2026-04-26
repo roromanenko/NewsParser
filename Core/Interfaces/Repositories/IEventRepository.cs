@@ -1,4 +1,4 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 
 namespace Core.Interfaces.Repositories;
 
@@ -6,9 +6,10 @@ public interface IEventRepository
 {
 	Task<Event?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
-	Task<List<Event>> GetActiveEventsAsync(CancellationToken cancellationToken = default);
+	Task<List<Event>> GetActiveEventsAsync(Guid projectId, CancellationToken cancellationToken = default);
 
 	Task<List<(Event Event, double Similarity)>> FindSimilarEventsAsync(
+		Guid projectId,
 		float[] embedding,
 		double threshold,
 		int windowHours,
@@ -55,13 +56,14 @@ public interface IEventRepository
 	Task<int> CountUpdatesFromAsync(
 		Guid eventId,
 		DateTimeOffset from,
-        CancellationToken cancellationToken = default);
+		CancellationToken cancellationToken = default);
 
 	Task<DateTimeOffset?> GetLastUpdateTimeAsync(
 		Guid eventId,
 		CancellationToken cancellationToken = default);
 
 	Task<List<Event>> GetPagedAsync(
+		Guid projectId,
 		int page,
 		int pageSize,
 		string? search,
@@ -69,7 +71,7 @@ public interface IEventRepository
 		ImportanceTier? tier,
 		CancellationToken cancellationToken = default);
 
-	Task<int> CountAsync(string? search, ImportanceTier? tier, CancellationToken cancellationToken = default);
+	Task<int> CountAsync(Guid projectId, string? search, ImportanceTier? tier, CancellationToken cancellationToken = default);
 
 	Task<EventImportanceStats> GetImportanceStatsAsync(Guid eventId, CancellationToken ct = default);
 

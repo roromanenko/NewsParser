@@ -1,6 +1,7 @@
 using Api.Mappers;
 using Api.Models;
 using Core.DomainModels;
+using Core.Interfaces;
 using Core.Interfaces.Repositories;
 using Infrastructure.Configuration;
 using Microsoft.AspNetCore.Authorization;
@@ -10,11 +11,12 @@ using Microsoft.Extensions.Options;
 namespace Api.Controllers;
 
 [ApiController]
-[Route("articles")]
+[Route("projects/{projectId:guid}/articles")]
 [Authorize(Roles = nameof(UserRole.Editor) + "," + nameof(UserRole.Admin))]
 public class ArticlesController(
 	IArticleRepository articleRepository,
 	IEventRepository eventRepository,
+	IProjectContext projectContext,
 	IOptions<CloudflareR2Options> r2Options) : BaseController
 {
 	private readonly string _publicBaseUrl = r2Options.Value.PublicBaseUrl;
@@ -31,8 +33,8 @@ public class ArticlesController(
 		if (pageSize is < 1 or > PaginationDefaults.MaxPageSize) pageSize = PaginationDefaults.DefaultPageSize;
 		if (!SortOptions.BasicSortValues.Contains(sortBy ?? "")) sortBy = "newest";
 
-		var articles = await articleRepository.GetAnalysisDoneAsync(page, pageSize, search, sortBy!, cancellationToken);
-		var total = await articleRepository.CountAnalysisDoneAsync(search, cancellationToken);
+		var articles = await articleRepository.GetAnalysisDoneAsync(projectContext.ProjectId, page, pageSize, search, sortBy!, cancellationToken);
+		var total = await articleRepository.CountAnalysisDoneAsync(projectContext.ProjectId, search, cancellationToken);
 
 		var items = articles.Select(a => a.ToListItemDto()).ToList();
 

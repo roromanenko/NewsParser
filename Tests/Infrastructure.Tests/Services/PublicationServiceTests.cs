@@ -1,4 +1,5 @@
 using Core.DomainModels;
+using Core.Interfaces;
 using Core.Interfaces.Repositories;
 using FluentAssertions;
 using Infrastructure.Services;
@@ -14,6 +15,7 @@ public class PublicationServiceTests
     private Mock<IPublicationRepository> _publicationRepoMock = null!;
     private Mock<IPublishTargetRepository> _publishTargetRepoMock = null!;
     private Mock<IMediaFileRepository> _mediaFileRepoMock = null!;
+    private Mock<IProjectContext> _projectContextMock = null!;
     private PublicationService _sut = null!;
 
     [SetUp]
@@ -23,6 +25,9 @@ public class PublicationServiceTests
         _publicationRepoMock = new Mock<IPublicationRepository>();
         _publishTargetRepoMock = new Mock<IPublishTargetRepository>();
         _mediaFileRepoMock = new Mock<IMediaFileRepository>();
+        _projectContextMock = new Mock<IProjectContext>();
+        _projectContextMock.Setup(c => c.IsSet).Returns(false);
+
         _mediaFileRepoMock
             .Setup(r => r.GetByPublicationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
@@ -32,6 +37,7 @@ public class PublicationServiceTests
             _publicationRepoMock.Object,
             _publishTargetRepoMock.Object,
             _mediaFileRepoMock.Object,
+            _projectContextMock.Object,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<PublicationService>.Instance);
     }
 

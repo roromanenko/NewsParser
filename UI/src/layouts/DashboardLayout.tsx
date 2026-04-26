@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { SidebarContext } from './SidebarContext'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { ProjectSwitcher } from '@/features/projects/ProjectSwitcher'
 
 export function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false)
@@ -44,6 +45,8 @@ export function DashboardLayout() {
                   </div>
                   <div className="font-mono text-sm text-gray-400">{today}</div>
                 </div>
+                <div className="h-8 w-px" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
+                <ProjectSwitcher />
               </div>
 
               <div className="flex items-center gap-6">

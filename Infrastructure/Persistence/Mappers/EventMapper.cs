@@ -1,4 +1,4 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Infrastructure.Persistence.Entity;
 
 namespace Infrastructure.Persistence.Mappers;
@@ -14,6 +14,7 @@ public static class EventMapper
 		FirstSeenAt = entity.FirstSeenAt,
 		LastUpdatedAt = entity.LastUpdatedAt,
 		Embedding = entity.Embedding?.ToArray(),
+		ProjectId = entity.ProjectId,
 		ArticleCount = entity.ArticleCount,
 		ImportanceTier = entity.ImportanceTier != null
 			? Enum.Parse<ImportanceTier>(entity.ImportanceTier)
@@ -35,6 +36,7 @@ public static class EventMapper
 		FirstSeenAt = domain.FirstSeenAt,
 		LastUpdatedAt = domain.LastUpdatedAt,
 		Embedding = domain.Embedding != null ? new Pgvector.Vector(domain.Embedding) : null,
+		ProjectId = domain.ProjectId,
 		ArticleCount = domain.ArticleCount,
 		ImportanceTier = domain.ImportanceTier?.ToString(),
 		ImportanceBaseScore = domain.ImportanceBaseScore,

@@ -7,12 +7,14 @@ internal static class ArticleSql
             "Id", "OriginalContent", "SourceId", "OriginalUrl", "PublishedAt", "ExternalId",
             "Embedding", "Title", "Tags", "Category", "Sentiment", "ProcessedAt",
             "Status", "ModelVersion", "Language", "Summary", "KeyFacts",
-            "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt"
+            "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt",
+            "ProjectId"
         ) VALUES (
             @Id, @OriginalContent, @SourceId, @OriginalUrl, @PublishedAt, @ExternalId,
             @Embedding, @Title, @Tags, @Category, @Sentiment, @ProcessedAt,
             @Status, @ModelVersion, @Language, @Summary, @KeyFacts,
-            @RejectionReason, @RetryCount, @EventId, @Role, @WasReclassified, @AddedToEventAt
+            @RejectionReason, @RetryCount, @EventId, @Role, @WasReclassified, @AddedToEventAt,
+            @ProjectId
         )
         """;
 
@@ -21,7 +23,7 @@ internal static class ArticleSql
                a."ExternalId", a."Embedding", a."Title", a."Tags", a."Category", a."Sentiment",
                a."ProcessedAt", a."Status", a."ModelVersion", a."Language", a."Summary",
                a."KeyFacts", a."RejectionReason", a."RetryCount", a."EventId", a."Role",
-               a."WasReclassified", a."AddedToEventAt",
+               a."WasReclassified", a."AddedToEventAt", a."ProjectId",
                m."Id", m."ArticleId", m."PublicationId", m."OwnerKind", m."UploadedByUserId",
                m."R2Key", m."OriginalUrl", m."ContentType", m."SizeBytes", m."Kind", m."CreatedAt"
         FROM articles a
@@ -33,9 +35,11 @@ internal static class ArticleSql
         SELECT "Id", "OriginalContent", "SourceId", "OriginalUrl", "PublishedAt", "ExternalId",
                "Embedding", "Title", "Tags", "Category", "Sentiment", "ProcessedAt",
                "Status", "ModelVersion", "Language", "Summary", "KeyFacts",
-               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt"
+               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt",
+               "ProjectId"
         FROM articles
         WHERE "Status" = 'AnalysisDone'
+          AND "ProjectId" = @projectId
           AND ("Title" ILIKE @pattern ESCAPE '\' OR "Summary" ILIKE @pattern ESCAPE '\')
         ORDER BY "ProcessedAt" {0}
         LIMIT @pageSize OFFSET @offset
@@ -45,9 +49,11 @@ internal static class ArticleSql
         SELECT "Id", "OriginalContent", "SourceId", "OriginalUrl", "PublishedAt", "ExternalId",
                "Embedding", "Title", "Tags", "Category", "Sentiment", "ProcessedAt",
                "Status", "ModelVersion", "Language", "Summary", "KeyFacts",
-               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt"
+               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt",
+               "ProjectId"
         FROM articles
         WHERE "Status" = 'AnalysisDone'
+          AND "ProjectId" = @projectId
         ORDER BY "ProcessedAt" {0}
         LIMIT @pageSize OFFSET @offset
         """;
@@ -55,12 +61,14 @@ internal static class ArticleSql
     public const string CountAnalysisDoneWithSearch = """
         SELECT COUNT(*) FROM articles
         WHERE "Status" = 'AnalysisDone'
+          AND "ProjectId" = @projectId
           AND ("Title" ILIKE @pattern ESCAPE '\' OR "Summary" ILIKE @pattern ESCAPE '\')
         """;
 
     public const string CountAnalysisDoneWithoutSearch = """
         SELECT COUNT(*) FROM articles
         WHERE "Status" = 'AnalysisDone'
+          AND "ProjectId" = @projectId
         """;
 
     public const string UpdateStatus = """
@@ -79,7 +87,8 @@ internal static class ArticleSql
         SELECT "Id", "OriginalContent", "SourceId", "OriginalUrl", "PublishedAt", "ExternalId",
                "Embedding", "Title", "Tags", "Category", "Sentiment", "ProcessedAt",
                "Status", "ModelVersion", "Language", "Summary", "KeyFacts",
-               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt"
+               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt",
+               "ProjectId"
         FROM articles
         WHERE "Status" = 'Pending'
         ORDER BY "ProcessedAt"
@@ -91,7 +100,8 @@ internal static class ArticleSql
         SELECT "Id", "OriginalContent", "SourceId", "OriginalUrl", "PublishedAt", "ExternalId",
                "Embedding", "Title", "Tags", "Category", "Sentiment", "ProcessedAt",
                "Status", "ModelVersion", "Language", "Summary", "KeyFacts",
-               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt"
+               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt",
+               "ProjectId"
         FROM articles
         WHERE "Status" = 'AnalysisDone' AND "EventId" IS NULL
         ORDER BY "ProcessedAt"

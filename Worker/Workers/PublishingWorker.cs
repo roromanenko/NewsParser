@@ -65,7 +65,8 @@ public class PublishingWorker : BackgroundService
 			{
 				["PublicationId"] = publication.Id,
 				["PublishTargetName"] = publication.PublishTarget?.Name,
-				["Platform"] = publication.PublishTarget?.Platform.ToString()
+				["Platform"] = publication.PublishTarget?.Platform.ToString(),
+				["ProjectId"] = publication.ProjectId
 			});
 
 			await PublishSingleAsync(

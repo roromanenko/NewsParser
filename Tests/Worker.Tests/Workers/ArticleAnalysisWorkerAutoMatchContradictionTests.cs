@@ -115,8 +115,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -166,8 +165,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -216,8 +214,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -260,8 +257,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -306,8 +302,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -362,8 +357,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -406,8 +400,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -463,8 +456,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -525,8 +517,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -572,8 +563,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -628,8 +618,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -677,8 +666,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -759,8 +747,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .ReturnsAsync([]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -891,3 +878,4 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
         ],
     };
 }
+

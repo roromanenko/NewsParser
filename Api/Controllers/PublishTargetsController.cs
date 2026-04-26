@@ -1,6 +1,7 @@
-﻿using Api.Mappers;
+using Api.Mappers;
 using Api.Models;
 using Core.DomainModels;
+using Core.Interfaces;
 using Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,15 +9,15 @@ using Microsoft.AspNetCore.Mvc;
 namespace Api.Controllers;
 
 [ApiController]
-[Route("publish-targets")]
+[Route("projects/{projectId:guid}/publish-targets")]
 [Authorize(Roles = nameof(UserRole.Admin))]
-public class PublishTargetsController(IPublishTargetService publishTargetService) : BaseController
+public class PublishTargetsController(IPublishTargetService publishTargetService, IProjectContext projectContext) : BaseController
 {
 	[HttpGet]
 	public async Task<ActionResult<List<PublishTargetDto>>> GetAll(
 		CancellationToken cancellationToken = default)
 	{
-		var targets = await publishTargetService.GetAllAsync(cancellationToken);
+		var targets = await publishTargetService.GetAllByProjectAsync(projectContext.ProjectId, cancellationToken);
 		return Ok(targets.Select(t => t.ToDto()).ToList());
 	}
 
@@ -24,7 +25,7 @@ public class PublishTargetsController(IPublishTargetService publishTargetService
 	public async Task<ActionResult<List<PublishTargetDto>>> GetActive(
 		CancellationToken cancellationToken = default)
 	{
-		var targets = await publishTargetService.GetActiveAsync(cancellationToken);
+		var targets = await publishTargetService.GetActiveByProjectAsync(projectContext.ProjectId, cancellationToken);
 		return Ok(targets.Select(t => t.ToDto()).ToList());
 	}
 
@@ -59,9 +60,10 @@ public class PublishTargetsController(IPublishTargetService publishTargetService
 			platform,
 			request.Identifier,
 			request.SystemPrompt,
+			projectContext.ProjectId,
 			cancellationToken);
 
-		return CreatedAtAction(nameof(GetById), new { id = target.Id }, target.ToDto());
+		return CreatedAtAction(nameof(GetById), new { projectId = projectContext.ProjectId, id = target.Id }, target.ToDto());
 	}
 
 	[HttpPut("{id:guid}")]
@@ -98,5 +100,4 @@ public class PublishTargetsController(IPublishTargetService publishTargetService
 		await publishTargetService.DeleteAsync(id, cancellationToken);
 		return NoContent();
 	}
-
 }

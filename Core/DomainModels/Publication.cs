@@ -1,4 +1,4 @@
-﻿namespace Core.DomainModels;
+namespace Core.DomainModels;
 
 public class Publication
 {
@@ -13,6 +13,7 @@ public class Publication
 	public DateTimeOffset? PublishedAt { get; set; }
 	public DateTimeOffset? ApprovedAt { get; set; }
 	public List<PublishLog> PublishLogs { get; set; } = [];
+	public Guid ProjectId { get; set; }
 
 	public Platform Platform => PublishTarget.Platform;
 

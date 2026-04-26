@@ -1,39 +1,39 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { PublishTargetsApi } from '@/api/generated'
+import { useProjectStore } from '@/store/projectStore'
 import { apiClient } from '@/lib/axios'
 import { useToast } from '@/context/ToastContext'
-
-const publishTargetsApi = new PublishTargetsApi(undefined, '', apiClient)
 
 export function usePublishTargetMutations() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { selectedProjectId } = useProjectStore()
 
   const createTarget = useMutation({
     mutationFn: (data: { name: string; platform: string; identifier: string; systemPrompt: string }) =>
-      publishTargetsApi.publishTargetsPost(data),
+      apiClient.post(`/projects/${selectedProjectId}/publish-targets`, data),
     onSuccess: () => {
       toast('Publish target created', 'success')
-      queryClient.invalidateQueries({ queryKey: ['publishTargets'] })
+      queryClient.invalidateQueries({ queryKey: ['project', selectedProjectId, 'publishTargets'] })
     },
     onError: () => toast('Failed to create publish target', 'error'),
   })
 
   const updateTarget = useMutation({
     mutationFn: ({ id, data }: { id: string; data: { name: string; identifier: string; systemPrompt: string; isActive: boolean } }) =>
-      publishTargetsApi.publishTargetsIdPut(id, data),
+      apiClient.put(`/projects/${selectedProjectId}/publish-targets/${id}`, data),
     onSuccess: () => {
       toast('Publish target updated', 'success')
-      queryClient.invalidateQueries({ queryKey: ['publishTargets'] })
+      queryClient.invalidateQueries({ queryKey: ['project', selectedProjectId, 'publishTargets'] })
     },
     onError: () => toast('Failed to update publish target', 'error'),
   })
 
   const deleteTarget = useMutation({
-    mutationFn: (id: string) => publishTargetsApi.publishTargetsIdDelete(id),
+    mutationFn: (id: string) =>
+      apiClient.delete(`/projects/${selectedProjectId}/publish-targets/${id}`),
     onSuccess: () => {
       toast('Publish target deleted', 'success')
-      queryClient.invalidateQueries({ queryKey: ['publishTargets'] })
+      queryClient.invalidateQueries({ queryKey: ['project', selectedProjectId, 'publishTargets'] })
     },
     onError: () => toast('Failed to delete publish target', 'error'),
   })

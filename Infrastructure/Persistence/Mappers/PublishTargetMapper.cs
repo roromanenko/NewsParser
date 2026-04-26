@@ -1,4 +1,4 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Infrastructure.Persistence.Entity;
 
 namespace Infrastructure.Persistence.Mappers;
@@ -13,6 +13,7 @@ public static class PublishTargetMapper
 		Identifier = entity.Identifier,
 		SystemPrompt = entity.SystemPrompt,
 		IsActive = entity.IsActive,
+		ProjectId = entity.ProjectId,
 	};
 
 	public static PublishTargetEntity ToEntity(this PublishTarget domain) => new()
@@ -23,5 +24,6 @@ public static class PublishTargetMapper
 		Identifier = domain.Identifier,
 		SystemPrompt = domain.SystemPrompt,
 		IsActive = domain.IsActive,
+		ProjectId = domain.ProjectId,
 	};
 }

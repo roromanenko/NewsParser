@@ -19,7 +19,10 @@
       "Bash(npx vitest:*)",
       "Bash(dotnet list *)",
       "Bash(dotnet user-secrets init *)",
-      "Bash(dotnet user-secrets *)"
+      "Bash(dotnet user-secrets *)",
+      "Bash(powershell *)",
+      "Bash(cat)",
+      "Bash(dotnet script *)"
     ]
   }
 }

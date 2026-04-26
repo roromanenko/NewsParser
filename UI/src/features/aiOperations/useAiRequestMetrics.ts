@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import type { UseQueryResult } from '@tanstack/react-query'
-import { AiOperationsApi } from '@/api/generated'
+import { useProjectStore } from '@/store/projectStore'
 import { apiClient } from '@/lib/axios'
 import type { AiOpsMetricsView, AiOpsTimeBucket, AiOpsBreakdownRow, AiOpsKpis, AiOpsFilters } from './types'
 import type { AiMetricsTimeBucketDto, AiMetricsBreakdownRowDto, AiOperationsMetricsDto } from '@/api/generated'
-
-const aiOpsApi = new AiOperationsApi(undefined, '', apiClient)
 
 const STALE_MS = 30_000
 
@@ -76,18 +74,23 @@ function mapBreakdownRows(rows: AiMetricsBreakdownRowDto[]): AiOpsBreakdownRow[]
 export function useAiRequestMetrics(
   filters: MetricsFilters,
 ): UseQueryResult<AiOpsMetricsView> {
+  const { selectedProjectId } = useProjectStore()
+
   return useQuery({
-    queryKey: ['ai-ops', 'metrics', filters],
+    queryKey: ['project', selectedProjectId, 'ai-ops', 'metrics', filters],
+    enabled: !!selectedProjectId,
     staleTime: STALE_MS,
     queryFn: async () => {
-      const res = await aiOpsApi.aiOperationsMetricsGet(
-        filters.from || undefined,
-        filters.to || undefined,
-        filters.provider || undefined,
-        filters.worker || undefined,
-        filters.model || undefined,
-      )
-      const dto = res.data
+      const res = await apiClient.get(`/projects/${selectedProjectId}/ai-operations/metrics`, {
+        params: {
+          from: filters.from || undefined,
+          to: filters.to || undefined,
+          provider: filters.provider || undefined,
+          worker: filters.worker || undefined,
+          model: filters.model || undefined,
+        },
+      })
+      const dto = res.data as AiOperationsMetricsDto
 
       return {
         kpis: mapKpis(dto),

@@ -142,6 +142,7 @@ public class SourceFetcherWorker : BackgroundService
 				}
 			}
 
+			article.ProjectId = source.ProjectId;
 			await articleRepository.AddAsync(article, cancellationToken);
 
 			try

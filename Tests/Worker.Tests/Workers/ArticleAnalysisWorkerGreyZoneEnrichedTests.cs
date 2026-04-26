@@ -104,8 +104,7 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
 
         // Similarity 0.80 is in the grey zone (> 0.70 but < 0.90)
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -151,8 +150,7 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -231,8 +229,7 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
             .ReturnsAsync([]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -361,3 +358,4 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
         ],
     };
 }
+

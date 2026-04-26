@@ -19,11 +19,27 @@ internal class PublishTargetRepository(IDbConnectionFactory factory, IUnitOfWork
         return entities.Select(e => e.ToDomain()).ToList();
     }
 
+    public async Task<List<PublishTarget>> GetAllByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var entities = await conn.QueryAsync<PublishTargetEntity>(
+            new CommandDefinition(PublishTargetSql.GetAllByProject, new { projectId }, cancellationToken: cancellationToken));
+        return entities.Select(e => e.ToDomain()).ToList();
+    }
+
     public async Task<List<PublishTarget>> GetActiveAsync(CancellationToken cancellationToken = default)
     {
         await using var conn = await factory.CreateOpenAsync(cancellationToken);
         var entities = await conn.QueryAsync<PublishTargetEntity>(
             new CommandDefinition(PublishTargetSql.GetActive, cancellationToken: cancellationToken));
+        return entities.Select(e => e.ToDomain()).ToList();
+    }
+
+    public async Task<List<PublishTarget>> GetActiveByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
+    {
+        await using var conn = await factory.CreateOpenAsync(cancellationToken);
+        var entities = await conn.QueryAsync<PublishTargetEntity>(
+            new CommandDefinition(PublishTargetSql.GetActiveByProject, new { projectId }, cancellationToken: cancellationToken));
         return entities.Select(e => e.ToDomain()).ToList();
     }
 
@@ -47,6 +63,7 @@ internal class PublishTargetRepository(IDbConnectionFactory factory, IUnitOfWork
             entity.Identifier,
             entity.SystemPrompt,
             entity.IsActive,
+            entity.ProjectId,
         }, cancellationToken: cancellationToken));
         return entity.ToDomain();
     }

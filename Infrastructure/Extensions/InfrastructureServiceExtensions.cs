@@ -70,6 +70,7 @@ public static class InfrastructureServiceExtensions
 		services.AddScoped<IPublishTargetRepository, PublishTargetRepository>();
 		services.AddScoped<IEventRepository, EventRepository>();
 		services.AddScoped<IAiRequestLogRepository, AiRequestLogRepository>();
+		services.AddScoped<IProjectRepository, ProjectRepository>();
 
 		return services;
 	}
@@ -115,7 +116,6 @@ public static class InfrastructureServiceExtensions
 		services.AddScoped<IArticleAnalyzer>(sp => new GeminiArticleAnalyzer(
 			aiOptions.Gemini.ApiKey,
 			aiOptions.Gemini.AnalyzerModel,
-			promptsOptions.Analyzer,
 			sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(GeminiArticleAnalyzer)),
 			sp.GetRequiredService<ILogger<GeminiArticleAnalyzer>>(),
 			sp.GetRequiredService<IAiRequestLogger>()
@@ -207,6 +207,7 @@ public static class InfrastructureServiceExtensions
 	private static IServiceCollection AddServices(this IServiceCollection services, IConfiguration configuration)
 	{
 		services.AddScoped<IPublicationService, PublicationService>();
+		services.AddScoped<IProjectService, ProjectService>();
 		services.AddScoped<IUserService, UserService>();
 		services.AddScoped<IJwtService, JwtService>();
 		services.AddScoped<ISourceService, SourceService>();

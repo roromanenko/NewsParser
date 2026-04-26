@@ -236,8 +236,7 @@ public class ArticleAnalysisWorkerCreateEventTitleTests
 
         // No similar events → forces new-event creation path
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -319,3 +318,4 @@ public class ArticleAnalysisWorkerCreateEventTitleTests
         KeyFacts = [],
     };
 }
+

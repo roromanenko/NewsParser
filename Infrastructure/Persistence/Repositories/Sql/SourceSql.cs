@@ -3,19 +3,27 @@ namespace Infrastructure.Persistence.Repositories.Sql;
 internal static class SourceSql
 {
     public const string GetActive = """
-        SELECT "Id", "Name", "Url", "Type", "IsActive", "LastFetchedAt"
-        FROM sources
-        WHERE "IsActive" = true AND "Type" = @type
+        SELECT s."Id", s."Name", s."Url", s."Type", s."ProjectId", s."IsActive", s."LastFetchedAt"
+        FROM sources s
+        JOIN projects p ON p."Id" = s."ProjectId" AND p."IsActive" = TRUE
+        WHERE s."IsActive" = true AND s."Type" = @type
         """;
 
     public const string GetAll = """
-        SELECT "Id", "Name", "Url", "Type", "IsActive", "LastFetchedAt"
+        SELECT "Id", "Name", "Url", "Type", "ProjectId", "IsActive", "LastFetchedAt"
         FROM sources
         ORDER BY "Name"
         """;
 
+    public const string GetAllByProject = """
+        SELECT "Id", "Name", "Url", "Type", "ProjectId", "IsActive", "LastFetchedAt"
+        FROM sources
+        WHERE "ProjectId" = @projectId
+        ORDER BY "Name"
+        """;
+
     public const string GetById = """
-        SELECT "Id", "Name", "Url", "Type", "IsActive", "LastFetchedAt"
+        SELECT "Id", "Name", "Url", "Type", "ProjectId", "IsActive", "LastFetchedAt"
         FROM sources
         WHERE "Id" = @id
         LIMIT 1
@@ -25,9 +33,13 @@ internal static class SourceSql
         SELECT EXISTS(SELECT 1 FROM sources WHERE "Url" = @url)
         """;
 
+    public const string ExistsByProjectAndUrl = """
+        SELECT EXISTS(SELECT 1 FROM sources WHERE "ProjectId" = @projectId AND "Url" = @url)
+        """;
+
     public const string Insert = """
-        INSERT INTO sources ("Id", "Name", "Url", "Type", "IsActive", "LastFetchedAt")
-        VALUES (@Id, @Name, @Url, @Type, @IsActive, @LastFetchedAt)
+        INSERT INTO sources ("Id", "Name", "Url", "Type", "ProjectId", "IsActive", "LastFetchedAt")
+        VALUES (@Id, @Name, @Url, @Type, @ProjectId, @IsActive, @LastFetchedAt)
         """;
 
     public const string UpdateLastFetchedAt = """

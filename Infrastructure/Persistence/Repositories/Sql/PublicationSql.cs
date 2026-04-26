@@ -6,7 +6,8 @@ internal static class PublicationSql
         p."Id", p."ArticleId", p."EditorId", p."PublishTargetId",
         p."GeneratedContent", p."Status", p."CreatedAt", p."PublishedAt",
         p."ApprovedAt", p."EventId", p."ParentPublicationId", p."UpdateContext",
-        p."EditorFeedback", p."SelectedMediaFileIds", p."ReviewedByEditorId", p."RejectedAt", p."RejectionReason"
+        p."EditorFeedback", p."SelectedMediaFileIds", p."ReviewedByEditorId", p."RejectedAt", p."RejectionReason",
+        p."ProjectId"
         """;
 
     private const string PublishTargetColumns = """
@@ -18,12 +19,12 @@ internal static class PublicationSql
         a."ExternalId", a."Embedding", a."Title", a."Tags", a."Category", a."Sentiment",
         a."ProcessedAt", a."Status", a."ModelVersion", a."Language", a."Summary",
         a."KeyFacts", a."RejectionReason", a."RetryCount", a."EventId", a."Role",
-        a."WasReclassified", a."AddedToEventAt"
+        a."WasReclassified", a."AddedToEventAt", a."ProjectId"
         """;
 
     private const string EventColumns = """
         e."Id", e."Title", e."Summary", e."Status", e."FirstSeenAt", e."LastUpdatedAt",
-        e."Embedding", e."ArticleCount"
+        e."Embedding", e."ArticleCount", e."ProjectId"
         """;
 
     public const string GetPendingForGeneration = """
@@ -31,14 +32,15 @@ internal static class PublicationSql
                p."GeneratedContent", p."Status", p."CreatedAt", p."PublishedAt",
                p."ApprovedAt", p."EventId", p."ParentPublicationId", p."UpdateContext",
                p."EditorFeedback", p."SelectedMediaFileIds", p."ReviewedByEditorId", p."RejectedAt", p."RejectionReason",
+               p."ProjectId",
                a."Id", a."OriginalContent", a."SourceId", a."OriginalUrl", a."PublishedAt",
                a."ExternalId", a."Embedding", a."Title", a."Tags", a."Category", a."Sentiment",
                a."ProcessedAt", a."Status", a."ModelVersion", a."Language", a."Summary",
                a."KeyFacts", a."RejectionReason", a."RetryCount", a."EventId", a."Role",
-               a."WasReclassified", a."AddedToEventAt",
+               a."WasReclassified", a."AddedToEventAt", a."ProjectId",
                t."Id", t."Name", t."Platform", t."Identifier", t."SystemPrompt", t."IsActive",
                e."Id", e."Title", e."Summary", e."Status", e."FirstSeenAt", e."LastUpdatedAt",
-               e."Embedding", e."ArticleCount"
+               e."Embedding", e."ArticleCount", e."ProjectId"
         FROM publications p
         INNER JOIN articles a ON a."Id" = p."ArticleId"
         INNER JOIN publish_targets t ON t."Id" = p."PublishTargetId"
@@ -53,7 +55,8 @@ internal static class PublicationSql
         SELECT "Id", "OriginalContent", "SourceId", "OriginalUrl", "PublishedAt", "ExternalId",
                "Embedding", "Title", "Tags", "Category", "Sentiment", "ProcessedAt",
                "Status", "ModelVersion", "Language", "Summary", "KeyFacts",
-               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt"
+               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt",
+               "ProjectId"
         FROM articles WHERE "EventId" = ANY(@eventIds)
         """;
 
@@ -62,12 +65,13 @@ internal static class PublicationSql
                p."GeneratedContent", p."Status", p."CreatedAt", p."PublishedAt",
                p."ApprovedAt", p."EventId", p."ParentPublicationId", p."UpdateContext",
                p."EditorFeedback", p."SelectedMediaFileIds", p."ReviewedByEditorId", p."RejectedAt", p."RejectionReason",
+               p."ProjectId",
                t."Id", t."Name", t."Platform", t."Identifier", t."SystemPrompt", t."IsActive",
                a."Id", a."OriginalContent", a."SourceId", a."OriginalUrl", a."PublishedAt",
                a."ExternalId", a."Embedding", a."Title", a."Tags", a."Category", a."Sentiment",
                a."ProcessedAt", a."Status", a."ModelVersion", a."Language", a."Summary",
                a."KeyFacts", a."RejectionReason", a."RetryCount", a."EventId", a."Role",
-               a."WasReclassified", a."AddedToEventAt"
+               a."WasReclassified", a."AddedToEventAt", a."ProjectId"
         FROM publications p
         INNER JOIN publish_targets t ON t."Id" = p."PublishTargetId"
         INNER JOIN articles a ON a."Id" = p."ArticleId"
@@ -82,12 +86,14 @@ internal static class PublicationSql
             "Id", "ArticleId", "EditorId", "PublishTargetId",
             "GeneratedContent", "Status", "CreatedAt", "PublishedAt",
             "ApprovedAt", "EventId", "ParentPublicationId", "UpdateContext",
-            "EditorFeedback", "SelectedMediaFileIds", "ReviewedByEditorId", "RejectedAt", "RejectionReason"
+            "EditorFeedback", "SelectedMediaFileIds", "ReviewedByEditorId", "RejectedAt", "RejectionReason",
+            "ProjectId"
         ) VALUES (
             @Id, @ArticleId, @EditorId, @PublishTargetId,
             @GeneratedContent, @Status, @CreatedAt, @PublishedAt,
             @ApprovedAt, @EventId, @ParentPublicationId, @UpdateContext,
-            @EditorFeedback, @SelectedMediaFileIds, @ReviewedByEditorId, @RejectedAt, @RejectionReason
+            @EditorFeedback, @SelectedMediaFileIds, @ReviewedByEditorId, @RejectedAt, @RejectionReason,
+            @ProjectId
         )
         """;
 
@@ -96,6 +102,7 @@ internal static class PublicationSql
                p."GeneratedContent", p."Status", p."CreatedAt", p."PublishedAt",
                p."ApprovedAt", p."EventId", p."ParentPublicationId", p."UpdateContext",
                p."EditorFeedback", p."SelectedMediaFileIds", p."ReviewedByEditorId", p."RejectedAt", p."RejectionReason",
+               p."ProjectId",
                t."Id", t."Name", t."Platform", t."Identifier", t."SystemPrompt", t."IsActive"
         FROM publications p
         INNER JOIN publish_targets t ON t."Id" = p."PublishTargetId"
@@ -108,6 +115,7 @@ internal static class PublicationSql
                p."GeneratedContent", p."Status", p."CreatedAt", p."PublishedAt",
                p."ApprovedAt", p."EventId", p."ParentPublicationId", p."UpdateContext",
                p."EditorFeedback", p."SelectedMediaFileIds", p."ReviewedByEditorId", p."RejectedAt", p."RejectionReason",
+               p."ProjectId",
                t."Id", t."Name", t."Platform", t."Identifier", t."SystemPrompt", t."IsActive"
         FROM publications p
         INNER JOIN publish_targets t ON t."Id" = p."PublishTargetId"
@@ -121,7 +129,7 @@ internal static class PublicationSql
         """;
 
     public const string GetDetailEvent = """
-        SELECT "Id", "Title", "Summary", "Status", "FirstSeenAt", "LastUpdatedAt", "Embedding", "ArticleCount"
+        SELECT "Id", "Title", "Summary", "Status", "FirstSeenAt", "LastUpdatedAt", "Embedding", "ArticleCount", "ProjectId"
         FROM events WHERE "Id" = @eventId
         """;
 
@@ -129,7 +137,8 @@ internal static class PublicationSql
         SELECT "Id", "OriginalContent", "SourceId", "OriginalUrl", "PublishedAt", "ExternalId",
                "Embedding", "Title", "Tags", "Category", "Sentiment", "ProcessedAt",
                "Status", "ModelVersion", "Language", "Summary", "KeyFacts",
-               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt"
+               "RejectionReason", "RetryCount", "EventId", "Role", "WasReclassified", "AddedToEventAt",
+               "ProjectId"
         FROM articles WHERE "EventId" = @eventId
         """;
 
@@ -144,6 +153,7 @@ internal static class PublicationSql
                p."GeneratedContent", p."Status", p."CreatedAt", p."PublishedAt",
                p."ApprovedAt", p."EventId", p."ParentPublicationId", p."UpdateContext",
                p."EditorFeedback", p."SelectedMediaFileIds", p."ReviewedByEditorId", p."RejectedAt", p."RejectionReason",
+               p."ProjectId",
                t."Id", t."Name", t."Platform", t."Identifier", t."SystemPrompt", t."IsActive"
         FROM publications p
         INNER JOIN publish_targets t ON t."Id" = p."PublishTargetId"
@@ -156,18 +166,20 @@ internal static class PublicationSql
                p."GeneratedContent", p."Status", p."CreatedAt", p."PublishedAt",
                p."ApprovedAt", p."EventId", p."ParentPublicationId", p."UpdateContext",
                p."EditorFeedback", p."SelectedMediaFileIds", p."ReviewedByEditorId", p."RejectedAt", p."RejectionReason",
+               p."ProjectId",
                t."Id", t."Name", t."Platform", t."Identifier", t."SystemPrompt", t."IsActive",
                e."Id", e."Title", e."Summary", e."Status", e."FirstSeenAt", e."LastUpdatedAt",
-               e."Embedding", e."ArticleCount"
+               e."Embedding", e."ArticleCount", e."ProjectId"
         FROM publications p
         INNER JOIN publish_targets t ON t."Id" = p."PublishTargetId"
         LEFT JOIN events e ON e."Id" = p."EventId"
+        WHERE p."ProjectId" = @projectId
         ORDER BY p."CreatedAt" DESC
         LIMIT @pageSize OFFSET @offset
         """;
 
     public const string CountAll = """
-        SELECT COUNT(*) FROM publications
+        SELECT COUNT(*) FROM publications WHERE "ProjectId" = @projectId
         """;
 
     public const string UpdateStatus = """
@@ -222,6 +234,7 @@ internal static class PublicationSql
                p."GeneratedContent", p."Status", p."CreatedAt", p."PublishedAt",
                p."ApprovedAt", p."EventId", p."ParentPublicationId", p."UpdateContext",
                p."EditorFeedback", p."SelectedMediaFileIds", p."ReviewedByEditorId", p."RejectedAt", p."RejectionReason",
+               p."ProjectId",
                t."Id", t."Name", t."Platform", t."Identifier", t."SystemPrompt", t."IsActive"
         FROM publications p
         INNER JOIN publish_targets t ON t."Id" = p."PublishTargetId"

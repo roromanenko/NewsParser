@@ -1,15 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
+import { useProjectStore } from '@/store/projectStore'
 import { apiClient } from '@/lib/axios'
 import type { PublicationDetailDto } from './types'
 
 export function usePublicationDetail(id: string) {
+  const { selectedProjectId } = useProjectStore()
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['publication', id],
+    queryKey: ['project', selectedProjectId, 'publication', id],
+    enabled: !!id && !!selectedProjectId,
     queryFn: () =>
       apiClient
-        .get<PublicationDetailDto>(`/publications/${id}`)
+        .get<PublicationDetailDto>(`/projects/${selectedProjectId}/publications/${id}`)
         .then(r => r.data),
-    enabled: !!id,
     refetchInterval: (query) => {
       const status = query.state.data?.status
       return status === 'Created' || status === 'GenerationInProgress' ? 3000 : false

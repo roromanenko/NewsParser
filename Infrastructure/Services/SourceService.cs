@@ -14,6 +14,9 @@ public class SourceService(
 		return await sourceRepository.GetAllAsync(cancellationToken);
 	}
 
+	public Task<List<Source>> GetAllByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
+		=> sourceRepository.GetAllByProjectAsync(projectId, cancellationToken);
+
 	public async Task<Source> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
 	{
 		return await sourceRepository.GetByIdAsync(id, cancellationToken)
@@ -24,11 +27,12 @@ public class SourceService(
 		string name,
 		string url,
 		SourceType type,
+		Guid projectId,
 		CancellationToken cancellationToken = default)
 	{
-		var exists = await sourceRepository.ExistsByUrlAsync(url, cancellationToken);
+		var exists = await sourceRepository.ExistsByProjectAndUrlAsync(projectId, url, cancellationToken);
 		if (exists)
-			throw new InvalidOperationException($"Source with URL {url} already exists");
+			throw new InvalidOperationException($"Source with URL {url} already exists in this project");
 
 		var source = new Source
 		{
@@ -36,6 +40,7 @@ public class SourceService(
 			Name = name,
 			Url = url,
 			Type = type,
+			ProjectId = projectId,
 			IsActive = true,
 		};
 
@@ -56,9 +61,9 @@ public class SourceService(
 
 		if (source.Url != url)
 		{
-			var exists = await sourceRepository.ExistsByUrlAsync(url, cancellationToken);
+			var exists = await sourceRepository.ExistsByProjectAndUrlAsync(source.ProjectId, url, cancellationToken);
 			if (exists)
-				throw new InvalidOperationException($"Source with URL {url} already exists");
+				throw new InvalidOperationException($"Source with URL {url} already exists in this project");
 		}
 
 		source.Name = name;

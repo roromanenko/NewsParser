@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Persistence.Entity;
+namespace Infrastructure.Persistence.Entity;
 
 public class SourceEntity
 {
@@ -6,6 +6,7 @@ public class SourceEntity
 	public string Name { get; set; } = string.Empty;
 	public string Url { get; set; } = string.Empty;
 	public string Type { get; set; } = string.Empty;
+	public Guid ProjectId { get; set; }
 	public bool IsActive { get; set; }
 	public DateTimeOffset? LastFetchedAt { get; set; }
 	public List<ArticleEntity> Articles { get; set; } = [];

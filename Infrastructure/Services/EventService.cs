@@ -1,4 +1,4 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
@@ -25,6 +25,9 @@ internal class EventService(
 
 		var target = await eventRepository.GetByIdAsync(targetEventId, cancellationToken)
 			?? throw new KeyNotFoundException($"Target event {targetEventId} not found");
+
+		if (source.ProjectId != target.ProjectId)
+			throw new InvalidOperationException("Cannot merge events from different projects");
 
 		if (source.Status == EventStatus.Archived)
 			throw new InvalidOperationException(

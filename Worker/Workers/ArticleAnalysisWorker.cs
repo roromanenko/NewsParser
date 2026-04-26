@@ -3,6 +3,7 @@ using Core.DomainModels.AI;
 using Core.Interfaces.AI;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
+using Infrastructure.AI;
 using Infrastructure.AI.Telemetry;
 using Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
@@ -15,6 +16,7 @@ public class ArticleAnalysisWorker : BackgroundService
 	private record AnalysisContext(
 		IArticleRepository ArticleRepository,
 		IEventRepository EventRepository,
+		IProjectRepository ProjectRepository,
 		IArticleAnalyzer Analyzer,
 		IGeminiEmbeddingService EmbeddingService,
 		IEventClassifier Classifier,
@@ -62,6 +64,7 @@ public class ArticleAnalysisWorker : BackgroundService
 		var ctx = new AnalysisContext(
 			ArticleRepository: scope.ServiceProvider.GetRequiredService<IArticleRepository>(),
 			EventRepository: scope.ServiceProvider.GetRequiredService<IEventRepository>(),
+			ProjectRepository: scope.ServiceProvider.GetRequiredService<IProjectRepository>(),
 			Analyzer: scope.ServiceProvider.GetRequiredService<IArticleAnalyzer>(),
 			EmbeddingService: scope.ServiceProvider.GetRequiredService<IGeminiEmbeddingService>(),
 			Classifier: scope.ServiceProvider.GetRequiredService<IEventClassifier>(),
@@ -81,13 +84,15 @@ public class ArticleAnalysisWorker : BackgroundService
 
 		_logger.LogInformation("Found {Count} articles for analysis", articles.Count);
 
+		var projectCache = new Dictionary<Guid, Project>();
+
 		foreach (var article in articles)
 		{
 			using var itemScope = _logger.BeginScope(new Dictionary<string, object>
 			{
 				["ArticleId"] = article.Id
 			});
-			await ProcessArticleAsync(article, ctx, cycleId, cancellationToken);
+			await ProcessArticleAsync(article, ctx, cycleId, projectCache, cancellationToken);
 		}
 	}
 
@@ -95,6 +100,7 @@ public class ArticleAnalysisWorker : BackgroundService
 		Article article,
 		AnalysisContext ctx,
 		Guid cycleId,
+		Dictionary<Guid, Project> projectCache,
 		CancellationToken cancellationToken)
 	{
 		try
@@ -103,7 +109,10 @@ public class ArticleAnalysisWorker : BackgroundService
 			_logger.LogInformation("Analyzing article {Id}: {Title}", article.Id, article.Title);
 			await ctx.ArticleRepository.UpdateStatusAsync(article.Id, ArticleStatus.Analyzing, cancellationToken);
 
-			var analysis = await ctx.Analyzer.AnalyzeAsync(article, cancellationToken);
+			var project = await ResolveProjectAsync(article.ProjectId, ctx.ProjectRepository, projectCache, cancellationToken);
+			var systemPrompt = ProjectPromptBuilder.Build(project);
+
+			var analysis = await ctx.Analyzer.AnalyzeAsync(article, systemPrompt, cancellationToken);
 
 			await ctx.ArticleRepository.UpdateAnalysisResultAsync(
 				article.Id,
@@ -153,6 +162,22 @@ public class ArticleAnalysisWorker : BackgroundService
 		}
 	}
 
+	private static async Task<Project> ResolveProjectAsync(
+		Guid projectId,
+		IProjectRepository projectRepository,
+		Dictionary<Guid, Project> cache,
+		CancellationToken cancellationToken)
+	{
+		if (cache.TryGetValue(projectId, out var cached))
+			return cached;
+
+		var project = await projectRepository.GetByIdAsync(projectId, cancellationToken)
+			?? new Project { Id = projectId };
+
+		cache[projectId] = project;
+		return project;
+	}
+
 	private async Task ExtractAndPersistKeyFactsAsync(
 		Article article,
 		AnalysisContext ctx,
@@ -178,6 +203,7 @@ public class ArticleAnalysisWorker : BackgroundService
 		var embedding = article.Embedding!;
 
 		var similarEvents = await ctx.EventRepository.FindSimilarEventsAsync(
+			article.ProjectId,
 			embedding,
 			_options.AutoNewEventThreshold,
 			_options.SimilarityWindowHours,
@@ -291,9 +317,6 @@ public class ArticleAnalysisWorker : BackgroundService
 
 		if (result.IsNewEvent || result.MatchedEventId is null)
 		{
-			// If the classifier could not match but detected contradictions pointing to a candidate event,
-			// the article is about the same topic — assign it there as a Contradiction instead of
-			// opening a new event (which would leave the contradiction orphaned or saved to the wrong event).
 			var contradictedEvent = FindEventByContradictedArticles(result.Contradictions, candidates);
 			if (contradictedEvent is not null)
 			{
@@ -357,6 +380,7 @@ public class ArticleAnalysisWorker : BackgroundService
 			LastUpdatedAt = DateTimeOffset.UtcNow,
 			Embedding = embedding,
 			ArticleCount = 1,
+			ProjectId = article.ProjectId,
 		};
 
 		return await eventRepository.CreateAsync(newEvent, cancellationToken);
