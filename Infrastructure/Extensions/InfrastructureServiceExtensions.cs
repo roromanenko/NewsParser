@@ -105,6 +105,7 @@ public static class InfrastructureServiceExtensions
 
 		services.Configure<AiOptions>(configuration.GetSection(AiOptions.SectionName));
 		services.Configure<ModelPricingOptions>(configuration.GetSection(ModelPricingOptions.SectionName));
+		services.AddHostedService<ModelPricingValidatorHostedService>();
 		services.AddScoped<IAiCostCalculator, AiCostCalculator>();
 		services.AddScoped<IAiRequestLogger, AiRequestLogger>();
 

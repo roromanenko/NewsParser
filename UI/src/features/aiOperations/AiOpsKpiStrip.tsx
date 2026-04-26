@@ -21,6 +21,14 @@ function formatPercent(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`
 }
 
+const SUB_CENT_THRESHOLD = 0.01
+
+function formatTotalCost(value: number): string {
+  if (value === 0) return '$0.00'
+  if (value < SUB_CENT_THRESHOLD) return `$${value.toFixed(6)}`
+  return costFormatter.format(value)
+}
+
 function StatCard({ label, value, valueColor, subtitle }: StatCardProps) {
   return (
     <div
@@ -46,7 +54,7 @@ function StatCard({ label, value, valueColor, subtitle }: StatCardProps) {
 export function AiOpsKpiStrip({ kpis, isLoading }: Props) {
   const dash = '—'
 
-  const totalCost = isLoading || !kpis ? dash : costFormatter.format(kpis.totalCostUsd)
+  const totalCost = isLoading || !kpis ? dash : formatTotalCost(kpis.totalCostUsd)
   const totalCalls = isLoading || !kpis ? dash : intFormatter.format(kpis.totalCalls)
   const successRate = isLoading || !kpis ? dash : formatPercent(kpis.successRate)
   const successRateColor = !isLoading && kpis && kpis.successRate < LOW_SUCCESS_THRESHOLD

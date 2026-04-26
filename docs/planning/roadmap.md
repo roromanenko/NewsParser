@@ -20,13 +20,13 @@ _Use this file to start any planning session with Claude. For current system sta
 - [x] Make Cotradiction and Update name in ukrainian. 
 - [x] Generate Event title, not take from the first article
 - [x] **Media support**
+- [x] **AI requsts tracking**
 
 ---
 
 ## Now (активная разработка)
 
 _Текущие проблемы которые нужно решить до новых фич:_
- - [ ] **AI requsts tracking** 
 
 ---
 
