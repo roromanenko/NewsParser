@@ -15,11 +15,13 @@ This is a .NET 10 + React 19 monorepo for an AI-powered news curation and publis
 ### Data Flow
 ```
 RSS Sources
-  → RssFetcherWorker → RawArticles
-  → ArticleAnalysisWorker (Claude/Gemini) → Articles (enriched)
-  → Editor approves via UI
-  → EventClassificationWorker → Events (grouped articles)
-  → PublicationWorker → Telegram (or other platforms)
+  → SourceFetcherWorker → Articles (Pending, with media)
+  → ArticleAnalysisWorker (Gemini/Claude)
+      → Article enriched (category, tags, sentiment, summary, embedding)
+      → Event created or matched (semantic similarity via pgvector)
+  → Editor creates Publication via UI
+  → PublicationGenerationWorker (Claude) → Publication content generated
+  → PublishingWorker → Telegram (or other platforms)
 ```
 
 ### Key Configuration
