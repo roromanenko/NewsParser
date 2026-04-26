@@ -49,6 +49,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
     private Mock<IContradictionDetector> _contradictionDetectorMock = null!;
     private Mock<IEventTitleGenerator> _titleGeneratorMock = null!;
     private Mock<IEventImportanceScorer> _scorerMock = null!;
+    private Mock<IProjectRepository> _projectRepoMock = null!;
 
     private IOptions<ArticleProcessingOptions> _processingOptions = null!;
     private IOptions<AiOptions> _aiOptions = null!;
@@ -67,6 +68,7 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
         _contradictionDetectorMock = new Mock<IContradictionDetector>();
         _titleGeneratorMock = new Mock<IEventTitleGenerator>();
         _scorerMock = new Mock<IEventImportanceScorer>();
+        _projectRepoMock = new Mock<IProjectRepository>();
 
         _processingOptions = Options.Create(new ArticleProcessingOptions
         {
@@ -726,8 +728,12 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
+        _projectRepoMock
+            .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Project?)null);
+
         _analyzerMock
-            .Setup(a => a.AnalyzeAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
+            .Setup(a => a.AnalyzeAsync(It.IsAny<Article>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ArticleAnalysisResult
             {
                 Category = "Technology",
@@ -798,6 +804,8 @@ public class ArticleAnalysisWorkerAutoMatchContradictionTests
             .Returns(_articleRepoMock.Object);
         serviceProviderMock.Setup(sp => sp.GetService(typeof(IEventRepository)))
             .Returns(_eventRepoMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IProjectRepository)))
+            .Returns(_projectRepoMock.Object);
         serviceProviderMock.Setup(sp => sp.GetService(typeof(IArticleAnalyzer)))
             .Returns(_analyzerMock.Object);
         serviceProviderMock.Setup(sp => sp.GetService(typeof(IGeminiEmbeddingService)))
