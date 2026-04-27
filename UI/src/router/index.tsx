@@ -1,5 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
+import { useProjectStore } from '@/store/projectStore'
 import { ToastProvider } from '@/context/ToastContext'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { DashboardLayout } from '@/layouts/DashboardLayout'
@@ -15,6 +17,8 @@ import { EventDetailPage } from '@/features/events/EventDetailPage'
 import { PublicationDetailPage } from '@/features/publications/PublicationDetailPage'
 import { PublicationsPage } from '@/features/publications/PublicationsPage'
 import { AiOperationsPage } from '@/features/aiOperations/AiOperationsPage'
+import { ProjectsPage } from '@/features/projects/ProjectsPage'
+import { useProjects } from '@/features/projects/useProjects'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore(state => state.user)
@@ -24,8 +28,44 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore(state => state.user)
   if (!user) return <Navigate to="/login" replace />
-  if (user.role !== 'Admin') return <Navigate to="/articles" replace />
+  if (user.role !== 'Admin') return <Navigate to="/projects" replace />
   return <>{children}</>
+}
+
+function ProjectRoute({ children }: { children: React.ReactNode }) {
+  const { projectSlug } = useParams<{ projectSlug: string }>()
+  const { data: projects } = useProjects()
+  const { selectedProjectId, setProject } = useProjectStore()
+
+  const project = projects?.find(p => p.slug === projectSlug)
+
+  useEffect(() => {
+    if (project?.id && project.id !== selectedProjectId) {
+      setProject(project.id)
+    }
+  }, [project?.id, selectedProjectId, setProject])
+
+  if (!projects) return null
+
+  if (!project) {
+    const fallback = projects.find(p => p.id === selectedProjectId) ?? projects[0]
+    if (fallback?.slug) {
+      return <Navigate to={`/projects/${fallback.slug}/articles`} replace />
+    }
+    return null
+  }
+
+  return <>{children}</>
+}
+
+function RootRedirect() {
+  const { selectedProjectId } = useProjectStore()
+  const { data: projects } = useProjects()
+
+  const project = projects?.find(p => p.id === selectedProjectId) ?? projects?.[0]
+  if (!project?.slug) return null
+
+  return <Navigate to={`/projects/${project.slug}/articles`} replace />
 }
 
 export function AppRouter() {
@@ -57,18 +97,89 @@ export function AppRouter() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="/articles" replace />} />
-            <Route path="articles" element={<ArticlesPage />} />
-            <Route path="articles/:id" element={<ArticleDetailPage />} />
-            <Route path="events" element={<EventsPage />} />
-            <Route path="events/:id" element={<EventDetailPage />} />
-            <Route path="publications" element={<PublicationsPage />} />
-            <Route path="publications/:id" element={<PublicationDetailPage />} />
+            <Route index element={<RootRedirect />} />
             <Route
-              path="sources"
+              path="projects"
               element={
                 <AdminRoute>
-                  <SourcesPage />
+                  <ProjectsPage />
+                </AdminRoute>
+              }
+            />
+            <Route path="projects/:projectSlug" element={<ProjectRoute><RootRedirect /></ProjectRoute>} />
+            <Route
+              path="projects/:projectSlug/articles"
+              element={
+                <ProjectRoute>
+                  <ArticlesPage />
+                </ProjectRoute>
+              }
+            />
+            <Route
+              path="projects/:projectSlug/articles/:id"
+              element={
+                <ProjectRoute>
+                  <ArticleDetailPage />
+                </ProjectRoute>
+              }
+            />
+            <Route
+              path="projects/:projectSlug/events"
+              element={
+                <ProjectRoute>
+                  <EventsPage />
+                </ProjectRoute>
+              }
+            />
+            <Route
+              path="projects/:projectSlug/events/:id"
+              element={
+                <ProjectRoute>
+                  <EventDetailPage />
+                </ProjectRoute>
+              }
+            />
+            <Route
+              path="projects/:projectSlug/publications"
+              element={
+                <ProjectRoute>
+                  <PublicationsPage />
+                </ProjectRoute>
+              }
+            />
+            <Route
+              path="projects/:projectSlug/publications/:id"
+              element={
+                <ProjectRoute>
+                  <PublicationDetailPage />
+                </ProjectRoute>
+              }
+            />
+            <Route
+              path="projects/:projectSlug/sources"
+              element={
+                <ProjectRoute>
+                  <AdminRoute>
+                    <SourcesPage />
+                  </AdminRoute>
+                </ProjectRoute>
+              }
+            />
+            <Route
+              path="projects/:projectSlug/publish-targets"
+              element={
+                <ProjectRoute>
+                  <AdminRoute>
+                    <PublishTargetsPage />
+                  </AdminRoute>
+                </ProjectRoute>
+              }
+            />
+            <Route
+              path="ai-operations"
+              element={
+                <AdminRoute>
+                  <AiOperationsPage />
                 </AdminRoute>
               }
             />
@@ -77,22 +188,6 @@ export function AppRouter() {
               element={
                 <AdminRoute>
                   <UsersPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="publish-targets"
-              element={
-                <AdminRoute>
-                  <PublishTargetsPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="ai-operations"
-              element={
-                <AdminRoute>
-                  <AiOperationsPage />
                 </AdminRoute>
               }
             />

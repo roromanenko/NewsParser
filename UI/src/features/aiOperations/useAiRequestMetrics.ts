@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { UseQueryResult } from '@tanstack/react-query'
-import { AiOperationsApi } from '@/api/generated'
 import { apiClient } from '@/lib/axios'
+import { AiOperationsApi } from '@/api/generated'
 import type { AiOpsMetricsView, AiOpsTimeBucket, AiOpsBreakdownRow, AiOpsKpis, AiOpsFilters } from './types'
 import type { AiMetricsTimeBucketDto, AiMetricsBreakdownRowDto, AiOperationsMetricsDto } from '@/api/generated'
 
@@ -87,7 +87,7 @@ export function useAiRequestMetrics(
         filters.worker || undefined,
         filters.model || undefined,
       )
-      const dto = res.data
+      const dto = res.data as AiOperationsMetricsDto
 
       return {
         kpis: mapKpis(dto),

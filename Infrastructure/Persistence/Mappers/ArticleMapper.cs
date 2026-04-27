@@ -32,6 +32,7 @@ public static class ArticleMapper
 		WasReclassified = entity.WasReclassified,
 		AddedToEventAt = entity.AddedToEventAt,
 		MediaFiles = entity.MediaFiles?.Select(m => m.ToDomain()).ToList() ?? [],
+		ProjectId = entity.ProjectId,
 	};
 
 	public static ArticleEntity ToEntity(this Article domain) => new()
@@ -59,6 +60,7 @@ public static class ArticleMapper
 		Role = domain.Role?.ToString(),
 		WasReclassified = domain.WasReclassified,
 		AddedToEventAt = domain.AddedToEventAt,
+		ProjectId = domain.ProjectId,
 	};
 
 	public static Article FromAnalysisResult(
@@ -80,6 +82,7 @@ public static class ArticleMapper
 		Summary = analysis.Summary,
 		ProcessedAt = DateTimeOffset.UtcNow,
 		Status = ArticleStatus.AnalysisDone,
-		ModelVersion = modelVersion
+		ModelVersion = modelVersion,
+		ProjectId = pendingArticle.ProjectId,
 	};
 }

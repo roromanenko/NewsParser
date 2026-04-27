@@ -60,7 +60,8 @@ public class PublicationGenerationWorker : BackgroundService
 			using var itemScope = _logger.BeginScope(new Dictionary<string, object>
 			{
 				["PublicationId"] = publication.Id,
-				["EventId"] = publication.EventId
+				["EventId"] = publication.EventId,
+				["ProjectId"] = publication.ProjectId
 			});
 
 			await publicationRepository.UpdateStatusAsync(

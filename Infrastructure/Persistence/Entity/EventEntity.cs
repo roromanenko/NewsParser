@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Persistence.Entity;
+namespace Infrastructure.Persistence.Entity;
 
 public class EventEntity
 {
@@ -9,6 +9,7 @@ public class EventEntity
 	public DateTimeOffset FirstSeenAt { get; init; }
 	public DateTimeOffset LastUpdatedAt { get; set; }
 	public Pgvector.Vector? Embedding { get; set; }
+	public Guid ProjectId { get; set; }
 
 	public int ArticleCount { get; set; } = 0;
 

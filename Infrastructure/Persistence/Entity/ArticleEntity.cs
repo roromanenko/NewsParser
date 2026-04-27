@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Persistence.Entity;
+namespace Infrastructure.Persistence.Entity;
 
 public class ArticleEntity
 {
@@ -32,4 +32,5 @@ public class ArticleEntity
 	public bool WasReclassified { get; set; }
 	public DateTimeOffset? AddedToEventAt { get; set; }
 	public List<MediaFileEntity> MediaFiles { get; set; } = [];
+	public Guid ProjectId { get; set; }
 }

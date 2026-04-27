@@ -26,11 +26,11 @@ internal class EventRepository(
         return await FetchEventWithRelationsAsync(conn, id, includeMedia: false, cancellationToken);
     }
 
-    public async Task<List<Event>> GetActiveEventsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Event>> GetActiveEventsAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
         await using var conn = await factory.CreateOpenAsync(cancellationToken);
         var events = await conn.QueryAsync<EventEntity>(
-            new CommandDefinition(EventSql.GetActiveEvents, cancellationToken: cancellationToken));
+            new CommandDefinition(EventSql.GetActiveEvents, new { projectId }, cancellationToken: cancellationToken));
 
         var eventList = events.ToList();
         if (eventList.Count == 0) return [];
@@ -45,7 +45,7 @@ internal class EventRepository(
     }
 
     public async Task<List<(Event Event, double Similarity)>> FindSimilarEventsAsync(
-        float[] embedding, double threshold, int windowHours, int maxTake,
+        Guid projectId, float[] embedding, double threshold, int windowHours, int maxTake,
         CancellationToken cancellationToken = default)
     {
         var vector = new Vector(embedding);
@@ -55,7 +55,7 @@ internal class EventRepository(
 
         var rows = await conn.QueryAsync<EventWithSimilarityRow>(
             new CommandDefinition(EventSql.FindSimilarEvents,
-                new { vector, windowStart, threshold, maxTake },
+                new { projectId, vector, windowStart, threshold, maxTake },
                 cancellationToken: cancellationToken));
 
         return rows.Select(r => (r.ToDomain(), r.Similarity)).ToList();
@@ -75,6 +75,7 @@ internal class EventRepository(
             entity.LastUpdatedAt,
             Embedding = entity.Embedding,
             entity.ArticleCount,
+            entity.ProjectId,
         }, cancellationToken: cancellationToken));
         return entity.ToDomain();
     }
@@ -222,7 +223,7 @@ internal class EventRepository(
     }
 
     public async Task<List<Event>> GetPagedAsync(
-        int page, int pageSize, string? search, string sortBy, ImportanceTier? tier,
+        Guid projectId, int page, int pageSize, string? search, string sortBy, ImportanceTier? tier,
         CancellationToken cancellationToken = default)
     {
         var offset = (page - 1) * pageSize;
@@ -238,14 +239,14 @@ internal class EventRepository(
             var escaped = QueryHelpers.EscapeILikePattern(search);
             var pattern = $"%{escaped}%";
             var sql = string.Format(EventSql.GetPagedWithSearch, orderByClause, tierClause);
-            var parameters = BuildPagedParameters(pageSize, offset, tier, pattern: pattern, sortBy: sortBy);
+            var parameters = BuildPagedParameters(projectId, pageSize, offset, tier, pattern: pattern, sortBy: sortBy);
             eventEntities = (await conn.QueryAsync<EventEntity>(
                 new CommandDefinition(sql, parameters, cancellationToken: cancellationToken))).ToList();
         }
         else
         {
             var sql = string.Format(EventSql.GetPagedWithoutSearch, orderByClause, tierClause);
-            var parameters = BuildPagedParameters(pageSize, offset, tier, sortBy: sortBy);
+            var parameters = BuildPagedParameters(projectId, pageSize, offset, tier, sortBy: sortBy);
             eventEntities = (await conn.QueryAsync<EventEntity>(
                 new CommandDefinition(sql, parameters, cancellationToken: cancellationToken))).ToList();
         }
@@ -265,7 +266,7 @@ internal class EventRepository(
         return eventEntities.Select(e => e.ToDomain()).ToList();
     }
 
-    public async Task<int> CountAsync(string? search, ImportanceTier? tier, CancellationToken cancellationToken = default)
+    public async Task<int> CountAsync(Guid projectId, string? search, ImportanceTier? tier, CancellationToken cancellationToken = default)
     {
         var tierClause = tier.HasValue ? EventSql.TierFilterCount : string.Empty;
 
@@ -278,14 +279,18 @@ internal class EventRepository(
             var sql = string.Format(EventSql.CountWithSearch, tierClause);
             return await conn.ExecuteScalarAsync<int>(
                 new CommandDefinition(sql,
-                    tier.HasValue ? new { pattern, tier = tier.Value.ToString() } : (object)new { pattern },
+                    tier.HasValue
+                        ? new { projectId, pattern, tier = tier.Value.ToString() }
+                        : (object)new { projectId, pattern },
                     cancellationToken: cancellationToken));
         }
 
         var countSql = string.Format(EventSql.CountWithoutSearch, tierClause);
         return await conn.ExecuteScalarAsync<int>(
             new CommandDefinition(countSql,
-                tier.HasValue ? new { tier = tier.Value.ToString() } : null,
+                tier.HasValue
+                    ? new { projectId, tier = tier.Value.ToString() }
+                    : (object)new { projectId },
                 cancellationToken: cancellationToken));
     }
 
@@ -407,10 +412,11 @@ internal class EventRepository(
     };
 
     private object BuildPagedParameters(
-        int pageSize, int offset, ImportanceTier? tier,
+        Guid projectId, int pageSize, int offset, ImportanceTier? tier,
         string? pattern = null, string sortBy = EventSql.SortKeys.Newest)
     {
         var dp = new DynamicParameters();
+        dp.Add("projectId", projectId);
         dp.Add("pageSize", pageSize);
         dp.Add("offset", offset);
 

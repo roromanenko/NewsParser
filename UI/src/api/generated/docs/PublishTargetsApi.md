@@ -4,15 +4,15 @@ All URIs are relative to *http://localhost*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**publishTargetsActiveGet**](#publishtargetsactiveget) | **GET** /publish-targets/active | |
-|[**publishTargetsGet**](#publishtargetsget) | **GET** /publish-targets | |
-|[**publishTargetsIdDelete**](#publishtargetsiddelete) | **DELETE** /publish-targets/{id} | |
-|[**publishTargetsIdGet**](#publishtargetsidget) | **GET** /publish-targets/{id} | |
-|[**publishTargetsIdPut**](#publishtargetsidput) | **PUT** /publish-targets/{id} | |
-|[**publishTargetsPost**](#publishtargetspost) | **POST** /publish-targets | |
+|[**projectsProjectIdPublishTargetsActiveGet**](#projectsprojectidpublishtargetsactiveget) | **GET** /projects/{projectId}/publish-targets/active | |
+|[**projectsProjectIdPublishTargetsGet**](#projectsprojectidpublishtargetsget) | **GET** /projects/{projectId}/publish-targets | |
+|[**projectsProjectIdPublishTargetsIdDelete**](#projectsprojectidpublishtargetsiddelete) | **DELETE** /projects/{projectId}/publish-targets/{id} | |
+|[**projectsProjectIdPublishTargetsIdGet**](#projectsprojectidpublishtargetsidget) | **GET** /projects/{projectId}/publish-targets/{id} | |
+|[**projectsProjectIdPublishTargetsIdPut**](#projectsprojectidpublishtargetsidput) | **PUT** /projects/{projectId}/publish-targets/{id} | |
+|[**projectsProjectIdPublishTargetsPost**](#projectsprojectidpublishtargetspost) | **POST** /projects/{projectId}/publish-targets | |
 
-# **publishTargetsActiveGet**
-> Array<PublishTargetDto> publishTargetsActiveGet()
+# **projectsProjectIdPublishTargetsActiveGet**
+> Array<PublishTargetDto> projectsProjectIdPublishTargetsActiveGet()
 
 
 ### Example
@@ -26,11 +26,18 @@ import {
 const configuration = new Configuration();
 const apiInstance = new PublishTargetsApi(configuration);
 
-const { status, data } = await apiInstance.publishTargetsActiveGet();
+let projectId: string; // (default to undefined)
+
+const { status, data } = await apiInstance.projectsProjectIdPublishTargetsActiveGet(
+    projectId
+);
 ```
 
 ### Parameters
-This endpoint does not have any parameters.
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -54,8 +61,8 @@ This endpoint does not have any parameters.
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publishTargetsGet**
-> Array<PublishTargetDto> publishTargetsGet()
+# **projectsProjectIdPublishTargetsGet**
+> Array<PublishTargetDto> projectsProjectIdPublishTargetsGet()
 
 
 ### Example
@@ -69,11 +76,18 @@ import {
 const configuration = new Configuration();
 const apiInstance = new PublishTargetsApi(configuration);
 
-const { status, data } = await apiInstance.publishTargetsGet();
+let projectId: string; // (default to undefined)
+
+const { status, data } = await apiInstance.projectsProjectIdPublishTargetsGet(
+    projectId
+);
 ```
 
 ### Parameters
-This endpoint does not have any parameters.
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -97,8 +111,8 @@ This endpoint does not have any parameters.
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publishTargetsIdDelete**
-> publishTargetsIdDelete()
+# **projectsProjectIdPublishTargetsIdDelete**
+> projectsProjectIdPublishTargetsIdDelete()
 
 
 ### Example
@@ -113,9 +127,11 @@ const configuration = new Configuration();
 const apiInstance = new PublishTargetsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.publishTargetsIdDelete(
-    id
+const { status, data } = await apiInstance.projectsProjectIdPublishTargetsIdDelete(
+    id,
+    projectId
 );
 ```
 
@@ -124,6 +140,7 @@ const { status, data } = await apiInstance.publishTargetsIdDelete(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -147,8 +164,8 @@ void (empty response body)
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publishTargetsIdGet**
-> PublishTargetDto publishTargetsIdGet()
+# **projectsProjectIdPublishTargetsIdGet**
+> PublishTargetDto projectsProjectIdPublishTargetsIdGet()
 
 
 ### Example
@@ -163,9 +180,11 @@ const configuration = new Configuration();
 const apiInstance = new PublishTargetsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.publishTargetsIdGet(
-    id
+const { status, data } = await apiInstance.projectsProjectIdPublishTargetsIdGet(
+    id,
+    projectId
 );
 ```
 
@@ -174,6 +193,7 @@ const { status, data } = await apiInstance.publishTargetsIdGet(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -197,8 +217,8 @@ const { status, data } = await apiInstance.publishTargetsIdGet(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publishTargetsIdPut**
-> PublishTargetDto publishTargetsIdPut()
+# **projectsProjectIdPublishTargetsIdPut**
+> PublishTargetDto projectsProjectIdPublishTargetsIdPut()
 
 
 ### Example
@@ -214,10 +234,12 @@ const configuration = new Configuration();
 const apiInstance = new PublishTargetsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 let updatePublishTargetRequest: UpdatePublishTargetRequest; // (optional)
 
-const { status, data } = await apiInstance.publishTargetsIdPut(
+const { status, data } = await apiInstance.projectsProjectIdPublishTargetsIdPut(
     id,
+    projectId,
     updatePublishTargetRequest
 );
 ```
@@ -228,6 +250,7 @@ const { status, data } = await apiInstance.publishTargetsIdPut(
 |------------- | ------------- | ------------- | -------------|
 | **updatePublishTargetRequest** | **UpdatePublishTargetRequest**|  | |
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -251,8 +274,8 @@ const { status, data } = await apiInstance.publishTargetsIdPut(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publishTargetsPost**
-> PublishTargetDto publishTargetsPost()
+# **projectsProjectIdPublishTargetsPost**
+> PublishTargetDto projectsProjectIdPublishTargetsPost()
 
 
 ### Example
@@ -267,9 +290,11 @@ import {
 const configuration = new Configuration();
 const apiInstance = new PublishTargetsApi(configuration);
 
+let projectId: string; // (default to undefined)
 let createPublishTargetRequest: CreatePublishTargetRequest; // (optional)
 
-const { status, data } = await apiInstance.publishTargetsPost(
+const { status, data } = await apiInstance.projectsProjectIdPublishTargetsPost(
+    projectId,
     createPublishTargetRequest
 );
 ```
@@ -279,6 +304,7 @@ const { status, data } = await apiInstance.publishTargetsPost(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **createPublishTargetRequest** | **CreatePublishTargetRequest**|  | |
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type

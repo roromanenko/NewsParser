@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { SlideOver } from '@/components/shared/SlideOver'
 import { useAiRequestDetail } from './useAiRequestDetail'
+import { useProjectStore } from '@/store/projectStore'
+import { useProjects } from '@/features/projects/useProjects'
 import type { AiOpsRequestRow } from './types'
 
 interface Props {
@@ -41,7 +43,7 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-function DetailContent({ row }: { row: AiOpsRequestRow }) {
+function DetailContent({ row, projectSlug }: { row: AiOpsRequestRow; projectSlug: string }) {
   return (
     <div className="px-6 py-5">
       <FieldRow
@@ -71,7 +73,7 @@ function DetailContent({ row }: { row: AiOpsRequestRow }) {
         value={
           row.articleId ? (
             <Link
-              to={`/articles/${row.articleId}`}
+              to={`/projects/${projectSlug}/articles/${row.articleId}`}
               className="underline"
               style={{ color: 'var(--caramel)' }}
             >
@@ -100,6 +102,9 @@ function DetailContent({ row }: { row: AiOpsRequestRow }) {
 
 export function AiRequestDetailSlideOver({ isOpen, requestId, onClose }: Props) {
   const { data, isLoading, isError } = useAiRequestDetail(requestId)
+  const { selectedProjectId } = useProjectStore()
+  const { data: projects } = useProjects()
+  const projectSlug = (projects?.find(p => p.id === selectedProjectId) ?? projects?.[0])?.slug ?? ''
 
   return (
     <SlideOver isOpen={isOpen} onClose={onClose} title="REQUEST DETAIL">
@@ -119,7 +124,7 @@ export function AiRequestDetailSlideOver({ isOpen, requestId, onClose }: Props) 
           Failed to load request detail.
         </div>
       )}
-      {data && !isLoading && <DetailContent row={data} />}
+      {data && !isLoading && <DetailContent row={data} projectSlug={projectSlug} />}
     </SlideOver>
   )
 }

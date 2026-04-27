@@ -25,7 +25,7 @@ export function RegisterPage() {
   const { register: registerUser, error, isLoading } = useRegister()
 
   useEffect(() => {
-    if (isAuthenticated()) navigate('/articles', { replace: true })
+    if (isAuthenticated()) navigate('/', { replace: true })
   }, [isAuthenticated, navigate])
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({

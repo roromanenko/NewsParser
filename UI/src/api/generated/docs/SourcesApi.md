@@ -4,14 +4,14 @@ All URIs are relative to *http://localhost*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**sourcesGet**](#sourcesget) | **GET** /sources | |
-|[**sourcesIdDelete**](#sourcesiddelete) | **DELETE** /sources/{id} | |
-|[**sourcesIdGet**](#sourcesidget) | **GET** /sources/{id} | |
-|[**sourcesIdPut**](#sourcesidput) | **PUT** /sources/{id} | |
-|[**sourcesPost**](#sourcespost) | **POST** /sources | |
+|[**projectsProjectIdSourcesGet**](#projectsprojectidsourcesget) | **GET** /projects/{projectId}/sources | |
+|[**projectsProjectIdSourcesIdDelete**](#projectsprojectidsourcesiddelete) | **DELETE** /projects/{projectId}/sources/{id} | |
+|[**projectsProjectIdSourcesIdGet**](#projectsprojectidsourcesidget) | **GET** /projects/{projectId}/sources/{id} | |
+|[**projectsProjectIdSourcesIdPut**](#projectsprojectidsourcesidput) | **PUT** /projects/{projectId}/sources/{id} | |
+|[**projectsProjectIdSourcesPost**](#projectsprojectidsourcespost) | **POST** /projects/{projectId}/sources | |
 
-# **sourcesGet**
-> Array<SourceDto> sourcesGet()
+# **projectsProjectIdSourcesGet**
+> Array<SourceDto> projectsProjectIdSourcesGet()
 
 
 ### Example
@@ -25,11 +25,18 @@ import {
 const configuration = new Configuration();
 const apiInstance = new SourcesApi(configuration);
 
-const { status, data } = await apiInstance.sourcesGet();
+let projectId: string; // (default to undefined)
+
+const { status, data } = await apiInstance.projectsProjectIdSourcesGet(
+    projectId
+);
 ```
 
 ### Parameters
-This endpoint does not have any parameters.
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -53,8 +60,8 @@ This endpoint does not have any parameters.
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **sourcesIdDelete**
-> sourcesIdDelete()
+# **projectsProjectIdSourcesIdDelete**
+> projectsProjectIdSourcesIdDelete()
 
 
 ### Example
@@ -69,9 +76,11 @@ const configuration = new Configuration();
 const apiInstance = new SourcesApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.sourcesIdDelete(
-    id
+const { status, data } = await apiInstance.projectsProjectIdSourcesIdDelete(
+    id,
+    projectId
 );
 ```
 
@@ -80,6 +89,7 @@ const { status, data } = await apiInstance.sourcesIdDelete(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -103,8 +113,8 @@ void (empty response body)
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **sourcesIdGet**
-> SourceDto sourcesIdGet()
+# **projectsProjectIdSourcesIdGet**
+> SourceDto projectsProjectIdSourcesIdGet()
 
 
 ### Example
@@ -119,9 +129,11 @@ const configuration = new Configuration();
 const apiInstance = new SourcesApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.sourcesIdGet(
-    id
+const { status, data } = await apiInstance.projectsProjectIdSourcesIdGet(
+    id,
+    projectId
 );
 ```
 
@@ -130,6 +142,7 @@ const { status, data } = await apiInstance.sourcesIdGet(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -153,8 +166,8 @@ const { status, data } = await apiInstance.sourcesIdGet(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **sourcesIdPut**
-> SourceDto sourcesIdPut()
+# **projectsProjectIdSourcesIdPut**
+> SourceDto projectsProjectIdSourcesIdPut()
 
 
 ### Example
@@ -170,10 +183,12 @@ const configuration = new Configuration();
 const apiInstance = new SourcesApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 let updateSourceRequest: UpdateSourceRequest; // (optional)
 
-const { status, data } = await apiInstance.sourcesIdPut(
+const { status, data } = await apiInstance.projectsProjectIdSourcesIdPut(
     id,
+    projectId,
     updateSourceRequest
 );
 ```
@@ -184,6 +199,7 @@ const { status, data } = await apiInstance.sourcesIdPut(
 |------------- | ------------- | ------------- | -------------|
 | **updateSourceRequest** | **UpdateSourceRequest**|  | |
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -207,8 +223,8 @@ const { status, data } = await apiInstance.sourcesIdPut(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **sourcesPost**
-> SourceDto sourcesPost()
+# **projectsProjectIdSourcesPost**
+> SourceDto projectsProjectIdSourcesPost()
 
 
 ### Example
@@ -223,9 +239,11 @@ import {
 const configuration = new Configuration();
 const apiInstance = new SourcesApi(configuration);
 
+let projectId: string; // (default to undefined)
 let createSourceRequest: CreateSourceRequest; // (optional)
 
-const { status, data } = await apiInstance.sourcesPost(
+const { status, data } = await apiInstance.projectsProjectIdSourcesPost(
+    projectId,
     createSourceRequest
 );
 ```
@@ -235,6 +253,7 @@ const { status, data } = await apiInstance.sourcesPost(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **createSourceRequest** | **CreateSourceRequest**|  | |
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type

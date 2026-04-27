@@ -39,6 +39,7 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
     private Mock<IContradictionDetector> _contradictionDetectorMock = null!;
     private Mock<IEventTitleGenerator> _titleGeneratorMock = null!;
     private Mock<IEventImportanceScorer> _scorerMock = null!;
+    private Mock<IProjectRepository> _projectRepoMock = null!;
 
     private IOptions<ArticleProcessingOptions> _processingOptions = null!;
     private IOptions<AiOptions> _aiOptions = null!;
@@ -57,6 +58,7 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
         _contradictionDetectorMock = new Mock<IContradictionDetector>();
         _titleGeneratorMock = new Mock<IEventTitleGenerator>();
         _scorerMock = new Mock<IEventImportanceScorer>();
+        _projectRepoMock = new Mock<IProjectRepository>();
 
         // AutoSameEventThreshold=0.90, AutoNewEventThreshold=0.70
         // A grey-zone similarity is in (0.70, 0.90) — tests use 0.80
@@ -104,8 +106,7 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
 
         // Similarity 0.80 is in the grey zone (> 0.70 but < 0.90)
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -151,8 +152,7 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
             .ReturnsAsync([article]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -210,8 +210,12 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
             .Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
+        _projectRepoMock
+            .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Project?)null);
+
         _analyzerMock
-            .Setup(a => a.AnalyzeAsync(It.IsAny<Article>(), It.IsAny<CancellationToken>()))
+            .Setup(a => a.AnalyzeAsync(It.IsAny<Article>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ArticleAnalysisResult
             {
                 Category = "Technology",
@@ -231,8 +235,7 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
             .ReturnsAsync([]);
 
         _eventRepoMock
-            .Setup(r => r.FindSimilarEventsAsync(
-                It.IsAny<float[]>(),
+            .Setup(r => r.FindSimilarEventsAsync(It.IsAny<Guid>(), It.IsAny<float[]>(),
                 It.IsAny<double>(),
                 It.IsAny<int>(),
                 It.IsAny<int>(),
@@ -283,6 +286,8 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
             .Returns(_articleRepoMock.Object);
         serviceProviderMock.Setup(sp => sp.GetService(typeof(IEventRepository)))
             .Returns(_eventRepoMock.Object);
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IProjectRepository)))
+            .Returns(_projectRepoMock.Object);
         serviceProviderMock.Setup(sp => sp.GetService(typeof(IArticleAnalyzer)))
             .Returns(_analyzerMock.Object);
         serviceProviderMock.Setup(sp => sp.GetService(typeof(IGeminiEmbeddingService)))
@@ -361,3 +366,4 @@ public class ArticleAnalysisWorkerGreyZoneEnrichedTests
         ],
     };
 }
+

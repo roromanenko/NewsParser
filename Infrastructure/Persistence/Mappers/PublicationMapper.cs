@@ -1,4 +1,4 @@
-﻿using Core.DomainModels;
+using Core.DomainModels;
 using Infrastructure.Persistence.Entity;
 
 namespace Infrastructure.Persistence.Mappers;
@@ -21,6 +21,7 @@ public static class PublicationMapper
 		ParentPublicationId = entity.ParentPublicationId,
 		UpdateContext = entity.UpdateContext,
 		EditorFeedback = entity.EditorFeedback,
+		ProjectId = entity.ProjectId,
 		SelectedMediaFileIds = entity.SelectedMediaFileIds ?? [],
 		ReviewedByEditorId = entity.ReviewedByEditorId,
 		RejectedAt = entity.RejectedAt,
@@ -42,6 +43,7 @@ public static class PublicationMapper
 		ParentPublicationId = domain.ParentPublicationId,
 		UpdateContext = domain.UpdateContext,
 		EditorFeedback = domain.EditorFeedback,
+		ProjectId = domain.ProjectId,
 		SelectedMediaFileIds = domain.SelectedMediaFileIds,
 		ReviewedByEditorId = domain.ReviewedByEditorId,
 		RejectedAt = domain.RejectedAt,

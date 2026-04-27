@@ -28,11 +28,13 @@ public class PublicationsControllerTests
     private Mock<IPublicationRepository> _publicationRepoMock = null!;
     private Mock<IMediaFileRepository> _mediaFileRepoMock = null!;
     private Mock<IPublicationMediaService> _publicationMediaServiceMock = null!;
+    private Mock<IProjectRepository> _projectRepoMock = null!;
 
     // JWT config — must match the values supplied via UseSetting in OneTimeSetUp
     private const string JwtSecretKey = "65j781ddc991c216b5897b44bdsca4eff6ab75ea18448c9e43e0baasfbds4ef5";
     private const string JwtIssuer = "https://localhost:7054";
     private const string JwtAudience = "https://localhost:7054";
+    private const string TestProjectId = "11111111-1111-1111-1111-111111111111";
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
@@ -44,6 +46,7 @@ public class PublicationsControllerTests
             .Setup(r => r.GetByPublicationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
         _publicationMediaServiceMock = new Mock<IPublicationMediaService>();
+        _projectRepoMock = new Mock<IProjectRepository>();
 
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -56,11 +59,13 @@ public class PublicationsControllerTests
                     RemoveAllImplementations(services, typeof(IPublicationRepository));
                     RemoveAllImplementations(services, typeof(IMediaFileRepository));
                     RemoveAllImplementations(services, typeof(IPublicationMediaService));
+                    RemoveAllImplementations(services, typeof(IProjectRepository));
 
                     services.AddSingleton(_publicationServiceMock.Object);
                     services.AddSingleton(_publicationRepoMock.Object);
                     services.AddSingleton(_mediaFileRepoMock.Object);
                     services.AddSingleton(_publicationMediaServiceMock.Object);
+                    services.AddSingleton(_projectRepoMock.Object);
                 });
 
                 builder.UseSetting("Jwt:SecretKey", JwtSecretKey);
@@ -96,6 +101,11 @@ public class PublicationsControllerTests
             .Setup(r => r.GetByPublicationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
         _publicationMediaServiceMock.Reset();
+        _projectRepoMock.Reset();
+
+        _projectRepoMock
+            .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Project { Id = new Guid(TestProjectId), IsActive = true, Name = "Test Project" });
     }
 
     // ------------------------------------------------------------------
@@ -110,13 +120,13 @@ public class PublicationsControllerTests
 
         _publicationServiceMock
             .Setup(s => s.CreateForEventAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(publication);
 
         var request = new CreatePublicationRequest(EventId: Guid.NewGuid(), PublishTargetId: Guid.NewGuid());
 
         // Act
-        var response = await _client.PostAsJsonAsync("/publications/generate", request);
+        var response = await _client.PostAsJsonAsync($"projects/{TestProjectId}/publications/generate", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -138,7 +148,7 @@ public class PublicationsControllerTests
         var request = new CreatePublicationRequest(EventId: Guid.NewGuid(), PublishTargetId: Guid.NewGuid());
 
         // Act
-        var response = await unauthClient.PostAsJsonAsync("/publications/generate", request);
+        var response = await unauthClient.PostAsJsonAsync($"projects/{TestProjectId}/publications/generate", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -159,7 +169,7 @@ public class PublicationsControllerTests
             .ReturnsAsync(publication);
 
         // Act
-        var response = await _client.GetAsync($"/publications/{publication.Id}");
+        var response = await _client.GetAsync($"projects/{TestProjectId}/publications/{publication.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -184,7 +194,7 @@ public class PublicationsControllerTests
             .ReturnsAsync((Publication?)null);
 
         // Act
-        var response = await _client.GetAsync($"/publications/{nonExistentId}");
+        var response = await _client.GetAsync($"projects/{TestProjectId}/publications/{nonExistentId}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -210,7 +220,7 @@ public class PublicationsControllerTests
             .ReturnsAsync(publications);
 
         // Act
-        var response = await _client.GetAsync($"/publications/by-event/{eventId}");
+        var response = await _client.GetAsync($"projects/{TestProjectId}/publications/by-event/{eventId}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -234,7 +244,7 @@ public class PublicationsControllerTests
             .ReturnsAsync([]);
 
         // Act
-        var response = await _client.GetAsync($"/publications/by-event/{eventId}");
+        var response = await _client.GetAsync($"projects/{TestProjectId}/publications/by-event/{eventId}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -266,7 +276,7 @@ public class PublicationsControllerTests
             SelectedMediaFileIds: []);
 
         // Act
-        var response = await _client.PutAsJsonAsync($"/publications/{publication.Id}/content", request);
+        var response = await _client.PutAsJsonAsync($"projects/{TestProjectId}/publications/{publication.Id}/content", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -287,7 +297,7 @@ public class PublicationsControllerTests
         var request = new UpdatePublicationContentRequest(Content: "text", SelectedMediaFileIds: []);
 
         // Act
-        var response = await unauthClient.PutAsJsonAsync($"/publications/{Guid.NewGuid()}/content", request);
+        var response = await unauthClient.PutAsJsonAsync($"projects/{TestProjectId}/publications/{Guid.NewGuid()}/content", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -311,7 +321,7 @@ public class PublicationsControllerTests
             .ReturnsAsync(publication);
 
         // Act
-        var response = await _client.PostAsync($"/publications/{publication.Id}/approve", null);
+        var response = await _client.PostAsync($"projects/{TestProjectId}/publications/{publication.Id}/approve", null);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -331,7 +341,7 @@ public class PublicationsControllerTests
         using var unauthClient = _factory.CreateClient();
 
         // Act
-        var response = await unauthClient.PostAsync($"/publications/{Guid.NewGuid()}/approve", null);
+        var response = await unauthClient.PostAsync($"projects/{TestProjectId}/publications/{Guid.NewGuid()}/approve", null);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -357,7 +367,7 @@ public class PublicationsControllerTests
         var request = new RejectPublicationRequest(Reason: "Tone is not appropriate.");
 
         // Act
-        var response = await _client.PostAsJsonAsync($"/publications/{publication.Id}/reject", request);
+        var response = await _client.PostAsJsonAsync($"projects/{TestProjectId}/publications/{publication.Id}/reject", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -378,7 +388,7 @@ public class PublicationsControllerTests
         var request = new RejectPublicationRequest(Reason: "");
 
         // Act
-        var response = await _client.PostAsJsonAsync($"/publications/{publicationId}/reject", request);
+        var response = await _client.PostAsJsonAsync($"projects/{TestProjectId}/publications/{publicationId}/reject", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -396,7 +406,7 @@ public class PublicationsControllerTests
         var request = new RejectPublicationRequest(Reason: "   ");
 
         // Act
-        var response = await _client.PostAsJsonAsync($"/publications/{publicationId}/reject", request);
+        var response = await _client.PostAsJsonAsync($"projects/{TestProjectId}/publications/{publicationId}/reject", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -414,7 +424,7 @@ public class PublicationsControllerTests
         var request = new RejectPublicationRequest(Reason: "Some reason.");
 
         // Act
-        var response = await unauthClient.PostAsJsonAsync($"/publications/{Guid.NewGuid()}/reject", request);
+        var response = await unauthClient.PostAsJsonAsync($"projects/{TestProjectId}/publications/{Guid.NewGuid()}/reject", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -438,7 +448,7 @@ public class PublicationsControllerTests
             .ReturnsAsync(publication);
 
         // Act
-        var response = await _client.PostAsync($"/publications/{publication.Id}/send", null);
+        var response = await _client.PostAsync($"projects/{TestProjectId}/publications/{publication.Id}/send", null);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -458,7 +468,7 @@ public class PublicationsControllerTests
         using var unauthClient = _factory.CreateClient();
 
         // Act
-        var response = await unauthClient.PostAsync($"/publications/{Guid.NewGuid()}/send", null);
+        var response = await unauthClient.PostAsync($"projects/{TestProjectId}/publications/{Guid.NewGuid()}/send", null);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -486,7 +496,7 @@ public class PublicationsControllerTests
         var request = new RegeneratePublicationRequest(Feedback: feedback);
 
         // Act
-        var response = await _client.PostAsJsonAsync($"/publications/{publication.Id}/regenerate", request);
+        var response = await _client.PostAsJsonAsync($"projects/{TestProjectId}/publications/{publication.Id}/regenerate", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -509,7 +519,7 @@ public class PublicationsControllerTests
         var request = new RegeneratePublicationRequest(Feedback: "Some feedback.");
 
         // Act
-        var response = await unauthClient.PostAsJsonAsync($"/publications/{Guid.NewGuid()}/regenerate", request);
+        var response = await unauthClient.PostAsJsonAsync($"projects/{TestProjectId}/publications/{Guid.NewGuid()}/regenerate", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -537,7 +547,7 @@ public class PublicationsControllerTests
         var request = new RegeneratePublicationRequest(Feedback: feedback);
 
         // Act
-        var response = await _client.PostAsJsonAsync($"/publications/{publicationId}/regenerate", request);
+        var response = await _client.PostAsJsonAsync($"projects/{TestProjectId}/publications/{publicationId}/regenerate", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -556,7 +566,7 @@ public class PublicationsControllerTests
         var request = new RegeneratePublicationRequest(Feedback: "");
 
         // Act
-        var response = await _client.PostAsJsonAsync($"/publications/{publicationId}/regenerate", request);
+        var response = await _client.PostAsJsonAsync($"projects/{TestProjectId}/publications/{publicationId}/regenerate", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -578,7 +588,7 @@ public class PublicationsControllerTests
         var request = new RegeneratePublicationRequest(Feedback: oversized);
 
         // Act
-        var response = await _client.PostAsJsonAsync($"/publications/{publicationId}/regenerate", request);
+        var response = await _client.PostAsJsonAsync($"projects/{TestProjectId}/publications/{publicationId}/regenerate", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -607,7 +617,7 @@ public class PublicationsControllerTests
         var request = new RegeneratePublicationRequest(Feedback: feedback);
 
         // Act
-        var response = await _client.PostAsJsonAsync($"/publications/{publicationId}/regenerate", request);
+        var response = await _client.PostAsJsonAsync($"projects/{TestProjectId}/publications/{publicationId}/regenerate", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);

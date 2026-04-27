@@ -1,4 +1,4 @@
-﻿namespace Core.DomainModels;
+namespace Core.DomainModels;
 
 public class Event
 {
@@ -9,6 +9,7 @@ public class Event
 	public DateTimeOffset FirstSeenAt { get; init; }
 	public DateTimeOffset LastUpdatedAt { get; set; }
 	public float[]? Embedding { get; set; }
+	public Guid ProjectId { get; set; }
 
 	public int ArticleCount { get; set; } = 0;
 

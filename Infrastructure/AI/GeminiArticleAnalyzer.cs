@@ -12,7 +12,6 @@ internal class GeminiArticleAnalyzer : IArticleAnalyzer
 {
 	private readonly string _apiKey;
 	private readonly string _model;
-	private readonly string _prompt;
 	private readonly HttpClient _httpClient;
 	private readonly IAiRequestLogger _aiRequestLogger;
 	private readonly ILogger<GeminiArticleAnalyzer> _logger;
@@ -20,25 +19,26 @@ internal class GeminiArticleAnalyzer : IArticleAnalyzer
 	public GeminiArticleAnalyzer(
 		string apiKey,
 		string model,
-		string prompt,
 		HttpClient httpClient,
 		ILogger<GeminiArticleAnalyzer> logger,
 		IAiRequestLogger aiRequestLogger)
 	{
 		_apiKey = apiKey;
 		_model = model;
-		_prompt = prompt;
 		_httpClient = httpClient;
 		_logger = logger;
 		_aiRequestLogger = aiRequestLogger;
 	}
 
-	public async Task<ArticleAnalysisResult> AnalyzeAsync(Article article, CancellationToken cancellationToken = default)
+	public Task<ArticleAnalysisResult> AnalyzeAsync(Article article, CancellationToken cancellationToken = default)
+		=> AnalyzeAsync(article, string.Empty, cancellationToken);
+
+	public async Task<ArticleAnalysisResult> AnalyzeAsync(Article article, string systemPrompt, CancellationToken cancellationToken = default)
 	{
 		var url = $"https://generativelanguage.googleapis.com/v1beta/models/{_model}:generateContent?key={_apiKey}";
 
 		var userPrompt = $"""
-        {_prompt}
+        {systemPrompt}
 
         SOURCE METADATA:
         Published: {article.PublishedAt:yyyy-MM-dd HH:mm UTC}

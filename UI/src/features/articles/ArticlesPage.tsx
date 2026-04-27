@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { useArticles } from './useArticles'
 import { Pagination } from '@/components/shared/Pagination'
@@ -38,6 +38,7 @@ export function ArticlesPage() {
   const [sortBy, setSortBy] = useState<SortOption>('newest')
   const [filterSentiment, setFilterSentiment] = useState<SentimentFilter>('all')
   const navigate = useNavigate()
+  const { projectSlug } = useParams<{ projectSlug: string }>()
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), DEBOUNCE_MS)
@@ -189,7 +190,7 @@ export function ArticlesPage() {
                 <ArticleCard
                   key={article.id}
                   article={article}
-                  onClick={() => article.id && navigate(`/articles/${article.id}`)}
+                  onClick={() => article.id && navigate(`/projects/${projectSlug}/articles/${article.id}`)}
                 />
               ))}
             </div>

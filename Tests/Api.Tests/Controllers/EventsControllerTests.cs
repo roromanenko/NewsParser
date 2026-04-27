@@ -26,11 +26,13 @@ public class EventsControllerTests
 
     private Mock<IEventRepository> _eventRepoMock = null!;
     private Mock<IEventService> _eventServiceMock = null!;
+    private Mock<IProjectRepository> _projectRepoMock = null!;
 
     // JWT config — must match the values supplied via UseSetting in OneTimeSetUp
     private const string JwtSecretKey = "65j781ddc991c216b5897b44bdsca4eff6ab75ea18448c9e43e0baasfbds4ef5";
     private const string JwtIssuer = "https://localhost:7054";
     private const string JwtAudience = "https://localhost:7054";
+    private const string TestProjectId = "11111111-1111-1111-1111-111111111111";
 
     private HttpClient _adminClient = null!;
 
@@ -39,6 +41,7 @@ public class EventsControllerTests
     {
         _eventRepoMock = new Mock<IEventRepository>();
         _eventServiceMock = new Mock<IEventService>();
+        _projectRepoMock = new Mock<IProjectRepository>();
 
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -49,9 +52,11 @@ public class EventsControllerTests
                 {
                     RemoveAllImplementations(services, typeof(IEventRepository));
                     RemoveAllImplementations(services, typeof(IEventService));
+                    RemoveAllImplementations(services, typeof(IProjectRepository));
 
                     services.AddSingleton(_eventRepoMock.Object);
                     services.AddSingleton(_eventServiceMock.Object);
+                    services.AddSingleton(_projectRepoMock.Object);
                 });
 
                 builder.UseSetting("Jwt:SecretKey", JwtSecretKey);
@@ -88,6 +93,11 @@ public class EventsControllerTests
     {
         _eventRepoMock.Reset();
         _eventServiceMock.Reset();
+        _projectRepoMock.Reset();
+
+        _projectRepoMock
+            .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Project { Id = new Guid(TestProjectId), IsActive = true, Name = "Test Project" });
     }
 
     // ------------------------------------------------------------------
@@ -104,7 +114,7 @@ public class EventsControllerTests
             .ReturnsAsync(CreateEvent(eventId, EventStatus.Active));
 
         // Act
-        var response = await _adminClient.PatchAsJsonAsync($"/events/{eventId}/status", "Active");
+        var response = await _adminClient.PatchAsJsonAsync($"projects/{TestProjectId}/events/{eventId}/status", "Active");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -124,7 +134,7 @@ public class EventsControllerTests
             .ReturnsAsync(CreateEvent(eventId, EventStatus.Active));
 
         // Act
-        var response = await _adminClient.PatchAsJsonAsync($"/events/{eventId}/status", "Archived");
+        var response = await _adminClient.PatchAsJsonAsync($"projects/{TestProjectId}/events/{eventId}/status", "Archived");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -144,7 +154,7 @@ public class EventsControllerTests
             .ReturnsAsync(CreateEvent(eventId, EventStatus.Active));
 
         // Act
-        var response = await _adminClient.PatchAsJsonAsync($"/events/{eventId}/status", "Approved");
+        var response = await _adminClient.PatchAsJsonAsync($"projects/{TestProjectId}/events/{eventId}/status", "Approved");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);

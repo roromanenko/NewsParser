@@ -52,6 +52,7 @@ function TimelineTab({
   onReclassify: (articleId: string, role: string) => void
   isPending: boolean
 }) {
+  const { projectSlug } = useParams<{ projectSlug: string }>()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [roleValue, setRoleValue] = useState('')
 
@@ -83,7 +84,7 @@ function TimelineTab({
         >
           <div className="flex-1 min-w-0">
             <Link
-              to={`/articles/${article.articleId}`}
+              to={`/projects/${projectSlug}/articles/${article.articleId}`}
               className="font-display text-lg transition-colors line-clamp-2"
               style={{ color: '#E8E8E8' }}
               onMouseEnter={e => (e.currentTarget.style.color = 'var(--caramel)')}
@@ -206,6 +207,7 @@ function ContradictionsTab({
   onResolve: (id: string) => void
   isPending: boolean
 }) {
+  const { projectSlug } = useParams<{ projectSlug: string }>()
   const [resolvingId, setResolvingId] = useState<string | null>(null)
 
   if (contradictions.length === 0) {
@@ -234,7 +236,7 @@ function ContradictionsTab({
                     {c.articleIds.map(aid => (
                       <Link
                         key={aid}
-                        to={`/articles/${aid}`}
+                        to={`/projects/${projectSlug}/articles/${aid}`}
                         className="font-mono text-xs transition-colors"
                         style={{ color: 'var(--caramel)' }}
                         onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
@@ -308,6 +310,7 @@ function MediaTab({ items }: { items: MediaItem[] }) {
 
 // ---- Publications tab ----
 function PublicationsTab({ eventId }: { eventId: string }) {
+  const { projectSlug } = useParams<{ projectSlug: string }>()
   const { publications, isLoading } = usePublications(eventId)
 
   if (isLoading) {
@@ -332,7 +335,7 @@ function PublicationsTab({ eventId }: { eventId: string }) {
         <li key={pub.id} className="py-4 flex items-center justify-between gap-4">
           <div>
             <Link
-              to={`/publications/${pub.id}`}
+              to={`/projects/${projectSlug}/publications/${pub.id}`}
               className="font-mono text-sm transition-colors"
               style={{ color: '#E8E8E8' }}
               onMouseEnter={e => (e.currentTarget.style.color = 'var(--caramel)')}
@@ -345,7 +348,7 @@ function PublicationsTab({ eventId }: { eventId: string }) {
             </p>
           </div>
           <span className="font-caps text-xs tracking-widest shrink-0" style={{ color: '#9ca3af' }}>
-            {pub.status.toUpperCase()}
+            {(pub.status ?? '').toUpperCase()}
           </span>
         </li>
       ))}
@@ -355,7 +358,7 @@ function PublicationsTab({ eventId }: { eventId: string }) {
 
 // ---- Main page ----
 export function EventDetailPage() {
-  const { id } = useParams<{ id: string }>()
+  const { projectSlug, id } = useParams<{ projectSlug: string; id: string }>()
   const navigate = useNavigate()
   const { isAdmin, isEditor } = usePermissions()
   const { data: event, isLoading } = useEventDetail(id!)
@@ -416,7 +419,7 @@ export function EventDetailPage() {
     <div className="max-w-4xl">
       {/* Back */}
       <button
-        onClick={() => navigate('/events')}
+        onClick={() => navigate(`/projects/${projectSlug}/events`)}
         className="flex items-center gap-2 font-mono text-xs mb-6 transition-colors"
         style={{ color: '#6b7280' }}
         onMouseEnter={e => (e.currentTarget.style.color = 'var(--caramel)')}

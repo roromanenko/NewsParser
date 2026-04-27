@@ -17,6 +17,7 @@ docs/ArticleListItemDtoPagedResult.md
 docs/ArticlesApi.md
 docs/AuthApi.md
 docs/ContradictionDto.md
+docs/CreateProjectRequest.md
 docs/CreatePublicationRequest.md
 docs/CreatePublishTargetRequest.md
 docs/CreateSourceRequest.md
@@ -31,6 +32,9 @@ docs/LoginRequest.md
 docs/LoginResponse.md
 docs/MediaFileDto.md
 docs/MergeEventsRequest.md
+docs/ProjectDetailDto.md
+docs/ProjectListItemDto.md
+docs/ProjectsApi.md
 docs/PublicationDetailDto.md
 docs/PublicationListItemDto.md
 docs/PublicationListItemDtoPagedResult.md
@@ -45,6 +49,7 @@ docs/ResolveContradictionRequest.md
 docs/SourceDto.md
 docs/SourcesApi.md
 docs/UpdateEditorRequest.md
+docs/UpdateProjectRequest.md
 docs/UpdatePublicationContentRequest.md
 docs/UpdatePublishTargetRequest.md
 docs/UpdateSourceRequest.md

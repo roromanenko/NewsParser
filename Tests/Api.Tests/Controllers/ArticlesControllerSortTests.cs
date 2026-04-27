@@ -18,7 +18,7 @@ using System.Text;
 namespace Api.Tests.Controllers;
 
 /// <summary>
-/// Tests for the search/sortBy query parameters on GET /articles.
+/// Tests for the search/sortBy query parameters on GET /projects/{projectId}/articles.
 /// The controller normalises an invalid sortBy to "newest" before
 /// passing it to the repository; these tests verify that a 200 is
 /// returned in all cases and that the controller does not reject
@@ -32,16 +32,21 @@ public class ArticlesControllerSortTests
 
     private Mock<IArticleRepository> _articleRepoMock = null!;
     private Mock<IEventRepository> _eventRepoMock = null!;
+    private Mock<IProjectRepository> _projectRepoMock = null!;
 
     private const string JwtSecretKey = "65j781ddc991c216b5897b44bdsca4eff6ab75ea18448c9e43e0baasfbds4ef5";
     private const string JwtIssuer = "https://localhost:7054";
     private const string JwtAudience = "https://localhost:7054";
+
+    private static readonly Guid TestProjectId = new("00000000-0000-0000-0000-000000000001");
+    private static readonly Project TestProject = new() { Id = TestProjectId, Name = "Default", IsActive = true };
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
         _articleRepoMock = new Mock<IArticleRepository>();
         _eventRepoMock = new Mock<IEventRepository>();
+        _projectRepoMock = new Mock<IProjectRepository>();
 
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -52,9 +57,11 @@ public class ArticlesControllerSortTests
                 {
                     RemoveAllImplementations(services, typeof(IArticleRepository));
                     RemoveAllImplementations(services, typeof(IEventRepository));
+                    RemoveAllImplementations(services, typeof(IProjectRepository));
 
                     services.AddSingleton(_articleRepoMock.Object);
                     services.AddSingleton(_eventRepoMock.Object);
+                    services.AddSingleton(_projectRepoMock.Object);
                 });
 
                 builder.UseSetting("Jwt:SecretKey", JwtSecretKey);
@@ -85,22 +92,30 @@ public class ArticlesControllerSortTests
     {
         _articleRepoMock.Reset();
         _eventRepoMock.Reset();
+        _projectRepoMock.Reset();
+
+        _projectRepoMock
+            .Setup(r => r.ExistsAsync(TestProjectId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _projectRepoMock
+            .Setup(r => r.GetByIdAsync(TestProjectId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TestProject);
 
         // Default stubs so the controller can complete without throwing
         _articleRepoMock
             .Setup(r => r.GetAnalysisDoneAsync(
-                It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(),
                 It.IsAny<string?>(), It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         _articleRepoMock
-            .Setup(r => r.CountAnalysisDoneAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.CountAnalysisDoneAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
     }
 
     // ------------------------------------------------------------------
-    // GET /articles?sortBy=invalid — P0: falls back to newest, returns 200
+    // GET /projects/{id}/articles?sortBy=invalid — P0: falls back to newest, returns 200
     // ------------------------------------------------------------------
 
     [Test]
@@ -109,7 +124,7 @@ public class ArticlesControllerSortTests
         // Arrange — default stubs from ResetMocks are sufficient
 
         // Act
-        var response = await _client.GetAsync("/articles?sortBy=invalid");
+        var response = await _client.GetAsync($"/projects/{TestProjectId}/articles?sortBy=invalid");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -119,7 +134,7 @@ public class ArticlesControllerSortTests
     }
 
     // ------------------------------------------------------------------
-    // GET /articles?sortBy=oldest — P0: valid sort value, returns 200
+    // GET /projects/{id}/articles?sortBy=oldest — P0: valid sort value, returns 200
     // ------------------------------------------------------------------
 
     [Test]
@@ -128,7 +143,7 @@ public class ArticlesControllerSortTests
         // Arrange — default stubs from ResetMocks are sufficient
 
         // Act
-        var response = await _client.GetAsync("/articles?sortBy=oldest");
+        var response = await _client.GetAsync($"/projects/{TestProjectId}/articles?sortBy=oldest");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -137,7 +152,7 @@ public class ArticlesControllerSortTests
     }
 
     // ------------------------------------------------------------------
-    // GET /articles?sortBy=newest — P0: valid sort value, returns 200
+    // GET /projects/{id}/articles?sortBy=newest — P0: valid sort value, returns 200
     // ------------------------------------------------------------------
 
     [Test]
@@ -146,7 +161,7 @@ public class ArticlesControllerSortTests
         // Arrange — default stubs from ResetMocks are sufficient
 
         // Act
-        var response = await _client.GetAsync("/articles?sortBy=newest");
+        var response = await _client.GetAsync($"/projects/{TestProjectId}/articles?sortBy=newest");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -155,7 +170,7 @@ public class ArticlesControllerSortTests
     }
 
     // ------------------------------------------------------------------
-    // GET /articles?sortBy=invalid — P1: controller passes "newest" to repo
+    // GET /projects/{id}/articles?sortBy=invalid — P1: controller passes "newest" to repo
     //     (not the raw invalid string) after normalisation
     // ------------------------------------------------------------------
 
@@ -165,12 +180,12 @@ public class ArticlesControllerSortTests
         // Arrange — default stubs from ResetMocks are sufficient
 
         // Act
-        await _client.GetAsync("/articles?sortBy=garbage");
+        await _client.GetAsync($"/projects/{TestProjectId}/articles?sortBy=garbage");
 
         // Assert — the controller must have normalised "garbage" to "newest"
         _articleRepoMock.Verify(
             r => r.GetAnalysisDoneAsync(
-                It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(),
                 It.IsAny<string?>(), "newest",
                 It.IsAny<CancellationToken>()),
             Times.Once);

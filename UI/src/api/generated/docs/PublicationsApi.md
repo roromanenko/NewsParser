@@ -4,20 +4,20 @@ All URIs are relative to *http://localhost*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**publicationsByEventEventIdGet**](#publicationsbyeventeventidget) | **GET** /publications/by-event/{eventId} | |
-|[**publicationsGeneratePost**](#publicationsgeneratepost) | **POST** /publications/generate | |
-|[**publicationsGet**](#publicationsget) | **GET** /publications | |
-|[**publicationsIdApprovePost**](#publicationsidapprovepost) | **POST** /publications/{id}/approve | |
-|[**publicationsIdContentPut**](#publicationsidcontentput) | **PUT** /publications/{id}/content | |
-|[**publicationsIdGet**](#publicationsidget) | **GET** /publications/{id} | |
-|[**publicationsIdMediaMediaIdDelete**](#publicationsidmediamediaiddelete) | **DELETE** /publications/{id}/media/{mediaId} | |
-|[**publicationsIdMediaPost**](#publicationsidmediapost) | **POST** /publications/{id}/media | |
-|[**publicationsIdRegeneratePost**](#publicationsidregeneratepost) | **POST** /publications/{id}/regenerate | |
-|[**publicationsIdRejectPost**](#publicationsidrejectpost) | **POST** /publications/{id}/reject | |
-|[**publicationsIdSendPost**](#publicationsidsendpost) | **POST** /publications/{id}/send | |
+|[**projectsProjectIdPublicationsByEventEventIdGet**](#projectsprojectidpublicationsbyeventeventidget) | **GET** /projects/{projectId}/publications/by-event/{eventId} | |
+|[**projectsProjectIdPublicationsGeneratePost**](#projectsprojectidpublicationsgeneratepost) | **POST** /projects/{projectId}/publications/generate | |
+|[**projectsProjectIdPublicationsGet**](#projectsprojectidpublicationsget) | **GET** /projects/{projectId}/publications | |
+|[**projectsProjectIdPublicationsIdApprovePost**](#projectsprojectidpublicationsidapprovepost) | **POST** /projects/{projectId}/publications/{id}/approve | |
+|[**projectsProjectIdPublicationsIdContentPut**](#projectsprojectidpublicationsidcontentput) | **PUT** /projects/{projectId}/publications/{id}/content | |
+|[**projectsProjectIdPublicationsIdGet**](#projectsprojectidpublicationsidget) | **GET** /projects/{projectId}/publications/{id} | |
+|[**projectsProjectIdPublicationsIdMediaMediaIdDelete**](#projectsprojectidpublicationsidmediamediaiddelete) | **DELETE** /projects/{projectId}/publications/{id}/media/{mediaId} | |
+|[**projectsProjectIdPublicationsIdMediaPost**](#projectsprojectidpublicationsidmediapost) | **POST** /projects/{projectId}/publications/{id}/media | |
+|[**projectsProjectIdPublicationsIdRegeneratePost**](#projectsprojectidpublicationsidregeneratepost) | **POST** /projects/{projectId}/publications/{id}/regenerate | |
+|[**projectsProjectIdPublicationsIdRejectPost**](#projectsprojectidpublicationsidrejectpost) | **POST** /projects/{projectId}/publications/{id}/reject | |
+|[**projectsProjectIdPublicationsIdSendPost**](#projectsprojectidpublicationsidsendpost) | **POST** /projects/{projectId}/publications/{id}/send | |
 
-# **publicationsByEventEventIdGet**
-> Array<PublicationListItemDto> publicationsByEventEventIdGet()
+# **projectsProjectIdPublicationsByEventEventIdGet**
+> Array<PublicationListItemDto> projectsProjectIdPublicationsByEventEventIdGet()
 
 
 ### Example
@@ -32,9 +32,11 @@ const configuration = new Configuration();
 const apiInstance = new PublicationsApi(configuration);
 
 let eventId: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.publicationsByEventEventIdGet(
-    eventId
+const { status, data } = await apiInstance.projectsProjectIdPublicationsByEventEventIdGet(
+    eventId,
+    projectId
 );
 ```
 
@@ -43,6 +45,7 @@ const { status, data } = await apiInstance.publicationsByEventEventIdGet(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **eventId** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -66,8 +69,8 @@ const { status, data } = await apiInstance.publicationsByEventEventIdGet(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publicationsGeneratePost**
-> PublicationListItemDto publicationsGeneratePost()
+# **projectsProjectIdPublicationsGeneratePost**
+> PublicationListItemDto projectsProjectIdPublicationsGeneratePost()
 
 
 ### Example
@@ -82,9 +85,11 @@ import {
 const configuration = new Configuration();
 const apiInstance = new PublicationsApi(configuration);
 
+let projectId: string; // (default to undefined)
 let createPublicationRequest: CreatePublicationRequest; // (optional)
 
-const { status, data } = await apiInstance.publicationsGeneratePost(
+const { status, data } = await apiInstance.projectsProjectIdPublicationsGeneratePost(
+    projectId,
     createPublicationRequest
 );
 ```
@@ -94,6 +99,7 @@ const { status, data } = await apiInstance.publicationsGeneratePost(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **createPublicationRequest** | **CreatePublicationRequest**|  | |
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -117,8 +123,8 @@ const { status, data } = await apiInstance.publicationsGeneratePost(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publicationsGet**
-> PublicationListItemDtoPagedResult publicationsGet()
+# **projectsProjectIdPublicationsGet**
+> PublicationListItemDtoPagedResult projectsProjectIdPublicationsGet()
 
 
 ### Example
@@ -132,10 +138,12 @@ import {
 const configuration = new Configuration();
 const apiInstance = new PublicationsApi(configuration);
 
+let projectId: string; // (default to undefined)
 let page: number; // (optional) (default to 1)
 let pageSize: number; // (optional) (default to 20)
 
-const { status, data } = await apiInstance.publicationsGet(
+const { status, data } = await apiInstance.projectsProjectIdPublicationsGet(
+    projectId,
     page,
     pageSize
 );
@@ -145,6 +153,7 @@ const { status, data } = await apiInstance.publicationsGet(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
+| **projectId** | [**string**] |  | defaults to undefined|
 | **page** | [**number**] |  | (optional) defaults to 1|
 | **pageSize** | [**number**] |  | (optional) defaults to 20|
 
@@ -170,8 +179,8 @@ const { status, data } = await apiInstance.publicationsGet(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publicationsIdApprovePost**
-> PublicationDetailDto publicationsIdApprovePost()
+# **projectsProjectIdPublicationsIdApprovePost**
+> PublicationDetailDto projectsProjectIdPublicationsIdApprovePost()
 
 
 ### Example
@@ -186,9 +195,11 @@ const configuration = new Configuration();
 const apiInstance = new PublicationsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.publicationsIdApprovePost(
-    id
+const { status, data } = await apiInstance.projectsProjectIdPublicationsIdApprovePost(
+    id,
+    projectId
 );
 ```
 
@@ -197,6 +208,7 @@ const { status, data } = await apiInstance.publicationsIdApprovePost(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -220,8 +232,8 @@ const { status, data } = await apiInstance.publicationsIdApprovePost(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publicationsIdContentPut**
-> PublicationDetailDto publicationsIdContentPut()
+# **projectsProjectIdPublicationsIdContentPut**
+> PublicationDetailDto projectsProjectIdPublicationsIdContentPut()
 
 
 ### Example
@@ -237,10 +249,12 @@ const configuration = new Configuration();
 const apiInstance = new PublicationsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 let updatePublicationContentRequest: UpdatePublicationContentRequest; // (optional)
 
-const { status, data } = await apiInstance.publicationsIdContentPut(
+const { status, data } = await apiInstance.projectsProjectIdPublicationsIdContentPut(
     id,
+    projectId,
     updatePublicationContentRequest
 );
 ```
@@ -251,6 +265,7 @@ const { status, data } = await apiInstance.publicationsIdContentPut(
 |------------- | ------------- | ------------- | -------------|
 | **updatePublicationContentRequest** | **UpdatePublicationContentRequest**|  | |
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -274,8 +289,8 @@ const { status, data } = await apiInstance.publicationsIdContentPut(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publicationsIdGet**
-> PublicationDetailDto publicationsIdGet()
+# **projectsProjectIdPublicationsIdGet**
+> PublicationDetailDto projectsProjectIdPublicationsIdGet()
 
 
 ### Example
@@ -290,9 +305,11 @@ const configuration = new Configuration();
 const apiInstance = new PublicationsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.publicationsIdGet(
-    id
+const { status, data } = await apiInstance.projectsProjectIdPublicationsIdGet(
+    id,
+    projectId
 );
 ```
 
@@ -301,6 +318,7 @@ const { status, data } = await apiInstance.publicationsIdGet(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -324,8 +342,8 @@ const { status, data } = await apiInstance.publicationsIdGet(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publicationsIdMediaMediaIdDelete**
-> publicationsIdMediaMediaIdDelete()
+# **projectsProjectIdPublicationsIdMediaMediaIdDelete**
+> projectsProjectIdPublicationsIdMediaMediaIdDelete()
 
 
 ### Example
@@ -341,10 +359,12 @@ const apiInstance = new PublicationsApi(configuration);
 
 let id: string; // (default to undefined)
 let mediaId: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.publicationsIdMediaMediaIdDelete(
+const { status, data } = await apiInstance.projectsProjectIdPublicationsIdMediaMediaIdDelete(
     id,
-    mediaId
+    mediaId,
+    projectId
 );
 ```
 
@@ -354,6 +374,7 @@ const { status, data } = await apiInstance.publicationsIdMediaMediaIdDelete(
 |------------- | ------------- | ------------- | -------------|
 | **id** | [**string**] |  | defaults to undefined|
 | **mediaId** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -377,8 +398,8 @@ void (empty response body)
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publicationsIdMediaPost**
-> MediaFileDto publicationsIdMediaPost()
+# **projectsProjectIdPublicationsIdMediaPost**
+> MediaFileDto projectsProjectIdPublicationsIdMediaPost()
 
 
 ### Example
@@ -393,10 +414,12 @@ const configuration = new Configuration();
 const apiInstance = new PublicationsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 let file: File; // (optional) (default to undefined)
 
-const { status, data } = await apiInstance.publicationsIdMediaPost(
+const { status, data } = await apiInstance.projectsProjectIdPublicationsIdMediaPost(
     id,
+    projectId,
     file
 );
 ```
@@ -406,6 +429,7 @@ const { status, data } = await apiInstance.publicationsIdMediaPost(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 | **file** | [**File**] |  | (optional) defaults to undefined|
 
 
@@ -430,8 +454,8 @@ const { status, data } = await apiInstance.publicationsIdMediaPost(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publicationsIdRegeneratePost**
-> PublicationDetailDto publicationsIdRegeneratePost()
+# **projectsProjectIdPublicationsIdRegeneratePost**
+> PublicationDetailDto projectsProjectIdPublicationsIdRegeneratePost()
 
 
 ### Example
@@ -447,10 +471,12 @@ const configuration = new Configuration();
 const apiInstance = new PublicationsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 let regeneratePublicationRequest: RegeneratePublicationRequest; // (optional)
 
-const { status, data } = await apiInstance.publicationsIdRegeneratePost(
+const { status, data } = await apiInstance.projectsProjectIdPublicationsIdRegeneratePost(
     id,
+    projectId,
     regeneratePublicationRequest
 );
 ```
@@ -461,6 +487,7 @@ const { status, data } = await apiInstance.publicationsIdRegeneratePost(
 |------------- | ------------- | ------------- | -------------|
 | **regeneratePublicationRequest** | **RegeneratePublicationRequest**|  | |
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -484,8 +511,8 @@ const { status, data } = await apiInstance.publicationsIdRegeneratePost(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publicationsIdRejectPost**
-> PublicationDetailDto publicationsIdRejectPost()
+# **projectsProjectIdPublicationsIdRejectPost**
+> PublicationDetailDto projectsProjectIdPublicationsIdRejectPost()
 
 
 ### Example
@@ -501,10 +528,12 @@ const configuration = new Configuration();
 const apiInstance = new PublicationsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 let rejectPublicationRequest: RejectPublicationRequest; // (optional)
 
-const { status, data } = await apiInstance.publicationsIdRejectPost(
+const { status, data } = await apiInstance.projectsProjectIdPublicationsIdRejectPost(
     id,
+    projectId,
     rejectPublicationRequest
 );
 ```
@@ -515,6 +544,7 @@ const { status, data } = await apiInstance.publicationsIdRejectPost(
 |------------- | ------------- | ------------- | -------------|
 | **rejectPublicationRequest** | **RejectPublicationRequest**|  | |
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -538,8 +568,8 @@ const { status, data } = await apiInstance.publicationsIdRejectPost(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **publicationsIdSendPost**
-> PublicationDetailDto publicationsIdSendPost()
+# **projectsProjectIdPublicationsIdSendPost**
+> PublicationDetailDto projectsProjectIdPublicationsIdSendPost()
 
 
 ### Example
@@ -554,9 +584,11 @@ const configuration = new Configuration();
 const apiInstance = new PublicationsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.publicationsIdSendPost(
-    id
+const { status, data } = await apiInstance.projectsProjectIdPublicationsIdSendPost(
+    id,
+    projectId
 );
 ```
 
@@ -565,6 +597,7 @@ const { status, data } = await apiInstance.publicationsIdSendPost(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type

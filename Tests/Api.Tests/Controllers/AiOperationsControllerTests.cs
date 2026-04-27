@@ -25,16 +25,19 @@ public class AiOperationsControllerTests
     private HttpClient _editorClient = null!;
 
     private Mock<IAiRequestLogRepository> _aiLogRepoMock = null!;
+    private Mock<IProjectRepository> _projectRepoMock = null!;
 
     // JWT config — must match the values supplied via UseSetting in OneTimeSetUp
     private const string JwtSecretKey = "65j781ddc991c216b5897b44bdsca4eff6ab75ea18448c9e43e0baasfbds4ef5";
     private const string JwtIssuer = "https://localhost:7054";
     private const string JwtAudience = "https://localhost:7054";
+    private const string TestProjectId = "11111111-1111-1111-1111-111111111111";
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
         _aiLogRepoMock = new Mock<IAiRequestLogRepository>();
+        _projectRepoMock = new Mock<IProjectRepository>();
 
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -44,7 +47,9 @@ public class AiOperationsControllerTests
                 builder.ConfigureServices(services =>
                 {
                     RemoveAllImplementations(services, typeof(IAiRequestLogRepository));
+                    RemoveAllImplementations(services, typeof(IProjectRepository));
                     services.AddSingleton(_aiLogRepoMock.Object);
+                    services.AddSingleton(_projectRepoMock.Object);
                 });
 
                 builder.UseSetting("Jwt:SecretKey", JwtSecretKey);
@@ -80,6 +85,11 @@ public class AiOperationsControllerTests
     public void ResetMocks()
     {
         _aiLogRepoMock.Reset();
+        _projectRepoMock.Reset();
+
+        _projectRepoMock
+            .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Project { Id = new Guid(TestProjectId), IsActive = true, Name = "Test Project" });
 
         // Sensible defaults so that controller code paths don't NRE on
         // unconfigured async returns. Individual tests override as needed.
@@ -132,7 +142,7 @@ public class AiOperationsControllerTests
             .ReturnsAsync(metrics);
 
         // Act
-        var response = await _adminClient.GetAsync("/ai-operations/metrics");
+        var response = await _adminClient.GetAsync($"projects/{TestProjectId}/ai-operations/metrics");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -161,7 +171,7 @@ public class AiOperationsControllerTests
 
         // Act
         var response = await _adminClient.GetAsync(
-            $"/ai-operations/metrics?from={from}&to={to}");
+            $"projects/{TestProjectId}/ai-operations/metrics?from={from}&to={to}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -192,7 +202,7 @@ public class AiOperationsControllerTests
             .ReturnsAsync(2);
 
         // Act
-        var response = await _adminClient.GetAsync("/ai-operations/requests");
+        var response = await _adminClient.GetAsync($"projects/{TestProjectId}/ai-operations/requests");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -214,7 +224,7 @@ public class AiOperationsControllerTests
     public async Task GetRequests_WhenPageSizeExceeds100_Returns400FromValidator()
     {
         // Arrange / Act
-        var response = await _adminClient.GetAsync("/ai-operations/requests?pageSize=200");
+        var response = await _adminClient.GetAsync($"projects/{TestProjectId}/ai-operations/requests?pageSize=200");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -235,7 +245,7 @@ public class AiOperationsControllerTests
     public async Task GetRequests_WhenStatusIsInvalid_Returns400()
     {
         // Arrange / Act
-        var response = await _adminClient.GetAsync("/ai-operations/requests?status=Invalid");
+        var response = await _adminClient.GetAsync($"projects/{TestProjectId}/ai-operations/requests?status=Invalid");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -264,7 +274,7 @@ public class AiOperationsControllerTests
             .ReturnsAsync(log);
 
         // Act
-        var response = await _adminClient.GetAsync($"/ai-operations/requests/{id}");
+        var response = await _adminClient.GetAsync($"projects/{TestProjectId}/ai-operations/requests/{id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -290,7 +300,7 @@ public class AiOperationsControllerTests
             .ReturnsAsync((AiRequestLog?)null);
 
         // Act
-        var response = await _adminClient.GetAsync($"/ai-operations/requests/{unknownId}");
+        var response = await _adminClient.GetAsync($"projects/{TestProjectId}/ai-operations/requests/{unknownId}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -300,9 +310,9 @@ public class AiOperationsControllerTests
     // All three endpoints — no token → 401
     // ------------------------------------------------------------------
 
-    [TestCase("/ai-operations/metrics")]
-    [TestCase("/ai-operations/requests")]
-    [TestCase("/ai-operations/requests/00000000-0000-0000-0000-000000000001")]
+    [TestCase("projects/11111111-1111-1111-1111-111111111111/ai-operations/metrics")]
+    [TestCase("projects/11111111-1111-1111-1111-111111111111/ai-operations/requests")]
+    [TestCase("projects/11111111-1111-1111-1111-111111111111/ai-operations/requests/00000000-0000-0000-0000-000000000001")]
     public async Task AnyEndpoint_WhenNoToken_Returns401(string url)
     {
         // Arrange
@@ -319,9 +329,9 @@ public class AiOperationsControllerTests
     // All three endpoints — Editor JWT (not Admin) → 403
     // ------------------------------------------------------------------
 
-    [TestCase("/ai-operations/metrics")]
-    [TestCase("/ai-operations/requests")]
-    [TestCase("/ai-operations/requests/00000000-0000-0000-0000-000000000001")]
+    [TestCase("projects/11111111-1111-1111-1111-111111111111/ai-operations/metrics")]
+    [TestCase("projects/11111111-1111-1111-1111-111111111111/ai-operations/requests")]
+    [TestCase("projects/11111111-1111-1111-1111-111111111111/ai-operations/requests/00000000-0000-0000-0000-000000000001")]
     public async Task AnyEndpoint_WhenEditorRole_Returns403(string url)
     {
         // Act

@@ -2,6 +2,7 @@ using Api.Controllers;
 using Api.Mappers;
 using Api.Models;
 using Core.DomainModels;
+using Core.Interfaces;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
 using Infrastructure.Configuration;
@@ -12,11 +13,12 @@ using Microsoft.Extensions.Options;
 namespace Api.Controllers;
 
 [ApiController]
-[Route("events")]
+[Route("projects/{projectId:guid}/events")]
 [Authorize(Roles = nameof(UserRole.Editor) + "," + nameof(UserRole.Admin))]
 public class EventsController(
 	IEventRepository eventRepository,
 	IEventService eventService,
+	IProjectContext projectContext,
 	IOptions<CloudflareR2Options> r2Options) : BaseController
 {
 	private readonly string _publicBaseUrl = r2Options.Value.PublicBaseUrl;
@@ -42,8 +44,8 @@ public class EventsController(
 			parsedTier = tierValue;
 		}
 
-		var events = await eventRepository.GetPagedAsync(page, pageSize, search, sortBy!, parsedTier, cancellationToken);
-		var total = await eventRepository.CountAsync(search, parsedTier, cancellationToken);
+		var events = await eventRepository.GetPagedAsync(projectContext.ProjectId, page, pageSize, search, sortBy!, parsedTier, cancellationToken);
+		var total = await eventRepository.CountAsync(projectContext.ProjectId, search, parsedTier, cancellationToken);
 
 		var items = events.Select(e => e.ToListItemDto()).ToList();
 

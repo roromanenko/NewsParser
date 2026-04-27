@@ -19,7 +19,7 @@ using System.Text;
 namespace Api.Tests.Controllers;
 
 /// <summary>
-/// Tests for the sortBy query parameter on GET /events.
+/// Tests for the sortBy query parameter on GET /projects/{projectId}/events.
 /// The controller normalises an invalid sortBy to "newest" before
 /// forwarding it to the repository.
 /// </summary>
@@ -31,16 +31,21 @@ public class EventsControllerSortTests
 
     private Mock<IEventRepository> _eventRepoMock = null!;
     private Mock<IEventService> _eventServiceMock = null!;
+    private Mock<IProjectRepository> _projectRepoMock = null!;
 
     private const string JwtSecretKey = "65j781ddc991c216b5897b44bdsca4eff6ab75ea18448c9e43e0baasfbds4ef5";
     private const string JwtIssuer = "https://localhost:7054";
     private const string JwtAudience = "https://localhost:7054";
+
+    private static readonly Guid TestProjectId = new("00000000-0000-0000-0000-000000000001");
+    private static readonly Project TestProject = new() { Id = TestProjectId, Name = "Default", IsActive = true };
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
         _eventRepoMock = new Mock<IEventRepository>();
         _eventServiceMock = new Mock<IEventService>();
+        _projectRepoMock = new Mock<IProjectRepository>();
 
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -51,9 +56,11 @@ public class EventsControllerSortTests
                 {
                     RemoveAllImplementations(services, typeof(IEventRepository));
                     RemoveAllImplementations(services, typeof(IEventService));
+                    RemoveAllImplementations(services, typeof(IProjectRepository));
 
                     services.AddSingleton(_eventRepoMock.Object);
                     services.AddSingleton(_eventServiceMock.Object);
+                    services.AddSingleton(_projectRepoMock.Object);
                 });
 
                 builder.UseSetting("Jwt:SecretKey", JwtSecretKey);
@@ -84,23 +91,31 @@ public class EventsControllerSortTests
     {
         _eventRepoMock.Reset();
         _eventServiceMock.Reset();
+        _projectRepoMock.Reset();
+
+        _projectRepoMock
+            .Setup(r => r.ExistsAsync(TestProjectId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _projectRepoMock
+            .Setup(r => r.GetByIdAsync(TestProjectId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TestProject);
 
         // Default stubs so the controller can complete without throwing
         _eventRepoMock
             .Setup(r => r.GetPagedAsync(
-                It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(),
                 It.IsAny<string?>(), It.IsAny<string>(),
                 It.IsAny<ImportanceTier?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         _eventRepoMock
-            .Setup(r => r.CountAsync(It.IsAny<string?>(), It.IsAny<ImportanceTier?>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.CountAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<ImportanceTier?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
     }
 
     // ------------------------------------------------------------------
-    // GET /events?sortBy=invalid — P0: falls back to newest, returns 200
+    // GET /projects/{id}/events?sortBy=invalid — P0: falls back to newest, returns 200
     // ------------------------------------------------------------------
 
     [Test]
@@ -109,7 +124,7 @@ public class EventsControllerSortTests
         // Arrange — default stubs from ResetMocks are sufficient
 
         // Act
-        var response = await _client.GetAsync("/events?sortBy=invalid");
+        var response = await _client.GetAsync($"/projects/{TestProjectId}/events?sortBy=invalid");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -119,7 +134,7 @@ public class EventsControllerSortTests
     }
 
     // ------------------------------------------------------------------
-    // GET /events?sortBy=invalid — P1: controller passes "newest" to repo
+    // GET /projects/{id}/events?sortBy=invalid — P1: controller passes "newest" to repo
     //     (not the raw invalid string) after normalisation
     // ------------------------------------------------------------------
 
@@ -129,12 +144,12 @@ public class EventsControllerSortTests
         // Arrange — default stubs from ResetMocks are sufficient
 
         // Act
-        await _client.GetAsync("/events?sortBy=garbage");
+        await _client.GetAsync($"/projects/{TestProjectId}/events?sortBy=garbage");
 
         // Assert — the controller must have normalised "garbage" to "newest"
         _eventRepoMock.Verify(
             r => r.GetPagedAsync(
-                It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(),
                 It.IsAny<string?>(), "newest",
                 It.IsAny<ImportanceTier?>(),
                 It.IsAny<CancellationToken>()),
@@ -142,7 +157,7 @@ public class EventsControllerSortTests
     }
 
     // ------------------------------------------------------------------
-    // GET /events?sortBy=oldest — P0: valid sort value, returns 200
+    // GET /projects/{id}/events?sortBy=oldest — P0: valid sort value, returns 200
     // ------------------------------------------------------------------
 
     [Test]
@@ -151,7 +166,7 @@ public class EventsControllerSortTests
         // Arrange — default stubs from ResetMocks are sufficient
 
         // Act
-        var response = await _client.GetAsync("/events?sortBy=oldest");
+        var response = await _client.GetAsync($"/projects/{TestProjectId}/events?sortBy=oldest");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);

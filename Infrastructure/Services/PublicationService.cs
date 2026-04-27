@@ -16,6 +16,7 @@ public class PublicationService(
 		Guid eventId,
 		Guid publishTargetId,
 		Guid editorId,
+		Guid projectId,
 		CancellationToken cancellationToken = default)
 	{
 		var relatedEvent = await eventRepository.GetDetailAsync(eventId, cancellationToken)
@@ -48,6 +49,7 @@ public class PublicationService(
 			CreatedAt = DateTimeOffset.UtcNow,
 			EventId = relatedEvent.Id,
 			Event = relatedEvent,
+			ProjectId = projectId,
 		};
 
 		await publicationRepository.AddAsync(publication, cancellationToken);

@@ -1,4 +1,7 @@
-﻿using Api.Validators;
+using Api.Filters;
+using Api.ProjectContext;
+using Api.Validators;
+using Core.Interfaces;
 using Core.Options;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -15,11 +18,16 @@ public static class ApiServiceExtensions
 		this IServiceCollection services,
 		IConfiguration configuration)
 	{
-		services.AddControllers();
+		services.AddControllers(options =>
+		{
+			options.Conventions.Add(new RequireProjectConvention());
+		});
 		services.AddFluentValidationAutoValidation();
 		services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 		services.AddSwagger();
 		services.AddJwt(configuration);
+
+		services.AddScoped<IProjectContext, ProjectContextService>();
 
 		services.AddCors(options =>
 		{

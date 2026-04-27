@@ -1,6 +1,7 @@
 using Api.Mappers;
 using Api.Models;
 using Core.DomainModels;
+using Core.Interfaces;
 using Core.Interfaces.Repositories;
 using Core.Interfaces.Services;
 using Infrastructure.Configuration;
@@ -11,13 +12,14 @@ using Microsoft.Extensions.Options;
 namespace Api.Controllers;
 
 [ApiController]
-[Route("publications")]
+[Route("projects/{projectId:guid}/publications")]
 [Authorize(Roles = nameof(UserRole.Editor) + "," + nameof(UserRole.Admin))]
 public class PublicationsController(
     IPublicationService publicationService,
     IPublicationRepository publicationRepository,
     IMediaFileRepository mediaFileRepository,
     IPublicationMediaService publicationMediaService,
+    IProjectContext projectContext,
     IOptions<CloudflareR2Options> r2Options) : BaseController
 {
     // 25 MB allows multipart framing overhead above the enforced 20 MB file cap (PublicationMediaOptions.MaxUploadBytes)
@@ -31,8 +33,8 @@ public class PublicationsController(
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var publications = await publicationRepository.GetAllAsync(page, pageSize, cancellationToken);
-        var total = await publicationRepository.CountAllAsync(cancellationToken);
+        var publications = await publicationRepository.GetAllAsync(projectContext.ProjectId, page, pageSize, cancellationToken);
+        var total = await publicationRepository.CountAllAsync(projectContext.ProjectId, cancellationToken);
 
         return Ok(new PagedResult<PublicationListItemDto>(
             publications.Select(p => p.ToListItemDto()).ToList(),
@@ -50,11 +52,11 @@ public class PublicationsController(
             return Unauthorized();
 
         var publication = await publicationService.CreateForEventAsync(
-            request.EventId, request.PublishTargetId, UserId.Value, cancellationToken);
+            request.EventId, request.PublishTargetId, UserId.Value, projectContext.ProjectId, cancellationToken);
 
         return CreatedAtAction(
             nameof(GetById),
-            new { id = publication.Id },
+            new { projectId = projectContext.ProjectId, id = publication.Id },
             publication.ToListItemDto());
     }
 
@@ -203,7 +205,7 @@ public class PublicationsController(
 
         var dto = mediaFile.ToDto(_publicBaseUrl);
 
-        return CreatedAtAction(nameof(GetById), new { id }, dto);
+        return CreatedAtAction(nameof(GetById), new { projectId = projectContext.ProjectId, id }, dto);
     }
 
     [HttpDelete("{id:guid}/media/{mediaId:guid}")]

@@ -19,7 +19,7 @@ export function LoginPage() {
   const { login, error, isLoading } = useAuth()
 
   useEffect(() => {
-    if (isAuthenticated()) navigate('/articles', { replace: true })
+    if (isAuthenticated()) navigate('/', { replace: true })
   }, [isAuthenticated, navigate])
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({

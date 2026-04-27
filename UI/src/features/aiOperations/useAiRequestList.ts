@@ -1,7 +1,7 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import type { UseQueryResult } from '@tanstack/react-query'
-import { AiOperationsApi } from '@/api/generated'
 import { apiClient } from '@/lib/axios'
+import { AiOperationsApi } from '@/api/generated'
 import type { AiOpsFilters, AiOpsRequestPage } from './types'
 import { mapRequestRow } from './mappers'
 

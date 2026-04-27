@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useAllPublications } from './useAllPublications'
 import { Pagination } from '@/components/shared/Pagination'
 import type { PublicationListItemDto } from './types'
@@ -30,6 +30,7 @@ const ALL_STATUSES = ['ContentReady', 'Approved', 'Published', 'Rejected', 'Fail
 export function PublicationsPage() {
   const [page, setPage] = useState(1)
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const { projectSlug } = useParams<{ projectSlug: string }>()
   const { data, isLoading } = useAllPublications(page, PAGE_SIZE)
 
   const items = data?.items ?? []
@@ -111,7 +112,7 @@ export function PublicationsPage() {
           ) : (
             <div className="space-y-3">
               {filtered.map(pub => (
-                <PublicationRow key={pub.id} pub={pub} />
+                <PublicationRow key={pub.id} pub={pub} projectSlug={projectSlug ?? ''} />
               ))}
             </div>
           )}
@@ -133,12 +134,12 @@ export function PublicationsPage() {
   )
 }
 
-function PublicationRow({ pub }: { pub: PublicationListItemDto }) {
+function PublicationRow({ pub, projectSlug }: { pub: PublicationListItemDto; projectSlug: string }) {
   const color = statusColor(pub.status)
 
   return (
     <Link
-      to={`/publications/${pub.id}`}
+      to={`/projects/${projectSlug}/publications/${pub.id}`}
       className="relative flex items-center gap-4 border p-5 transition-colors block"
       style={{ background: 'rgba(61,15,15,0.4)', borderColor: 'rgba(255,255,255,0.1)' }}
       onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--caramel)')}
@@ -160,7 +161,7 @@ function PublicationRow({ pub }: { pub: PublicationListItemDto }) {
       {/* Status + published date */}
       <div className="flex flex-col items-end gap-1 shrink-0">
         <span className="font-caps text-xs tracking-widest" style={{ color }}>
-          {pub.status.replace(/([A-Z])/g, ' $1').trim().toUpperCase()}
+          {(pub.status ?? '').replace(/([A-Z])/g, ' $1').trim().toUpperCase()}
         </span>
         {pub.publishedAt && (
           <span className="font-mono text-[10px]" style={{ color: '#6b7280' }}>

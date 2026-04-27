@@ -48,7 +48,7 @@ internal class ArticleRepository(IDbConnectionFactory factory) : IArticleReposit
     }
 
     public async Task<List<Article>> GetAnalysisDoneAsync(
-        int page, int pageSize, string? search, string sortBy,
+        Guid projectId, int page, int pageSize, string? search, string sortBy,
         CancellationToken cancellationToken = default)
     {
         var direction = sortBy == "oldest" ? "ASC" : "DESC";
@@ -62,19 +62,19 @@ internal class ArticleRepository(IDbConnectionFactory factory) : IArticleReposit
             var pattern = $"%{escaped}%";
             var sql = string.Format(ArticleSql.GetAnalysisDoneWithSearch, direction);
             var entities = await conn.QueryAsync<ArticleEntity>(
-                new CommandDefinition(sql, new { pattern, pageSize, offset }, cancellationToken: cancellationToken));
+                new CommandDefinition(sql, new { projectId, pattern, pageSize, offset }, cancellationToken: cancellationToken));
             return entities.Select(e => e.ToDomain()).ToList();
         }
         else
         {
             var sql = string.Format(ArticleSql.GetAnalysisDoneWithoutSearch, direction);
             var entities = await conn.QueryAsync<ArticleEntity>(
-                new CommandDefinition(sql, new { pageSize, offset }, cancellationToken: cancellationToken));
+                new CommandDefinition(sql, new { projectId, pageSize, offset }, cancellationToken: cancellationToken));
             return entities.Select(e => e.ToDomain()).ToList();
         }
     }
 
-    public async Task<int> CountAnalysisDoneAsync(string? search, CancellationToken cancellationToken = default)
+    public async Task<int> CountAnalysisDoneAsync(Guid projectId, string? search, CancellationToken cancellationToken = default)
     {
         await using var conn = await factory.CreateOpenAsync(cancellationToken);
 
@@ -83,11 +83,11 @@ internal class ArticleRepository(IDbConnectionFactory factory) : IArticleReposit
             var escaped = QueryHelpers.EscapeILikePattern(search);
             var pattern = $"%{escaped}%";
             return await conn.ExecuteScalarAsync<int>(
-                new CommandDefinition(ArticleSql.CountAnalysisDoneWithSearch, new { pattern }, cancellationToken: cancellationToken));
+                new CommandDefinition(ArticleSql.CountAnalysisDoneWithSearch, new { projectId, pattern }, cancellationToken: cancellationToken));
         }
 
         return await conn.ExecuteScalarAsync<int>(
-            new CommandDefinition(ArticleSql.CountAnalysisDoneWithoutSearch, cancellationToken: cancellationToken));
+            new CommandDefinition(ArticleSql.CountAnalysisDoneWithoutSearch, new { projectId }, cancellationToken: cancellationToken));
     }
 
     public async Task UpdateStatusAsync(Guid id, ArticleStatus status, CancellationToken cancellationToken = default)
@@ -225,6 +225,7 @@ internal class ArticleRepository(IDbConnectionFactory factory) : IArticleReposit
         parameters.Add("Role", entity.Role);
         parameters.Add("WasReclassified", entity.WasReclassified);
         parameters.Add("AddedToEventAt", entity.AddedToEventAt);
+        parameters.Add("ProjectId", entity.ProjectId);
         return parameters;
     }
 }
