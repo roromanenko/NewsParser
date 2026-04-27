@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { useProjectStore } from '@/store/projectStore'
 import { ToastProvider } from '@/context/ToastContext'
@@ -32,18 +33,26 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 }
 
 function ProjectRoute({ children }: { children: React.ReactNode }) {
-  const { projectId } = useParams<{ projectId: string }>()
+  const { projectSlug } = useParams<{ projectSlug: string }>()
   const { data: projects } = useProjects()
-  const { selectedProjectId } = useProjectStore()
+  const { selectedProjectId, setProject } = useProjectStore()
+
+  const project = projects?.find(p => p.slug === projectSlug)
+
+  useEffect(() => {
+    if (project?.id && project.id !== selectedProjectId) {
+      setProject(project.id)
+    }
+  }, [project?.id, selectedProjectId, setProject])
 
   if (!projects) return null
 
-  const isValid = projects.some(p => p.id === projectId)
-  if (!isValid) {
-    const fallbackId = selectedProjectId ?? projects[0]?.id
-    if (fallbackId) {
-      return <Navigate to={`/projects/${fallbackId}/articles`} replace />
+  if (!project) {
+    const fallback = projects.find(p => p.id === selectedProjectId) ?? projects[0]
+    if (fallback?.slug) {
+      return <Navigate to={`/projects/${fallback.slug}/articles`} replace />
     }
+    return null
   }
 
   return <>{children}</>
@@ -53,10 +62,10 @@ function RootRedirect() {
   const { selectedProjectId } = useProjectStore()
   const { data: projects } = useProjects()
 
-  const defaultId = selectedProjectId ?? projects?.[0]?.id
-  if (!defaultId) return null
+  const project = projects?.find(p => p.id === selectedProjectId) ?? projects?.[0]
+  if (!project?.slug) return null
 
-  return <Navigate to={`/projects/${defaultId}/articles`} replace />
+  return <Navigate to={`/projects/${project.slug}/articles`} replace />
 }
 
 export function AppRouter() {
@@ -97,9 +106,9 @@ export function AppRouter() {
                 </AdminRoute>
               }
             />
-            <Route path="projects/:projectId" element={<ProjectRoute><RootRedirect /></ProjectRoute>} />
+            <Route path="projects/:projectSlug" element={<ProjectRoute><RootRedirect /></ProjectRoute>} />
             <Route
-              path="projects/:projectId/articles"
+              path="projects/:projectSlug/articles"
               element={
                 <ProjectRoute>
                   <ArticlesPage />
@@ -107,7 +116,7 @@ export function AppRouter() {
               }
             />
             <Route
-              path="projects/:projectId/articles/:id"
+              path="projects/:projectSlug/articles/:id"
               element={
                 <ProjectRoute>
                   <ArticleDetailPage />
@@ -115,7 +124,7 @@ export function AppRouter() {
               }
             />
             <Route
-              path="projects/:projectId/events"
+              path="projects/:projectSlug/events"
               element={
                 <ProjectRoute>
                   <EventsPage />
@@ -123,7 +132,7 @@ export function AppRouter() {
               }
             />
             <Route
-              path="projects/:projectId/events/:id"
+              path="projects/:projectSlug/events/:id"
               element={
                 <ProjectRoute>
                   <EventDetailPage />
@@ -131,7 +140,7 @@ export function AppRouter() {
               }
             />
             <Route
-              path="projects/:projectId/publications"
+              path="projects/:projectSlug/publications"
               element={
                 <ProjectRoute>
                   <PublicationsPage />
@@ -139,7 +148,7 @@ export function AppRouter() {
               }
             />
             <Route
-              path="projects/:projectId/publications/:id"
+              path="projects/:projectSlug/publications/:id"
               element={
                 <ProjectRoute>
                   <PublicationDetailPage />
@@ -147,7 +156,7 @@ export function AppRouter() {
               }
             />
             <Route
-              path="projects/:projectId/sources"
+              path="projects/:projectSlug/sources"
               element={
                 <ProjectRoute>
                   <AdminRoute>
@@ -157,7 +166,7 @@ export function AppRouter() {
               }
             />
             <Route
-              path="projects/:projectId/publish-targets"
+              path="projects/:projectSlug/publish-targets"
               element={
                 <ProjectRoute>
                   <AdminRoute>

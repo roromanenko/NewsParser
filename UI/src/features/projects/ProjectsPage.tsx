@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useProjects } from './useProjects'
 import {
   useCreateProject,
@@ -12,7 +13,19 @@ import {
 } from './useProjectMutations'
 import { SlideOver } from '@/components/shared/SlideOver'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { apiClient } from '@/lib/axios'
+import { ProjectsApi } from '@/api/generated'
 import type { ProjectListItemDto } from './useProjects'
+
+const projectsApi = new ProjectsApi(undefined, '', apiClient)
+
+function useProjectDetail(id: string | undefined) {
+  return useQuery({
+    queryKey: ['projects', id],
+    queryFn: () => projectsApi.projectsIdGet(id!).then(r => r.data),
+    enabled: !!id,
+  })
+}
 
 const inputClass =
   'w-full px-4 py-3 font-mono text-sm text-gray-200 placeholder-gray-600 focus:outline-none transition-colors'
@@ -41,21 +54,31 @@ interface ProjectFormSlideOverProps {
 function ProjectFormSlideOver({ isOpen, onClose, project }: ProjectFormSlideOverProps) {
   const createProject = useCreateProject()
   const updateProject = useUpdateProject()
+  const { data: detail } = useProjectDetail(project?.id)
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ProjectFormValues, unknown, ProjectFormValues>({
     resolver: zodResolver(projectSchema),
-    defaultValues: project ? {
-      name: project.name ?? undefined,
-      slug: project.slug ?? undefined,
-      analyzerPromptText: project.analyzerPromptText ?? '',
-      categories: (project.categories ?? []).join(', '),
-      outputLanguage: project.outputLanguage ?? 'uk',
-      outputLanguageName: project.outputLanguageName ?? 'Ukrainian',
-    } : {
+    defaultValues: {
+      name: '',
+      slug: '',
+      analyzerPromptText: '',
+      categories: '',
       outputLanguage: 'uk',
       outputLanguageName: 'Ukrainian',
     },
   })
+
+  useEffect(() => {
+    if (!isOpen || !detail) return
+    reset({
+      name: detail.name ?? '',
+      slug: detail.slug ?? '',
+      analyzerPromptText: detail.analyzerPromptText ?? '',
+      categories: (detail.categories ?? []).join(', '),
+      outputLanguage: detail.outputLanguage ?? 'uk',
+      outputLanguageName: detail.outputLanguageName ?? 'Ukrainian',
+    })
+  }, [detail, isOpen, reset])
 
   async function onSubmit(values: ProjectFormValues) {
     const categories = values.categories.split(',').map(c => c.trim()).filter(Boolean)
@@ -222,7 +245,7 @@ export function ProjectsPage() {
         </div>
       )}
 
-      <ProjectFormSlideOver isOpen={slideOpen} onClose={closeSlide} project={editingProject} />
+      <ProjectFormSlideOver key={editingProject?.id ?? 'new'} isOpen={slideOpen} onClose={closeSlide} project={editingProject} />
 
       <ConfirmDialog
         isOpen={deletingId !== null}

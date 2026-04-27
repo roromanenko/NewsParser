@@ -8,6 +8,7 @@ public interface IPublicationService
 		Guid eventId,
 		Guid publishTargetId,
 		Guid editorId,
+		Guid projectId,
 		CancellationToken cancellationToken = default);
 
 	Task<Publication> UpdateContentAsync(

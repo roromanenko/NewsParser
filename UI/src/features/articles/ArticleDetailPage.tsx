@@ -23,7 +23,7 @@ function formatDate(iso?: string | null): string {
 }
 
 export function ArticleDetailPage() {
-  const { id } = useParams<{ id: string }>()
+  const { projectSlug, id } = useParams<{ projectSlug: string; id: string }>()
   const navigate = useNavigate()
   const { data: article, isLoading } = useArticleDetail(id!)
 
@@ -60,7 +60,7 @@ export function ArticleDetailPage() {
     <div className="max-w-5xl">
       {/* Back */}
       <button
-        onClick={() => navigate('/articles')}
+        onClick={() => navigate(`/projects/${projectSlug}/articles`)}
         className="flex items-center gap-2 font-mono text-xs mb-6 transition-colors"
         style={{ color: '#6b7280' }}
         onMouseEnter={e => (e.currentTarget.style.color = 'var(--caramel)')}
@@ -297,7 +297,7 @@ export function ArticleDetailPage() {
                   </span>
                 </div>
                 <Link
-                  to={`/events/${article.event.eventId}`}
+                  to={`/projects/${projectSlug}/events/${article.event.eventId}`}
                   className="inline-flex items-center gap-1 font-mono text-xs transition-colors"
                   style={{ color: '#6b7280' }}
                   onMouseEnter={e => (e.currentTarget.style.color = 'var(--caramel)')}

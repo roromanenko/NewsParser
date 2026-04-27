@@ -23,7 +23,9 @@
       "Bash(powershell *)",
       "Bash(cat)",
       "Bash(dotnet script *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(grep *)",
+      "Bash(sed *)"
     ]
   }
 }

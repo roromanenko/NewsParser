@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { useProjects } from './useProjects'
 import { useProjectStore } from '@/store/projectStore'
 
@@ -7,6 +8,7 @@ export function ProjectSwitcher() {
   const { data: projects } = useProjects()
   const { selectedProjectId, setProject } = useProjectStore()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (!projects || projects.length === 0) return
@@ -22,6 +24,10 @@ export function ProjectSwitcher() {
     setProject(newId)
     if (previousId) {
       queryClient.invalidateQueries({ queryKey: ['project', previousId] })
+    }
+    const newProject = projects?.find(p => p.id === newId)
+    if (newProject?.slug) {
+      navigate(`/projects/${newProject.slug}/articles`)
     }
   }
 

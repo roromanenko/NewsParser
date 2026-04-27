@@ -1,31 +1,38 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Newspaper, Database, Users, LogOut, ChevronLeft, ChevronRight, Send, Network, BookOpen, Activity } from 'lucide-react'
+import { Newspaper, Database, Users, LogOut, ChevronLeft, ChevronRight, Send, Network, BookOpen, Activity, FolderOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { Badge } from '@/components/ui/Badge'
+import { useProjectStore } from '@/store/projectStore'
+import { useProjects } from '@/features/projects/useProjects'
 
 interface SidebarProps {
   collapsed: boolean
   onToggle: () => void
 }
 
-const navItems = [
-  { to: '/articles', icon: Newspaper, label: 'Articles', adminOnly: false },
-  { to: '/events', icon: Network, label: 'Events', adminOnly: false },
-  { to: '/publications', icon: BookOpen, label: 'Publications', adminOnly: false },
-  { to: '/sources', icon: Database, label: 'Sources', adminOnly: true },
-  { to: '/publish-targets', icon: Send, label: 'Publish Targets', adminOnly: true },
-  { to: '/ai-operations', icon: Activity, label: 'AI Operations', adminOnly: true },
-  { to: '/users', icon: Users, label: 'Users', adminOnly: true },
-]
-
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { isAdmin } = usePermissions()
   const user = useCurrentUser()
   const logout = useAuthStore(state => state.logout)
   const navigate = useNavigate()
+  const { selectedProjectId } = useProjectStore()
+  const { data: projects } = useProjects()
+
+  const slug = (projects?.find(p => p.id === selectedProjectId) ?? projects?.[0])?.slug ?? ''
+
+  const navItems = [
+    { to: `/projects/${slug}/articles`, icon: Newspaper, label: 'Articles', adminOnly: false, end: false },
+    { to: `/projects/${slug}/events`, icon: Network, label: 'Events', adminOnly: false, end: false },
+    { to: `/projects/${slug}/publications`, icon: BookOpen, label: 'Publications', adminOnly: false, end: false },
+    { to: `/projects/${slug}/sources`, icon: Database, label: 'Sources', adminOnly: true, end: false },
+    { to: `/projects/${slug}/publish-targets`, icon: Send, label: 'Publish Targets', adminOnly: true, end: false },
+    { to: '/projects', icon: FolderOpen, label: 'Projects', adminOnly: true, end: true },
+    { to: '/ai-operations', icon: Activity, label: 'AI Operations', adminOnly: true, end: false },
+    { to: '/users', icon: Users, label: 'Users', adminOnly: true, end: false },
+  ]
 
   const handleLogout = () => {
     logout()
@@ -76,10 +83,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 py-4 px-2 space-y-1">
-        {visibleItems.map(({ to, icon: Icon, label }) => (
+        {visibleItems.map(({ to, icon: Icon, label, end }) => (
           <NavLink
             key={to}
             to={to}
+            end={end}
             title={label}
             className={({ isActive }) =>
               cn(

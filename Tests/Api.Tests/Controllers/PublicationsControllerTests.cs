@@ -120,7 +120,7 @@ public class PublicationsControllerTests
 
         _publicationServiceMock
             .Setup(s => s.CreateForEventAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(publication);
 
         var request = new CreatePublicationRequest(EventId: Guid.NewGuid(), PublishTargetId: Guid.NewGuid());

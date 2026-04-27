@@ -52,7 +52,7 @@ public class PublicationsController(
             return Unauthorized();
 
         var publication = await publicationService.CreateForEventAsync(
-            request.EventId, request.PublishTargetId, UserId.Value, cancellationToken);
+            request.EventId, request.PublishTargetId, UserId.Value, projectContext.ProjectId, cancellationToken);
 
         return CreatedAtAction(
             nameof(GetById),

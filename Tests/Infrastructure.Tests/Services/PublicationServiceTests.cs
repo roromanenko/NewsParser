@@ -1,5 +1,4 @@
 using Core.DomainModels;
-using Core.Interfaces;
 using Core.Interfaces.Repositories;
 using FluentAssertions;
 using Infrastructure.Services;
@@ -15,7 +14,6 @@ public class PublicationServiceTests
     private Mock<IPublicationRepository> _publicationRepoMock = null!;
     private Mock<IPublishTargetRepository> _publishTargetRepoMock = null!;
     private Mock<IMediaFileRepository> _mediaFileRepoMock = null!;
-    private Mock<IProjectContext> _projectContextMock = null!;
     private PublicationService _sut = null!;
 
     [SetUp]
@@ -25,8 +23,6 @@ public class PublicationServiceTests
         _publicationRepoMock = new Mock<IPublicationRepository>();
         _publishTargetRepoMock = new Mock<IPublishTargetRepository>();
         _mediaFileRepoMock = new Mock<IMediaFileRepository>();
-        _projectContextMock = new Mock<IProjectContext>();
-        _projectContextMock.Setup(c => c.IsSet).Returns(false);
 
         _mediaFileRepoMock
             .Setup(r => r.GetByPublicationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -37,7 +33,6 @@ public class PublicationServiceTests
             _publicationRepoMock.Object,
             _publishTargetRepoMock.Object,
             _mediaFileRepoMock.Object,
-            _projectContextMock.Object,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<PublicationService>.Instance);
     }
 
@@ -68,7 +63,7 @@ public class PublicationServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _sut.CreateForEventAsync(eventId, targetId, editorId);
+        var result = await _sut.CreateForEventAsync(eventId, targetId, editorId, Guid.NewGuid());
 
         // Assert
         result.Should().NotBeNull();
@@ -106,7 +101,7 @@ public class PublicationServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _sut.CreateForEventAsync(eventId, targetId, Guid.NewGuid());
+        var result = await _sut.CreateForEventAsync(eventId, targetId, Guid.NewGuid(), Guid.NewGuid());
 
         // Assert
         result.Article.Id.Should().Be(article1.Id);
@@ -127,7 +122,7 @@ public class PublicationServiceTests
             .ReturnsAsync((Event?)null);
 
         // Act
-        var act = async () => await _sut.CreateForEventAsync(eventId, Guid.NewGuid(), Guid.NewGuid());
+        var act = async () => await _sut.CreateForEventAsync(eventId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
         // Assert
         await act.Should().ThrowAsync<KeyNotFoundException>().WithMessage($"*{eventId}*");
@@ -151,7 +146,7 @@ public class PublicationServiceTests
             .ReturnsAsync(archivedEvent);
 
         // Act
-        var act = async () => await _sut.CreateForEventAsync(eventId, Guid.NewGuid(), Guid.NewGuid());
+        var act = async () => await _sut.CreateForEventAsync(eventId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage($"*{eventId}*");
@@ -177,7 +172,7 @@ public class PublicationServiceTests
             .ReturnsAsync((PublishTarget?)null);
 
         // Act
-        var act = async () => await _sut.CreateForEventAsync(eventId, targetId, Guid.NewGuid());
+        var act = async () => await _sut.CreateForEventAsync(eventId, targetId, Guid.NewGuid(), Guid.NewGuid());
 
         // Assert
         await act.Should().ThrowAsync<KeyNotFoundException>().WithMessage($"*{targetId}*");
@@ -205,7 +200,7 @@ public class PublicationServiceTests
             .ReturnsAsync(inactiveTarget);
 
         // Act
-        var act = async () => await _sut.CreateForEventAsync(eventId, targetId, Guid.NewGuid());
+        var act = async () => await _sut.CreateForEventAsync(eventId, targetId, Guid.NewGuid(), Guid.NewGuid());
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage($"*{targetId}*");
@@ -232,7 +227,7 @@ public class PublicationServiceTests
             .ReturnsAsync(publishTarget);
 
         // Act
-        var act = async () => await _sut.CreateForEventAsync(eventId, targetId, Guid.NewGuid());
+        var act = async () => await _sut.CreateForEventAsync(eventId, targetId, Guid.NewGuid(), Guid.NewGuid());
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage($"*{eventId}*");

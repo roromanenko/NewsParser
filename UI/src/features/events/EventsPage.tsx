@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { useEvents } from './useEvents'
 import { MergeEventsSlideOver } from './MergeEventsSlideOver'
@@ -39,6 +39,7 @@ function tierColor(tier?: string | null): string {
 
 export function EventsPage() {
   const navigate = useNavigate()
+  const { projectSlug } = useParams<{ projectSlug: string }>()
   const { isAdmin } = usePermissions()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -201,7 +202,7 @@ export function EventsPage() {
                 <EventCard
                   key={event.id}
                   event={event}
-                  onClick={() => event.id && navigate(`/events/${event.id}`)}
+                  onClick={() => event.id && navigate(`/projects/${projectSlug}/events/${event.id}`)}
                 />
               ))}
             </div>
