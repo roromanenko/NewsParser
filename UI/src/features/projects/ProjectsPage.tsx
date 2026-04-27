@@ -42,11 +42,11 @@ function ProjectFormSlideOver({ isOpen, onClose, project }: ProjectFormSlideOver
   const createProject = useCreateProject()
   const updateProject = useUpdateProject()
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<ProjectFormValues>({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<ProjectFormValues, unknown, ProjectFormValues>({
     resolver: zodResolver(projectSchema),
     defaultValues: project ? {
-      name: project.name,
-      slug: project.slug,
+      name: project.name ?? undefined,
+      slug: project.slug ?? undefined,
       analyzerPromptText: project.analyzerPromptText ?? '',
       categories: (project.categories ?? []).join(', '),
       outputLanguage: project.outputLanguage ?? 'uk',
@@ -61,7 +61,7 @@ function ProjectFormSlideOver({ isOpen, onClose, project }: ProjectFormSlideOver
     const categories = values.categories.split(',').map(c => c.trim()).filter(Boolean)
     if (project) {
       await updateProject.mutateAsync({
-        id: project.id,
+        id: project.id!,
         data: {
           name: values.name,
           analyzerPromptText: values.analyzerPromptText,
@@ -203,7 +203,7 @@ export function ProjectsPage() {
               </div>
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => toggleActive.mutate({ id: project.id, isActive: !project.isActive })}
+                  onClick={() => toggleActive.mutate({ id: project.id!, isActive: !project.isActive })}
                   className="flex items-center gap-1 text-xs font-caps tracking-wider"
                   style={{ color: project.isActive ? 'var(--caramel)' : 'var(--gray-500)' }}
                 >
@@ -213,7 +213,7 @@ export function ProjectsPage() {
                 <button onClick={() => openEdit(project)} className="p-2 text-gray-400 hover:text-white transition-colors">
                   <Pencil size={14} />
                 </button>
-                <button onClick={() => setDeletingId(project.id)} className="p-2 text-gray-400 hover:text-red-400 transition-colors">
+                <button onClick={() => setDeletingId(project.id ?? null)} className="p-2 text-gray-400 hover:text-red-400 transition-colors">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -230,7 +230,7 @@ export function ProjectsPage() {
         message="Delete this project? This will fail if the project still has sources, events, or publications."
         confirmLabel="Delete"
         onConfirm={handleDelete}
-        onCancel={() => setDeletingId(null)}
+        onClose={() => setDeletingId(null)}
       />
     </div>
   )

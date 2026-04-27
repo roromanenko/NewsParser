@@ -345,7 +345,7 @@ function PublicationsTab({ eventId }: { eventId: string }) {
             </p>
           </div>
           <span className="font-caps text-xs tracking-widest shrink-0" style={{ color: '#9ca3af' }}>
-            {pub.status.toUpperCase()}
+            {(pub.status ?? '').toUpperCase()}
           </span>
         </li>
       ))}

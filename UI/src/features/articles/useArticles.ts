@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { useProjectStore } from '@/store/projectStore'
 import { apiClient } from '@/lib/axios'
+import { ArticlesApi } from '@/api/generated'
+
+const articlesApi = new ArticlesApi(undefined, '', apiClient)
 
 export function useArticles(page: number, pageSize = 20, search = '', sortBy = 'newest') {
   const { selectedProjectId } = useProjectStore()
@@ -9,9 +12,12 @@ export function useArticles(page: number, pageSize = 20, search = '', sortBy = '
     queryKey: ['project', selectedProjectId, 'articles', page, pageSize, search, sortBy],
     enabled: !!selectedProjectId,
     queryFn: async () => {
-      const res = await apiClient.get(
-        `/projects/${selectedProjectId}/articles`,
-        { params: { page, pageSize, search: search || undefined, sortBy } }
+      const res = await articlesApi.projectsProjectIdArticlesGet(
+        selectedProjectId!,
+        page,
+        pageSize,
+        search || undefined,
+        sortBy,
       )
       return res.data
     },

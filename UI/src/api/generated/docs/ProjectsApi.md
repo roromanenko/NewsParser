@@ -1,48 +1,41 @@
-# PublishTargetsApi
+# ProjectsApi
 
 All URIs are relative to *http://localhost*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**projectsProjectIdPublishTargetsActiveGet**](#projectsprojectidpublishtargetsactiveget) | **GET** /projects/{projectId}/publish-targets/active | |
-|[**projectsProjectIdPublishTargetsGet**](#projectsprojectidpublishtargetsget) | **GET** /projects/{projectId}/publish-targets | |
-|[**projectsProjectIdPublishTargetsIdDelete**](#projectsprojectidpublishtargetsiddelete) | **DELETE** /projects/{projectId}/publish-targets/{id} | |
-|[**projectsProjectIdPublishTargetsIdGet**](#projectsprojectidpublishtargetsidget) | **GET** /projects/{projectId}/publish-targets/{id} | |
-|[**projectsProjectIdPublishTargetsIdPut**](#projectsprojectidpublishtargetsidput) | **PUT** /projects/{projectId}/publish-targets/{id} | |
-|[**projectsProjectIdPublishTargetsPost**](#projectsprojectidpublishtargetspost) | **POST** /projects/{projectId}/publish-targets | |
+|[**projectsGet**](#projectsget) | **GET** /projects | |
+|[**projectsIdDelete**](#projectsiddelete) | **DELETE** /projects/{id} | |
+|[**projectsIdGet**](#projectsidget) | **GET** /projects/{id} | |
+|[**projectsIdPut**](#projectsidput) | **PUT** /projects/{id} | |
+|[**projectsIdStatusPatch**](#projectsidstatuspatch) | **PATCH** /projects/{id}/status | |
+|[**projectsPost**](#projectspost) | **POST** /projects | |
 
-# **projectsProjectIdPublishTargetsActiveGet**
-> Array<PublishTargetDto> projectsProjectIdPublishTargetsActiveGet()
+# **projectsGet**
+> Array<ProjectListItemDto> projectsGet()
 
 
 ### Example
 
 ```typescript
 import {
-    PublishTargetsApi,
+    ProjectsApi,
     Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new PublishTargetsApi(configuration);
+const apiInstance = new ProjectsApi(configuration);
 
-let projectId: string; // (default to undefined)
-
-const { status, data } = await apiInstance.projectsProjectIdPublishTargetsActiveGet(
-    projectId
-);
+const { status, data } = await apiInstance.projectsGet();
 ```
 
 ### Parameters
-
-|Name | Type | Description  | Notes|
-|------------- | ------------- | ------------- | -------------|
-| **projectId** | [**string**] |  | defaults to undefined|
+This endpoint does not have any parameters.
 
 
 ### Return type
 
-**Array<PublishTargetDto>**
+**Array<ProjectListItemDto>**
 
 ### Authorization
 
@@ -61,77 +54,25 @@ const { status, data } = await apiInstance.projectsProjectIdPublishTargetsActive
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **projectsProjectIdPublishTargetsGet**
-> Array<PublishTargetDto> projectsProjectIdPublishTargetsGet()
+# **projectsIdDelete**
+> projectsIdDelete()
 
 
 ### Example
 
 ```typescript
 import {
-    PublishTargetsApi,
+    ProjectsApi,
     Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new PublishTargetsApi(configuration);
-
-let projectId: string; // (default to undefined)
-
-const { status, data } = await apiInstance.projectsProjectIdPublishTargetsGet(
-    projectId
-);
-```
-
-### Parameters
-
-|Name | Type | Description  | Notes|
-|------------- | ------------- | ------------- | -------------|
-| **projectId** | [**string**] |  | defaults to undefined|
-
-
-### Return type
-
-**Array<PublishTargetDto>**
-
-### Authorization
-
-[Bearer](../README.md#Bearer)
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: text/plain, application/json, text/json
-
-
-### HTTP response details
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-|**200** | OK |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **projectsProjectIdPublishTargetsIdDelete**
-> projectsProjectIdPublishTargetsIdDelete()
-
-
-### Example
-
-```typescript
-import {
-    PublishTargetsApi,
-    Configuration
-} from './api';
-
-const configuration = new Configuration();
-const apiInstance = new PublishTargetsApi(configuration);
+const apiInstance = new ProjectsApi(configuration);
 
 let id: string; // (default to undefined)
-let projectId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.projectsProjectIdPublishTargetsIdDelete(
-    id,
-    projectId
+const { status, data } = await apiInstance.projectsIdDelete(
+    id
 );
 ```
 
@@ -140,7 +81,6 @@ const { status, data } = await apiInstance.projectsProjectIdPublishTargetsIdDele
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **id** | [**string**] |  | defaults to undefined|
-| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -164,27 +104,25 @@ void (empty response body)
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **projectsProjectIdPublishTargetsIdGet**
-> PublishTargetDto projectsProjectIdPublishTargetsIdGet()
+# **projectsIdGet**
+> ProjectDetailDto projectsIdGet()
 
 
 ### Example
 
 ```typescript
 import {
-    PublishTargetsApi,
+    ProjectsApi,
     Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new PublishTargetsApi(configuration);
+const apiInstance = new ProjectsApi(configuration);
 
 let id: string; // (default to undefined)
-let projectId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.projectsProjectIdPublishTargetsIdGet(
-    id,
-    projectId
+const { status, data } = await apiInstance.projectsIdGet(
+    id
 );
 ```
 
@@ -193,12 +131,11 @@ const { status, data } = await apiInstance.projectsProjectIdPublishTargetsIdGet(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **id** | [**string**] |  | defaults to undefined|
-| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
 
-**PublishTargetDto**
+**ProjectDetailDto**
 
 ### Authorization
 
@@ -217,30 +154,28 @@ const { status, data } = await apiInstance.projectsProjectIdPublishTargetsIdGet(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **projectsProjectIdPublishTargetsIdPut**
-> PublishTargetDto projectsProjectIdPublishTargetsIdPut()
+# **projectsIdPut**
+> ProjectDetailDto projectsIdPut()
 
 
 ### Example
 
 ```typescript
 import {
-    PublishTargetsApi,
+    ProjectsApi,
     Configuration,
-    UpdatePublishTargetRequest
+    UpdateProjectRequest
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new PublishTargetsApi(configuration);
+const apiInstance = new ProjectsApi(configuration);
 
 let id: string; // (default to undefined)
-let projectId: string; // (default to undefined)
-let updatePublishTargetRequest: UpdatePublishTargetRequest; // (optional)
+let updateProjectRequest: UpdateProjectRequest; // (optional)
 
-const { status, data } = await apiInstance.projectsProjectIdPublishTargetsIdPut(
+const { status, data } = await apiInstance.projectsIdPut(
     id,
-    projectId,
-    updatePublishTargetRequest
+    updateProjectRequest
 );
 ```
 
@@ -248,14 +183,13 @@ const { status, data } = await apiInstance.projectsProjectIdPublishTargetsIdPut(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **updatePublishTargetRequest** | **UpdatePublishTargetRequest**|  | |
+| **updateProjectRequest** | **UpdateProjectRequest**|  | |
 | **id** | [**string**] |  | defaults to undefined|
-| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
 
-**PublishTargetDto**
+**ProjectDetailDto**
 
 ### Authorization
 
@@ -274,28 +208,27 @@ const { status, data } = await apiInstance.projectsProjectIdPublishTargetsIdPut(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **projectsProjectIdPublishTargetsPost**
-> PublishTargetDto projectsProjectIdPublishTargetsPost()
+# **projectsIdStatusPatch**
+> projectsIdStatusPatch()
 
 
 ### Example
 
 ```typescript
 import {
-    PublishTargetsApi,
-    Configuration,
-    CreatePublishTargetRequest
+    ProjectsApi,
+    Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new PublishTargetsApi(configuration);
+const apiInstance = new ProjectsApi(configuration);
 
-let projectId: string; // (default to undefined)
-let createPublishTargetRequest: CreatePublishTargetRequest; // (optional)
+let id: string; // (default to undefined)
+let body: boolean; // (optional)
 
-const { status, data } = await apiInstance.projectsProjectIdPublishTargetsPost(
-    projectId,
-    createPublishTargetRequest
+const { status, data } = await apiInstance.projectsIdStatusPatch(
+    id,
+    body
 );
 ```
 
@@ -303,13 +236,64 @@ const { status, data } = await apiInstance.projectsProjectIdPublishTargetsPost(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **createPublishTargetRequest** | **CreatePublishTargetRequest**|  | |
-| **projectId** | [**string**] |  | defaults to undefined|
+| **body** | **boolean**|  | |
+| **id** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
 
-**PublishTargetDto**
+void (empty response body)
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json, text/json, application/*+json
+ - **Accept**: Not defined
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **projectsPost**
+> ProjectDetailDto projectsPost()
+
+
+### Example
+
+```typescript
+import {
+    ProjectsApi,
+    Configuration,
+    CreateProjectRequest
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new ProjectsApi(configuration);
+
+let createProjectRequest: CreateProjectRequest; // (optional)
+
+const { status, data } = await apiInstance.projectsPost(
+    createProjectRequest
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **createProjectRequest** | **CreateProjectRequest**|  | |
+
+
+### Return type
+
+**ProjectDetailDto**
 
 ### Authorization
 

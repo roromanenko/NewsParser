@@ -12,7 +12,7 @@ export function ProjectSwitcher() {
     if (!projects || projects.length === 0) return
     const isValid = projects.some(p => p.id === selectedProjectId)
     if (!selectedProjectId || !isValid) {
-      setProject(projects[0].id)
+      setProject(projects[0].id ?? '')
     }
   }, [projects, selectedProjectId, setProject])
 

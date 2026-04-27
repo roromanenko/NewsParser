@@ -1,7 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useProjectStore } from '@/store/projectStore'
 import { apiClient } from '@/lib/axios'
+import { EventsApi } from '@/api/generated'
 import { useToast } from '@/context/ToastContext'
+
+const eventsApi = new EventsApi(undefined, '', apiClient)
 
 export function useEventMutations(eventId?: string) {
   const queryClient = useQueryClient()
@@ -10,7 +13,7 @@ export function useEventMutations(eventId?: string) {
 
   const resolveContradiction = useMutation({
     mutationFn: (contradictionId: string) =>
-      apiClient.post(`/projects/${selectedProjectId}/events/${eventId}/resolve-contradiction`, { contradictionId }),
+      eventsApi.projectsProjectIdEventsIdResolveContradictionPost(eventId!, selectedProjectId!, { contradictionId }),
     onSuccess: () => {
       toast('Contradiction resolved', 'success')
       queryClient.invalidateQueries({ queryKey: ['project', selectedProjectId, 'event', eventId] })
@@ -20,7 +23,7 @@ export function useEventMutations(eventId?: string) {
 
   const mergeEvents = useMutation({
     mutationFn: (data: { sourceEventId: string; targetEventId: string }) =>
-      apiClient.post(`/projects/${selectedProjectId}/events/merge`, data),
+      eventsApi.projectsProjectIdEventsMergePost(selectedProjectId!, data),
     onSuccess: () => {
       toast('Events merged successfully', 'success')
       queryClient.invalidateQueries({ queryKey: ['project', selectedProjectId, 'events'] })
@@ -30,7 +33,7 @@ export function useEventMutations(eventId?: string) {
 
   const reclassifyArticle = useMutation({
     mutationFn: (data: { articleId: string; role: string; targetEventId?: string }) =>
-      apiClient.post(`/projects/${selectedProjectId}/events/${eventId}/reclassify`, {
+      eventsApi.projectsProjectIdEventsIdReclassifyPost(eventId!, selectedProjectId!, {
         articleId: data.articleId,
         targetEventId: data.targetEventId ?? eventId,
         role: data.role,
@@ -44,9 +47,7 @@ export function useEventMutations(eventId?: string) {
 
   const changeStatus = useMutation({
     mutationFn: (status: string) =>
-      apiClient.patch(`/projects/${selectedProjectId}/events/${eventId}/status`, status, {
-        headers: { 'Content-Type': 'application/json' },
-      }),
+      eventsApi.projectsProjectIdEventsIdStatusPatch(eventId!, selectedProjectId!, status),
     onSuccess: () => {
       toast('Event status updated', 'success')
       queryClient.invalidateQueries({ queryKey: ['project', selectedProjectId, 'event', eventId] })

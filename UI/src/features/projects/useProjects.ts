@@ -1,19 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/axios'
+import { ProjectsApi } from '@/api/generated'
+export type { ProjectListItemDto } from '@/api/generated'
 
-export interface ProjectListItemDto {
-  id: string
-  name: string
-  slug: string
-  isActive: boolean
-}
+const projectsApi = new ProjectsApi(undefined, '', apiClient)
 
 export function useProjects() {
   return useQuery({
     queryKey: ['projects'],
     queryFn: () =>
-      apiClient
-        .get<ProjectListItemDto[]>('/projects')
-        .then(r => r.data),
+      projectsApi.projectsGet().then(r => r.data),
   })
 }

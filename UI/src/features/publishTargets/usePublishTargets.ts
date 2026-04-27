@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { useProjectStore } from '@/store/projectStore'
 import { apiClient } from '@/lib/axios'
+import { PublishTargetsApi } from '@/api/generated'
+
+const publishTargetsApi = new PublishTargetsApi(undefined, '', apiClient)
 
 export function usePublishTargets() {
   const { selectedProjectId } = useProjectStore()
@@ -9,7 +12,7 @@ export function usePublishTargets() {
     queryKey: ['project', selectedProjectId, 'publishTargets'],
     enabled: !!selectedProjectId,
     queryFn: () =>
-      apiClient.get(`/projects/${selectedProjectId}/publish-targets`).then(r => r.data),
+      publishTargetsApi.projectsProjectIdPublishTargetsGet(selectedProjectId!).then(r => r.data),
   })
 }
 
@@ -20,6 +23,6 @@ export function useActivePublishTargets() {
     queryKey: ['project', selectedProjectId, 'publishTargets', 'active'],
     enabled: !!selectedProjectId,
     queryFn: () =>
-      apiClient.get(`/projects/${selectedProjectId}/publish-targets/active`).then(r => r.data),
+      publishTargetsApi.projectsProjectIdPublishTargetsActiveGet(selectedProjectId!).then(r => r.data),
   })
 }

@@ -80,8 +80,8 @@ export function PublicationDetailPage() {
   const canReject = isContentReady || isApproved
   const canRegenerate = isContentReady || isFailed
 
-  const accentColor = statusAccentColor(publication.status)
-  const displayTitle = publication.eventTitle ?? publication.targetName
+  const accentColor = statusAccentColor(publication.status ?? '')
+  const displayTitle = publication.targetName
 
   const handleSaveContent = () => {
     updateContent.mutate({ content: editedContent, selectedMediaFileIds: selectedMediaIds })
@@ -134,7 +134,7 @@ export function PublicationDetailPage() {
       return
     }
 
-    const customCount = publication?.availableMedia.filter(m => m.ownerKind === 'Publication').length ?? 0
+    const customCount = (publication?.availableMedia ?? []).filter(m => m.ownerKind === 'Publication').length ?? 0
     if (customCount >= MAX_FILES_PER_PUBLICATION) {
       alert(`Maximum of ${MAX_FILES_PER_PUBLICATION} custom media files reached`)
       return
@@ -183,7 +183,7 @@ export function PublicationDetailPage() {
           {/* Top row: status chip + action buttons */}
           <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
             <span className="font-caps text-xs tracking-widest" style={{ color: accentColor }}>
-              {publication.status.toUpperCase()}
+              {(publication.status ?? '').toUpperCase()}
             </span>
 
             <div className="flex items-center gap-2 flex-wrap">
@@ -271,7 +271,7 @@ export function PublicationDetailPage() {
             <div className="px-3 py-1.5" style={{ background: 'var(--near-black)' }}>
               <span className="font-caps text-[10px] tracking-widest" style={{ color: '#6b7280' }}>STATUS </span>
               <span className="font-caps text-xs tracking-widest" style={{ color: accentColor }}>
-                {publication.status.toUpperCase()}
+                {(publication.status ?? '').toUpperCase()}
               </span>
             </div>
           </div>
@@ -441,7 +441,7 @@ export function PublicationDetailPage() {
         </div>
 
         <ContentArea
-          status={publication.status}
+          status={publication.status ?? ''}
           editedContent={editedContent}
           onContentChange={setEditedContent}
           onSave={handleSaveContent}
@@ -451,7 +451,7 @@ export function PublicationDetailPage() {
       </div>
 
       {/* Media selection */}
-      {(publication.availableMedia.length > 0 || canEdit) && (
+      {((publication.availableMedia ?? []).length > 0 || canEdit) && (
         <div
           className="border"
           style={{ background: 'rgba(61,15,15,0.4)', borderColor: 'rgba(255,255,255,0.1)' }}
@@ -490,14 +490,14 @@ export function PublicationDetailPage() {
             )}
           </div>
           <div className="p-5 grid grid-cols-3 gap-3">
-            {publication.availableMedia.map(media => {
-              const isSelected = selectedMediaIds.includes(media.id)
+            {(publication.availableMedia ?? []).map(media => {
+              const isSelected = selectedMediaIds.includes(media.id!)
               const isCustom = media.ownerKind === 'Publication'
               const isDeleting = deletingMediaId === media.id
               return (
                 <div
                   key={media.id}
-                  onClick={() => canEdit && !isDeleting && handleToggleMedia(media.id)}
+                  onClick={() => canEdit && !isDeleting && handleToggleMedia(media.id!)}
                   className="relative overflow-hidden"
                   style={{
                     cursor: canEdit && !isDeleting ? 'pointer' : 'default',
@@ -505,7 +505,7 @@ export function PublicationDetailPage() {
                   }}
                 >
                   {media.kind === 'Image' ? (
-                    <img src={media.url} alt="Media file" className="w-full h-32 object-cover" />
+                    <img src={media.url ?? ''} alt="Media file" className="w-full h-32 object-cover" />
                   ) : (
                     <div
                       className="w-full h-32 flex items-center justify-center"
@@ -539,7 +539,7 @@ export function PublicationDetailPage() {
                     <button
                       onClick={e => {
                         e.stopPropagation()
-                        handleDeleteMedia(media.id)
+                        handleDeleteMedia(media.id!)
                       }}
                       disabled={isDeleting}
                       className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center font-mono text-xs transition-colors disabled:opacity-50"

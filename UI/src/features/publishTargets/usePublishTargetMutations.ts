@@ -1,7 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useProjectStore } from '@/store/projectStore'
 import { apiClient } from '@/lib/axios'
+import { PublishTargetsApi } from '@/api/generated'
 import { useToast } from '@/context/ToastContext'
+
+const publishTargetsApi = new PublishTargetsApi(undefined, '', apiClient)
 
 export function usePublishTargetMutations() {
   const queryClient = useQueryClient()
@@ -10,7 +13,7 @@ export function usePublishTargetMutations() {
 
   const createTarget = useMutation({
     mutationFn: (data: { name: string; platform: string; identifier: string; systemPrompt: string }) =>
-      apiClient.post(`/projects/${selectedProjectId}/publish-targets`, data),
+      publishTargetsApi.projectsProjectIdPublishTargetsPost(selectedProjectId!, data),
     onSuccess: () => {
       toast('Publish target created', 'success')
       queryClient.invalidateQueries({ queryKey: ['project', selectedProjectId, 'publishTargets'] })
@@ -20,7 +23,7 @@ export function usePublishTargetMutations() {
 
   const updateTarget = useMutation({
     mutationFn: ({ id, data }: { id: string; data: { name: string; identifier: string; systemPrompt: string; isActive: boolean } }) =>
-      apiClient.put(`/projects/${selectedProjectId}/publish-targets/${id}`, data),
+      publishTargetsApi.projectsProjectIdPublishTargetsIdPut(id, selectedProjectId!, data),
     onSuccess: () => {
       toast('Publish target updated', 'success')
       queryClient.invalidateQueries({ queryKey: ['project', selectedProjectId, 'publishTargets'] })
@@ -30,7 +33,7 @@ export function usePublishTargetMutations() {
 
   const deleteTarget = useMutation({
     mutationFn: (id: string) =>
-      apiClient.delete(`/projects/${selectedProjectId}/publish-targets/${id}`),
+      publishTargetsApi.projectsProjectIdPublishTargetsIdDelete(id, selectedProjectId!),
     onSuccess: () => {
       toast('Publish target deleted', 'success')
       queryClient.invalidateQueries({ queryKey: ['project', selectedProjectId, 'publishTargets'] })

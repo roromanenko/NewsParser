@@ -59,7 +59,7 @@ exists in the generated client and its routes (`/ai-operations/…`) are unchang
 These three hooks call `/ai-operations/…` routes, which are global (not project-scoped)
 and already exist in the generated `AiOperationsApi` class.
 
-- [ ] **Modify `UI/src/features/aiOperations/useAiRequestMetrics.ts`** — remove the
+- [x] **Modify `UI/src/features/aiOperations/useAiRequestMetrics.ts`** — remove the
       `import { apiClient } from '@/lib/axios'` line. Add
       `import { AiOperationsApi } from '@/api/generated'` and declare a module-level
       `const aiOpsApi = new AiOperationsApi(undefined, '', apiClient)` (keep the
@@ -73,7 +73,7 @@ and already exist in the generated `AiOperationsApi` class.
       in this file; the hook's return type is unchanged_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/aiOperations/useAiRequestList.ts`** — same pattern.
+- [x] **Modify `UI/src/features/aiOperations/useAiRequestList.ts`** — same pattern.
       Remove the raw `apiClient.get('/ai-operations/requests', { params: … })` call.
       Add module-level `const aiOpsApi = new AiOperationsApi(undefined, '', apiClient)`.
       Replace with
@@ -83,7 +83,7 @@ and already exist in the generated `AiOperationsApi` class.
       _Acceptance: `tsc --noEmit` exits 0; no raw `apiClient` call remains in this file_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/aiOperations/useAiRequestDetail.ts`** — same pattern.
+- [x] **Modify `UI/src/features/aiOperations/useAiRequestDetail.ts`** — same pattern.
       Remove raw `apiClient.get('/ai-operations/requests/${id}')`. Add module-level
       `const aiOpsApi = new AiOperationsApi(undefined, '', apiClient)`. Replace with
       `aiOpsApi.aiOperationsRequestsIdGet(id!)`.
@@ -103,32 +103,32 @@ Each hook below follows the same three-step pattern:
    corresponding generated method. Access data via `.then(r => r.data)` or
    `(await res).data`.
 
-- [ ] **Modify `UI/src/features/articles/useArticles.ts`** — replace
+- [x] **Modify `UI/src/features/articles/useArticles.ts`** — replace
       `apiClient.get('/projects/${selectedProjectId}/articles', { params: … })` with
       the generated `ArticlesApi` method. The regenerated method will include a leading
       `projectId` parameter; pass `selectedProjectId!` as the first argument.
       _Acceptance: `tsc --noEmit` exits 0; no `apiClient` import remains in this file_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/articles/useArticleDetail.ts`** — replace
+- [x] **Modify `UI/src/features/articles/useArticleDetail.ts`** — replace
       `apiClient.get('/projects/${selectedProjectId}/articles/${id}')` with the
       generated `ArticlesApi` detail method, passing `selectedProjectId!` and `id`.
       _Acceptance: `tsc --noEmit` exits 0; no `apiClient` import remains in this file_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/events/useEvents.ts`** — replace
+- [x] **Modify `UI/src/features/events/useEvents.ts`** — replace
       `apiClient.get('/projects/${selectedProjectId}/events', { params: … })` with the
       generated `EventsApi` list method.
       _Acceptance: `tsc --noEmit` exits 0; no `apiClient` import remains in this file_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/events/useEventDetail.ts`** — replace
+- [x] **Modify `UI/src/features/events/useEventDetail.ts`** — replace
       `apiClient.get('/projects/${selectedProjectId}/events/${id}')` with the
       generated `EventsApi` detail method.
       _Acceptance: `tsc --noEmit` exits 0; no `apiClient` import remains in this file_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/events/useEventMutations.ts`** — replace all four raw
+- [x] **Modify `UI/src/features/events/useEventMutations.ts`** — replace all four raw
       calls (`resolveContradiction`, `mergeEvents`, `reclassifyArticle`, `changeStatus`)
       with the corresponding generated `EventsApi` mutation methods. The
       `changeStatus` call uses `Content-Type: application/json` with a raw string body;
@@ -137,25 +137,25 @@ Each hook below follows the same three-step pattern:
       all four mutations compile without type errors_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/publications/usePublications.ts`** — replace
+- [x] **Modify `UI/src/features/publications/usePublications.ts`** — replace
       `apiClient.get('/projects/${selectedProjectId}/publications/by-event/${eventId}')`
       with the generated `PublicationsApi` by-event method.
       _Acceptance: `tsc --noEmit` exits 0; no `apiClient` import remains in this file_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/publications/useAllPublications.ts`** — replace
+- [x] **Modify `UI/src/features/publications/useAllPublications.ts`** — replace
       `apiClient.get('/projects/${selectedProjectId}/publications', { params: … })`
       with the generated `PublicationsApi` paged-list method.
       _Acceptance: `tsc --noEmit` exits 0; no `apiClient` import remains in this file_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/publications/usePublicationDetail.ts`** — replace
+- [x] **Modify `UI/src/features/publications/usePublicationDetail.ts`** — replace
       `apiClient.get('/projects/${selectedProjectId}/publications/${id}')` with the
       generated `PublicationsApi` detail method.
       _Acceptance: `tsc --noEmit` exits 0; no `apiClient` import remains in this file_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/publications/usePublicationMutations.ts`** — replace
+- [x] **Modify `UI/src/features/publications/usePublicationMutations.ts`** — replace
       all seven raw calls (`generateContent`, `updateContent`, `approve`, `reject`,
       `regenerate`, `uploadMedia`, `deleteMedia`) with the corresponding generated
       `PublicationsApi` methods. The `uploadMedia` call sends `multipart/form-data`;
@@ -165,31 +165,31 @@ Each hook below follows the same three-step pattern:
       all seven mutations compile without type errors_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/sources/useSources.ts`** — replace
+- [x] **Modify `UI/src/features/sources/useSources.ts`** — replace
       `apiClient.get('/projects/${selectedProjectId}/sources')` with the generated
       `SourcesApi` list method.
       _Acceptance: `tsc --noEmit` exits 0; no `apiClient` import remains in this file_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/sources/useSourceMutations.ts`** — replace all three
+- [x] **Modify `UI/src/features/sources/useSourceMutations.ts`** — replace all three
       raw calls (`createSource`, `updateSource`, `deleteSource`) with the corresponding
       generated `SourcesApi` mutation methods.
       _Acceptance: `tsc --noEmit` exits 0; no `apiClient` import remains in this file_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/publishTargets/usePublishTargets.ts`** — replace both
+- [x] **Modify `UI/src/features/publishTargets/usePublishTargets.ts`** — replace both
       raw calls (`usePublishTargets` and `useActivePublishTargets`) with the generated
       `PublishTargetsApi` methods.
       _Acceptance: `tsc --noEmit` exits 0; no `apiClient` import remains in this file_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/publishTargets/usePublishTargetMutations.ts`** — replace
+- [x] **Modify `UI/src/features/publishTargets/usePublishTargetMutations.ts`** — replace
       all three raw calls (`createTarget`, `updateTarget`, `deleteTarget`) with the
       corresponding generated `PublishTargetsApi` methods.
       _Acceptance: `tsc --noEmit` exits 0; no `apiClient` import remains in this file_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/projects/useProjects.ts`** — replace
+- [x] **Modify `UI/src/features/projects/useProjects.ts`** — replace
       `apiClient.get<ProjectListItemDto[]>('/projects')` with the generated
       `ProjectsApi` list method. Remove the hand-typed local `ProjectListItemDto`
       interface and import the generated type instead (if the regenerated client
@@ -198,7 +198,7 @@ Each hook below follows the same three-step pattern:
       no locally-defined duplicate DTO interface_
       _Skill: .claude/skills/code-conventions/SKILL.md_
 
-- [ ] **Modify `UI/src/features/projects/useProjectMutations.ts`** — replace all four
+- [x] **Modify `UI/src/features/projects/useProjectMutations.ts`** — replace all four
       raw calls (`useCreateProject`, `useUpdateProject`, `useToggleProjectActive`,
       `useDeleteProject`) with the corresponding generated `ProjectsApi` methods.
       Remove the locally-defined `CreateProjectData` and `UpdateProjectData` interfaces
@@ -212,7 +212,7 @@ Each hook below follows the same three-step pattern:
 
 ### Phase 4 — Final verification
 
-- [ ] **Verify no stray `apiClient` API-call imports remain** — run:
+- [x] **Verify no stray `apiClient` API-call imports remain** — run:
       `grep -r "apiClient" UI/src/ --include="*.ts" --include="*.tsx"
        | grep -v "UI/src/lib/axios.ts"
        | grep -v "UI/src/api/generated/"
@@ -224,7 +224,7 @@ Each hook below follows the same three-step pattern:
       and `useUsers.ts`_
       _Skill: .claude/skills/clean-code/SKILL.md_
 
-- [ ] **Run full UI build** — from `UI/`, run `npm run build`.
+- [x] **Run full UI build** — from `UI/`, run `npm run build`.
       _Acceptance: TypeScript compilation (`tsc -b`) exits 0 with no errors; Vite
       bundle step completes without errors_
       _Skill: .claude/skills/code-conventions/SKILL.md_

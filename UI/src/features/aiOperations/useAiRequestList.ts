@@ -1,8 +1,11 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { apiClient } from '@/lib/axios'
+import { AiOperationsApi } from '@/api/generated'
 import type { AiOpsFilters, AiOpsRequestPage } from './types'
 import { mapRequestRow } from './mappers'
+
+const aiOpsApi = new AiOperationsApi(undefined, '', apiClient)
 
 const LIST_STALE_MS = 10_000
 export const DEFAULT_PAGE_SIZE = 20
@@ -17,19 +20,17 @@ export function useAiRequestList(
     staleTime: LIST_STALE_MS,
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const res = await apiClient.get(`/ai-operations/requests`, {
-        params: {
-          from: filters.from || undefined,
-          to: filters.to || undefined,
-          provider: filters.provider || undefined,
-          worker: filters.worker || undefined,
-          model: filters.model || undefined,
-          status: filters.status || undefined,
-          search: filters.search || undefined,
-          page,
-          pageSize,
-        },
-      })
+      const res = await aiOpsApi.aiOperationsRequestsGet(
+        filters.from || undefined,
+        filters.to || undefined,
+        filters.provider || undefined,
+        filters.worker || undefined,
+        filters.model || undefined,
+        filters.status || undefined,
+        filters.search || undefined,
+        page,
+        pageSize,
+      )
       const dto = res.data
 
       return {

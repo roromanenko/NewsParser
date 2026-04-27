@@ -4,11 +4,11 @@ All URIs are relative to *http://localhost*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**articlesGet**](#articlesget) | **GET** /articles | |
-|[**articlesIdGet**](#articlesidget) | **GET** /articles/{id} | |
+|[**projectsProjectIdArticlesGet**](#projectsprojectidarticlesget) | **GET** /projects/{projectId}/articles | |
+|[**projectsProjectIdArticlesIdGet**](#projectsprojectidarticlesidget) | **GET** /projects/{projectId}/articles/{id} | |
 
-# **articlesGet**
-> ArticleListItemDtoPagedResult articlesGet()
+# **projectsProjectIdArticlesGet**
+> ArticleListItemDtoPagedResult projectsProjectIdArticlesGet()
 
 
 ### Example
@@ -22,12 +22,14 @@ import {
 const configuration = new Configuration();
 const apiInstance = new ArticlesApi(configuration);
 
+let projectId: string; // (default to undefined)
 let page: number; // (optional) (default to 1)
 let pageSize: number; // (optional) (default to 20)
 let search: string; // (optional) (default to undefined)
 let sortBy: string; // (optional) (default to undefined)
 
-const { status, data } = await apiInstance.articlesGet(
+const { status, data } = await apiInstance.projectsProjectIdArticlesGet(
+    projectId,
     page,
     pageSize,
     search,
@@ -39,6 +41,7 @@ const { status, data } = await apiInstance.articlesGet(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
+| **projectId** | [**string**] |  | defaults to undefined|
 | **page** | [**number**] |  | (optional) defaults to 1|
 | **pageSize** | [**number**] |  | (optional) defaults to 20|
 | **search** | [**string**] |  | (optional) defaults to undefined|
@@ -66,8 +69,8 @@ const { status, data } = await apiInstance.articlesGet(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **articlesIdGet**
-> ArticleDetailDto articlesIdGet()
+# **projectsProjectIdArticlesIdGet**
+> ArticleDetailDto projectsProjectIdArticlesIdGet()
 
 
 ### Example
@@ -82,9 +85,11 @@ const configuration = new Configuration();
 const apiInstance = new ArticlesApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.articlesIdGet(
-    id
+const { status, data } = await apiInstance.projectsProjectIdArticlesIdGet(
+    id,
+    projectId
 );
 ```
 
@@ -93,6 +98,7 @@ const { status, data } = await apiInstance.articlesIdGet(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type

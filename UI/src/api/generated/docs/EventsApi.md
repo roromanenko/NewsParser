@@ -4,15 +4,15 @@ All URIs are relative to *http://localhost*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**eventsGet**](#eventsget) | **GET** /events | |
-|[**eventsIdGet**](#eventsidget) | **GET** /events/{id} | |
-|[**eventsIdReclassifyPost**](#eventsidreclassifypost) | **POST** /events/{id}/reclassify | |
-|[**eventsIdResolveContradictionPost**](#eventsidresolvecontradictionpost) | **POST** /events/{id}/resolve-contradiction | |
-|[**eventsIdStatusPatch**](#eventsidstatuspatch) | **PATCH** /events/{id}/status | |
-|[**eventsMergePost**](#eventsmergepost) | **POST** /events/merge | |
+|[**projectsProjectIdEventsGet**](#projectsprojectideventsget) | **GET** /projects/{projectId}/events | |
+|[**projectsProjectIdEventsIdGet**](#projectsprojectideventsidget) | **GET** /projects/{projectId}/events/{id} | |
+|[**projectsProjectIdEventsIdReclassifyPost**](#projectsprojectideventsidreclassifypost) | **POST** /projects/{projectId}/events/{id}/reclassify | |
+|[**projectsProjectIdEventsIdResolveContradictionPost**](#projectsprojectideventsidresolvecontradictionpost) | **POST** /projects/{projectId}/events/{id}/resolve-contradiction | |
+|[**projectsProjectIdEventsIdStatusPatch**](#projectsprojectideventsidstatuspatch) | **PATCH** /projects/{projectId}/events/{id}/status | |
+|[**projectsProjectIdEventsMergePost**](#projectsprojectideventsmergepost) | **POST** /projects/{projectId}/events/merge | |
 
-# **eventsGet**
-> EventListItemDtoPagedResult eventsGet()
+# **projectsProjectIdEventsGet**
+> EventListItemDtoPagedResult projectsProjectIdEventsGet()
 
 
 ### Example
@@ -26,13 +26,15 @@ import {
 const configuration = new Configuration();
 const apiInstance = new EventsApi(configuration);
 
+let projectId: string; // (default to undefined)
 let page: number; // (optional) (default to 1)
 let pageSize: number; // (optional) (default to 20)
 let search: string; // (optional) (default to undefined)
 let sortBy: string; // (optional) (default to undefined)
 let tier: string; // (optional) (default to undefined)
 
-const { status, data } = await apiInstance.eventsGet(
+const { status, data } = await apiInstance.projectsProjectIdEventsGet(
+    projectId,
     page,
     pageSize,
     search,
@@ -45,6 +47,7 @@ const { status, data } = await apiInstance.eventsGet(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
+| **projectId** | [**string**] |  | defaults to undefined|
 | **page** | [**number**] |  | (optional) defaults to 1|
 | **pageSize** | [**number**] |  | (optional) defaults to 20|
 | **search** | [**string**] |  | (optional) defaults to undefined|
@@ -73,8 +76,8 @@ const { status, data } = await apiInstance.eventsGet(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **eventsIdGet**
-> EventDetailDto eventsIdGet()
+# **projectsProjectIdEventsIdGet**
+> EventDetailDto projectsProjectIdEventsIdGet()
 
 
 ### Example
@@ -89,9 +92,11 @@ const configuration = new Configuration();
 const apiInstance = new EventsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 
-const { status, data } = await apiInstance.eventsIdGet(
-    id
+const { status, data } = await apiInstance.projectsProjectIdEventsIdGet(
+    id,
+    projectId
 );
 ```
 
@@ -100,6 +105,7 @@ const { status, data } = await apiInstance.eventsIdGet(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -123,8 +129,8 @@ const { status, data } = await apiInstance.eventsIdGet(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **eventsIdReclassifyPost**
-> eventsIdReclassifyPost()
+# **projectsProjectIdEventsIdReclassifyPost**
+> projectsProjectIdEventsIdReclassifyPost()
 
 
 ### Example
@@ -140,10 +146,12 @@ const configuration = new Configuration();
 const apiInstance = new EventsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 let reclassifyArticleRequest: ReclassifyArticleRequest; // (optional)
 
-const { status, data } = await apiInstance.eventsIdReclassifyPost(
+const { status, data } = await apiInstance.projectsProjectIdEventsIdReclassifyPost(
     id,
+    projectId,
     reclassifyArticleRequest
 );
 ```
@@ -154,6 +162,7 @@ const { status, data } = await apiInstance.eventsIdReclassifyPost(
 |------------- | ------------- | ------------- | -------------|
 | **reclassifyArticleRequest** | **ReclassifyArticleRequest**|  | |
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -177,8 +186,8 @@ void (empty response body)
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **eventsIdResolveContradictionPost**
-> eventsIdResolveContradictionPost()
+# **projectsProjectIdEventsIdResolveContradictionPost**
+> projectsProjectIdEventsIdResolveContradictionPost()
 
 
 ### Example
@@ -194,10 +203,12 @@ const configuration = new Configuration();
 const apiInstance = new EventsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 let resolveContradictionRequest: ResolveContradictionRequest; // (optional)
 
-const { status, data } = await apiInstance.eventsIdResolveContradictionPost(
+const { status, data } = await apiInstance.projectsProjectIdEventsIdResolveContradictionPost(
     id,
+    projectId,
     resolveContradictionRequest
 );
 ```
@@ -208,6 +219,7 @@ const { status, data } = await apiInstance.eventsIdResolveContradictionPost(
 |------------- | ------------- | ------------- | -------------|
 | **resolveContradictionRequest** | **ResolveContradictionRequest**|  | |
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -231,8 +243,8 @@ void (empty response body)
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **eventsIdStatusPatch**
-> eventsIdStatusPatch()
+# **projectsProjectIdEventsIdStatusPatch**
+> projectsProjectIdEventsIdStatusPatch()
 
 
 ### Example
@@ -247,10 +259,12 @@ const configuration = new Configuration();
 const apiInstance = new EventsApi(configuration);
 
 let id: string; // (default to undefined)
+let projectId: string; // (default to undefined)
 let body: string; // (optional)
 
-const { status, data } = await apiInstance.eventsIdStatusPatch(
+const { status, data } = await apiInstance.projectsProjectIdEventsIdStatusPatch(
     id,
+    projectId,
     body
 );
 ```
@@ -261,6 +275,7 @@ const { status, data } = await apiInstance.eventsIdStatusPatch(
 |------------- | ------------- | ------------- | -------------|
 | **body** | **string**|  | |
 | **id** | [**string**] |  | defaults to undefined|
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -284,8 +299,8 @@ void (empty response body)
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **eventsMergePost**
-> eventsMergePost()
+# **projectsProjectIdEventsMergePost**
+> projectsProjectIdEventsMergePost()
 
 
 ### Example
@@ -300,9 +315,11 @@ import {
 const configuration = new Configuration();
 const apiInstance = new EventsApi(configuration);
 
+let projectId: string; // (default to undefined)
 let mergeEventsRequest: MergeEventsRequest; // (optional)
 
-const { status, data } = await apiInstance.eventsMergePost(
+const { status, data } = await apiInstance.projectsProjectIdEventsMergePost(
+    projectId,
     mergeEventsRequest
 );
 ```
@@ -312,6 +329,7 @@ const { status, data } = await apiInstance.eventsMergePost(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **mergeEventsRequest** | **MergeEventsRequest**|  | |
+| **projectId** | [**string**] |  | defaults to undefined|
 
 
 ### Return type

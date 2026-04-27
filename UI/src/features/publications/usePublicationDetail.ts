@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { useProjectStore } from '@/store/projectStore'
 import { apiClient } from '@/lib/axios'
-import type { PublicationDetailDto } from './types'
+import { PublicationsApi } from '@/api/generated'
+
+const publicationsApi = new PublicationsApi(undefined, '', apiClient)
 
 export function usePublicationDetail(id: string) {
   const { selectedProjectId } = useProjectStore()
@@ -10,8 +12,8 @@ export function usePublicationDetail(id: string) {
     queryKey: ['project', selectedProjectId, 'publication', id],
     enabled: !!id && !!selectedProjectId,
     queryFn: () =>
-      apiClient
-        .get<PublicationDetailDto>(`/projects/${selectedProjectId}/publications/${id}`)
+      publicationsApi
+        .projectsProjectIdPublicationsIdGet(id, selectedProjectId!)
         .then(r => r.data),
     refetchInterval: (query) => {
       const status = query.state.data?.status

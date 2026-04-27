@@ -1,8 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useProjectStore } from '@/store/projectStore'
 import { apiClient } from '@/lib/axios'
+import { PublicationsApi } from '@/api/generated'
 import { useToast } from '@/context/ToastContext'
-import type { MediaFileDto, PublicationDetailDto, PublicationListItemDto } from './types'
+
+const publicationsApi = new PublicationsApi(undefined, '', apiClient)
 
 export function usePublicationMutations(publicationId?: string) {
   const queryClient = useQueryClient()
@@ -16,8 +18,8 @@ export function usePublicationMutations(publicationId?: string) {
 
   const generateContent = useMutation({
     mutationFn: (data: { eventId: string; publishTargetId: string }) =>
-      apiClient
-        .post<PublicationListItemDto>(`/projects/${selectedProjectId}/publications/generate`, data)
+      publicationsApi
+        .projectsProjectIdPublicationsGeneratePost(selectedProjectId!, data)
         .then(r => r.data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
@@ -29,8 +31,8 @@ export function usePublicationMutations(publicationId?: string) {
 
   const updateContent = useMutation({
     mutationFn: (data: { content: string; selectedMediaFileIds: string[] }) =>
-      apiClient
-        .put<PublicationDetailDto>(`/projects/${selectedProjectId}/publications/${publicationId}/content`, data)
+      publicationsApi
+        .projectsProjectIdPublicationsIdContentPut(publicationId!, selectedProjectId!, data)
         .then(r => r.data),
     onSuccess: () => {
       toast('Content updated', 'success')
@@ -41,8 +43,8 @@ export function usePublicationMutations(publicationId?: string) {
 
   const approve = useMutation({
     mutationFn: () =>
-      apiClient
-        .post<PublicationDetailDto>(`/projects/${selectedProjectId}/publications/${publicationId}/approve`)
+      publicationsApi
+        .projectsProjectIdPublicationsIdApprovePost(publicationId!, selectedProjectId!)
         .then(r => r.data),
     onSuccess: () => {
       toast('Publication approved', 'success')
@@ -53,8 +55,8 @@ export function usePublicationMutations(publicationId?: string) {
 
   const reject = useMutation({
     mutationFn: (reason: string) =>
-      apiClient
-        .post<PublicationDetailDto>(`/projects/${selectedProjectId}/publications/${publicationId}/reject`, { reason })
+      publicationsApi
+        .projectsProjectIdPublicationsIdRejectPost(publicationId!, selectedProjectId!, { reason })
         .then(r => r.data),
     onSuccess: () => {
       toast('Publication rejected', 'success')
@@ -65,8 +67,8 @@ export function usePublicationMutations(publicationId?: string) {
 
   const regenerate = useMutation({
     mutationFn: (feedback: string) =>
-      apiClient
-        .post<PublicationDetailDto>(`/projects/${selectedProjectId}/publications/${publicationId}/regenerate`, { feedback })
+      publicationsApi
+        .projectsProjectIdPublicationsIdRegeneratePost(publicationId!, selectedProjectId!, { feedback })
         .then(r => r.data),
     onSuccess: () => {
       toast('Regeneration requested', 'success')
@@ -82,15 +84,10 @@ export function usePublicationMutations(publicationId?: string) {
   })
 
   const uploadMedia = useMutation({
-    mutationFn: (file: File) => {
-      const form = new FormData()
-      form.append('file', file)
-      return apiClient
-        .post<MediaFileDto>(`/projects/${selectedProjectId}/publications/${publicationId}/media`, form, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        })
-        .then(r => r.data)
-    },
+    mutationFn: (file: File) =>
+      publicationsApi
+        .projectsProjectIdPublicationsIdMediaPost(publicationId!, selectedProjectId!, file)
+        .then(r => r.data),
     onSuccess: () => {
       toast('Media uploaded', 'success')
       invalidateDetail()
@@ -100,9 +97,8 @@ export function usePublicationMutations(publicationId?: string) {
 
   const deleteMedia = useMutation({
     mutationFn: (mediaId: string) =>
-      apiClient
-        .delete(`/projects/${selectedProjectId}/publications/${publicationId}/media/${mediaId}`)
-        .then(r => r.data),
+      publicationsApi
+        .projectsProjectIdPublicationsIdMediaMediaIdDelete(publicationId!, mediaId, selectedProjectId!),
     onSuccess: () => {
       toast('Media deleted', 'success')
       invalidateDetail()

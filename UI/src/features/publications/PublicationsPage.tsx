@@ -160,7 +160,7 @@ function PublicationRow({ pub }: { pub: PublicationListItemDto }) {
       {/* Status + published date */}
       <div className="flex flex-col items-end gap-1 shrink-0">
         <span className="font-caps text-xs tracking-widest" style={{ color }}>
-          {pub.status.replace(/([A-Z])/g, ' $1').trim().toUpperCase()}
+          {(pub.status ?? '').replace(/([A-Z])/g, ' $1').trim().toUpperCase()}
         </span>
         {pub.publishedAt && (
           <span className="font-mono text-[10px]" style={{ color: '#6b7280' }}>

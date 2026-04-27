@@ -1,32 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/axios'
+import { ProjectsApi } from '@/api/generated'
+import type { CreateProjectRequest, UpdateProjectRequest } from '@/api/generated'
 import { useToast } from '@/context/ToastContext'
 
-interface CreateProjectData {
-  name: string
-  slug?: string
-  analyzerPromptText: string
-  categories: string[]
-  outputLanguage: string
-  outputLanguageName: string
-}
-
-interface UpdateProjectData {
-  name: string
-  analyzerPromptText: string
-  categories: string[]
-  outputLanguage: string
-  outputLanguageName: string
-  isActive: boolean
-}
+const projectsApi = new ProjectsApi(undefined, '', apiClient)
 
 export function useCreateProject() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
 
   return useMutation({
-    mutationFn: (data: CreateProjectData) =>
-      apiClient.post('/projects', data).then(r => r.data),
+    mutationFn: (data: CreateProjectRequest) =>
+      projectsApi.projectsPost(data).then(r => r.data),
     onSuccess: () => {
       toast('Project created', 'success')
       queryClient.invalidateQueries({ queryKey: ['projects'] })
@@ -40,8 +26,8 @@ export function useUpdateProject() {
   const { toast } = useToast()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateProjectData }) =>
-      apiClient.put(`/projects/${id}`, data).then(r => r.data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateProjectRequest }) =>
+      projectsApi.projectsIdPut(id, data).then(r => r.data),
     onSuccess: () => {
       toast('Project updated', 'success')
       queryClient.invalidateQueries({ queryKey: ['projects'] })
@@ -56,9 +42,7 @@ export function useToggleProjectActive() {
 
   return useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      apiClient.patch(`/projects/${id}/status`, isActive, {
-        headers: { 'Content-Type': 'application/json' },
-      }),
+      projectsApi.projectsIdStatusPatch(id, isActive),
     onSuccess: () => {
       toast('Project status updated', 'success')
       queryClient.invalidateQueries({ queryKey: ['projects'] })
@@ -72,7 +56,7 @@ export function useDeleteProject() {
   const { toast } = useToast()
 
   return useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/projects/${id}`),
+    mutationFn: (id: string) => projectsApi.projectsIdDelete(id),
     onSuccess: () => {
       toast('Project deleted', 'success')
       queryClient.invalidateQueries({ queryKey: ['projects'] })

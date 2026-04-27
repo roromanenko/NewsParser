@@ -9,7 +9,8 @@ internal static class DbUpMigrator
         var result = DeployChanges.To
             .PostgresqlDatabase(connectionString)
             .WithScriptsEmbeddedInAssembly(typeof(DbUpMigrator).Assembly)
-            .LogToConsole()
+			.WithVariablesDisabled()
+			.LogToConsole()
             .Build()
             .PerformUpgrade();
 

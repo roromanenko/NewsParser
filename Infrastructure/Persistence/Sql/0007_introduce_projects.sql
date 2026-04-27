@@ -58,55 +58,140 @@ ALTER TABLE sources
     ADD COLUMN IF NOT EXISTS "ProjectId" UUID NOT NULL
     DEFAULT '00000000-0000-0000-0000-000000000001';
 
-ALTER TABLE sources ALTER COLUMN "ProjectId" DROP DEFAULT;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'sources'
+          AND column_name = 'ProjectId'
+          AND column_default IS NOT NULL
+    ) THEN
+        ALTER TABLE sources ALTER COLUMN "ProjectId" DROP DEFAULT;
+    END IF;
+END $$;
 
-ALTER TABLE sources
-    ADD CONSTRAINT "FK_sources_projects_ProjectId"
-    FOREIGN KEY ("ProjectId") REFERENCES projects ("Id") ON DELETE RESTRICT;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'FK_sources_projects_ProjectId'
+    ) THEN
+        ALTER TABLE sources
+            ADD CONSTRAINT "FK_sources_projects_ProjectId"
+            FOREIGN KEY ("ProjectId") REFERENCES projects ("Id") ON DELETE RESTRICT;
+    END IF;
+END $$;
 
 -- 4b. Backfill articles
 ALTER TABLE articles
     ADD COLUMN IF NOT EXISTS "ProjectId" UUID NOT NULL
     DEFAULT '00000000-0000-0000-0000-000000000001';
 
-ALTER TABLE articles ALTER COLUMN "ProjectId" DROP DEFAULT;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'articles'
+          AND column_name = 'ProjectId'
+          AND column_default IS NOT NULL
+    ) THEN
+        ALTER TABLE articles ALTER COLUMN "ProjectId" DROP DEFAULT;
+    END IF;
+END $$;
 
-ALTER TABLE articles
-    ADD CONSTRAINT "FK_articles_projects_ProjectId"
-    FOREIGN KEY ("ProjectId") REFERENCES projects ("Id") ON DELETE RESTRICT;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'FK_articles_projects_ProjectId'
+    ) THEN
+        ALTER TABLE articles
+            ADD CONSTRAINT "FK_articles_projects_ProjectId"
+            FOREIGN KEY ("ProjectId") REFERENCES projects ("Id") ON DELETE RESTRICT;
+    END IF;
+END $$;
 
 -- 4c. Backfill events
 ALTER TABLE events
     ADD COLUMN IF NOT EXISTS "ProjectId" UUID NOT NULL
     DEFAULT '00000000-0000-0000-0000-000000000001';
 
-ALTER TABLE events ALTER COLUMN "ProjectId" DROP DEFAULT;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'events'
+          AND column_name = 'ProjectId'
+          AND column_default IS NOT NULL
+    ) THEN
+        ALTER TABLE events ALTER COLUMN "ProjectId" DROP DEFAULT;
+    END IF;
+END $$;
 
-ALTER TABLE events
-    ADD CONSTRAINT "FK_events_projects_ProjectId"
-    FOREIGN KEY ("ProjectId") REFERENCES projects ("Id") ON DELETE RESTRICT;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'FK_events_projects_ProjectId'
+    ) THEN
+        ALTER TABLE events
+            ADD CONSTRAINT "FK_events_projects_ProjectId"
+            FOREIGN KEY ("ProjectId") REFERENCES projects ("Id") ON DELETE RESTRICT;
+    END IF;
+END $$;
 
 -- 4d. Backfill publish_targets
 ALTER TABLE publish_targets
     ADD COLUMN IF NOT EXISTS "ProjectId" UUID NOT NULL
     DEFAULT '00000000-0000-0000-0000-000000000001';
 
-ALTER TABLE publish_targets ALTER COLUMN "ProjectId" DROP DEFAULT;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'publish_targets'
+          AND column_name = 'ProjectId'
+          AND column_default IS NOT NULL
+    ) THEN
+        ALTER TABLE publish_targets ALTER COLUMN "ProjectId" DROP DEFAULT;
+    END IF;
+END $$;
 
-ALTER TABLE publish_targets
-    ADD CONSTRAINT "FK_publish_targets_projects_ProjectId"
-    FOREIGN KEY ("ProjectId") REFERENCES projects ("Id") ON DELETE RESTRICT;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'FK_publish_targets_projects_ProjectId'
+    ) THEN
+        ALTER TABLE publish_targets
+            ADD CONSTRAINT "FK_publish_targets_projects_ProjectId"
+            FOREIGN KEY ("ProjectId") REFERENCES projects ("Id") ON DELETE RESTRICT;
+    END IF;
+END $$;
 
 -- 4e. Backfill publications
 ALTER TABLE publications
     ADD COLUMN IF NOT EXISTS "ProjectId" UUID NOT NULL
     DEFAULT '00000000-0000-0000-0000-000000000001';
 
-ALTER TABLE publications ALTER COLUMN "ProjectId" DROP DEFAULT;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'publications'
+          AND column_name = 'ProjectId'
+          AND column_default IS NOT NULL
+    ) THEN
+        ALTER TABLE publications ALTER COLUMN "ProjectId" DROP DEFAULT;
+    END IF;
+END $$;
 
-ALTER TABLE publications
-    ADD CONSTRAINT "FK_publications_projects_ProjectId"
-    FOREIGN KEY ("ProjectId") REFERENCES projects ("Id") ON DELETE RESTRICT;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'FK_publications_projects_ProjectId'
+    ) THEN
+        ALTER TABLE publications
+            ADD CONSTRAINT "FK_publications_projects_ProjectId"
+            FOREIGN KEY ("ProjectId") REFERENCES projects ("Id") ON DELETE RESTRICT;
+    END IF;
+END $$;
 
 -- 5. Drop the old global unique index on sources URL
 DROP INDEX IF EXISTS "IX_sources_Url";

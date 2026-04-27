@@ -100,18 +100,18 @@ export function AiOpsCostTimeChart({ series, isLoading, isError }: Props) {
               tick={{ fill: '#9ca3af', fontSize: 11, fontFamily: 'monospace' }}
             />
             <YAxis
-              tickFormatter={v => formatYAxis(v as number, mode)}
+              tickFormatter={(v: number) => formatYAxis(v, mode)}
               tick={{ fill: '#9ca3af', fontSize: 11, fontFamily: 'monospace' }}
             />
             <Tooltip
-              formatter={(value, name) =>
-                formatTooltipValue(value as number, mode, name === anthropicKey ? 'Anthropic' : 'Gemini')
+              formatter={(value: number | string | ReadonlyArray<number | string> | undefined, name: string | number | undefined) =>
+                formatTooltipValue(Number(value ?? 0), mode, String(name ?? '') === String(anthropicKey) ? 'Anthropic' : 'Gemini')
               }
               contentStyle={{ background: 'var(--burgundy)', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace' }}
               labelStyle={{ color: '#9ca3af' }}
             />
             <Legend
-              formatter={value => (value === String(anthropicKey) ? 'Anthropic' : 'Gemini')}
+              formatter={(value: string) => (value === String(anthropicKey) ? 'Anthropic' : 'Gemini')}
             />
             <Line
               type="monotone"

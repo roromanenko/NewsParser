@@ -1,17 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { useProjectStore } from '@/store/projectStore'
 import { apiClient } from '@/lib/axios'
-import type { PublicationListItemDto } from './types'
+import { PublicationsApi } from '@/api/generated'
 
-interface PagedResult<T> {
-  items: T[]
-  totalCount: number
-  totalPages: number
-  hasNextPage: boolean
-  hasPreviousPage: boolean
-  page: number
-  pageSize: number
-}
+const publicationsApi = new PublicationsApi(undefined, '', apiClient)
 
 export function useAllPublications(page: number, pageSize: number) {
   const { selectedProjectId } = useProjectStore()
@@ -20,10 +12,8 @@ export function useAllPublications(page: number, pageSize: number) {
     queryKey: ['project', selectedProjectId, 'publications', 'all', page, pageSize],
     enabled: !!selectedProjectId,
     queryFn: () =>
-      apiClient
-        .get<PagedResult<PublicationListItemDto>>(`/projects/${selectedProjectId}/publications`, {
-          params: { page, pageSize },
-        })
+      publicationsApi
+        .projectsProjectIdPublicationsGet(selectedProjectId!, page, pageSize)
         .then(r => r.data),
   })
 

@@ -22,7 +22,8 @@
       "Bash(dotnet user-secrets *)",
       "Bash(powershell *)",
       "Bash(cat)",
-      "Bash(dotnet script *)"
+      "Bash(dotnet script *)",
+      "Bash(npm install *)"
     ]
   }
 }
