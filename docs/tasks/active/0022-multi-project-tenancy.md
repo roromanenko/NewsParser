@@ -470,11 +470,16 @@ thematically distinct news streams to run on a single NewsParser instance.
       _Acceptance: `dotnet build Api` green_
       _Skill: .claude/skills/api-conventions/SKILL.md_
 
-- [x] **Modify `Api/Controllers/AiOperationsController.cs`** — change
-      `[Route("ai-operations")]` to
-      `[Route("projects/{projectId:guid}/ai-operations")]`. No other behavior changes
-      (AI log is global; the route change keeps consistency).
-      _Acceptance: `dotnet build Api` green; Swagger shows scoped ai-operations route_
+- [x] **Keep `Api/Controllers/AiOperationsController.cs` at `[Route("ai-operations")]`** —
+      `ai_request_log` has no `ProjectId` column (explicitly global per ADR §B);
+      scoping the route would require a predicate with no backing column.
+      `RequireProjectConvention` does not apply. No `IProjectContext` injection.
+      UI hooks (`useAiRequestMetrics`, `useAiRequestList`, `useAiRequestDetail`) call
+      `/ai-operations/...` directly without a project prefix; query keys use
+      `['ai-ops', ...]` (no project segment). Router route lives at top-level
+      `ai-operations` under `AdminRoute`, not under `projects/:projectId`.
+      _Acceptance: `dotnet build Api` green; Swagger shows global `ai-operations` route;
+      UI hooks compile without `selectedProjectId` dependency_
       _Skill: .claude/skills/api-conventions/SKILL.md_
 
 ---

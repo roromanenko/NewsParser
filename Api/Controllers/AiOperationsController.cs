@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Api.Controllers;
 
 [ApiController]
-[Route("projects/{projectId:guid}/ai-operations")]
+[Route("ai-operations")]
 [Authorize(Roles = nameof(UserRole.Admin))]
 public class AiOperationsController(IAiRequestLogRepository repository) : BaseController
 {

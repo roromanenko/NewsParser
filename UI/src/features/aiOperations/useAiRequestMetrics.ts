@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import type { UseQueryResult } from '@tanstack/react-query'
-import { useProjectStore } from '@/store/projectStore'
 import { apiClient } from '@/lib/axios'
 import type { AiOpsMetricsView, AiOpsTimeBucket, AiOpsBreakdownRow, AiOpsKpis, AiOpsFilters } from './types'
 import type { AiMetricsTimeBucketDto, AiMetricsBreakdownRowDto, AiOperationsMetricsDto } from '@/api/generated'
@@ -74,14 +73,11 @@ function mapBreakdownRows(rows: AiMetricsBreakdownRowDto[]): AiOpsBreakdownRow[]
 export function useAiRequestMetrics(
   filters: MetricsFilters,
 ): UseQueryResult<AiOpsMetricsView> {
-  const { selectedProjectId } = useProjectStore()
-
   return useQuery({
-    queryKey: ['project', selectedProjectId, 'ai-ops', 'metrics', filters],
-    enabled: !!selectedProjectId,
+    queryKey: ['ai-ops', 'metrics', filters],
     staleTime: STALE_MS,
     queryFn: async () => {
-      const res = await apiClient.get(`/projects/${selectedProjectId}/ai-operations/metrics`, {
+      const res = await apiClient.get(`/ai-operations/metrics`, {
         params: {
           from: filters.from || undefined,
           to: filters.to || undefined,

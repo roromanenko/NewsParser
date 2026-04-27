@@ -400,6 +400,13 @@ not the kNN. Two access paths, two index strategies — they don't conflict.
 | `users/*` | `users/*` |
 | `health` | `health` |
 | (new) `projects` (CRUD) | `projects` |
+| `ai-operations/*` | `ai-operations/*` |
+
+`ai-operations` is intentionally kept global: the `ai_request_log` table has no
+`ProjectId` column (explicitly out of scope per §B) — it is a cost-attribution
+ledger, not a per-project resource. Scoping the route would require the project
+filter on the action but the underlying data has no such column. `AiOperationsController`
+does not inject `IProjectContext` and is not covered by `RequireProjectConvention`.
 
 **Scoped controllers** — every other resource controller is rerouted:
 
@@ -410,7 +417,6 @@ not the kNN. Two access paths, two index strategies — they don't conflict.
 | `sources/*` | `projects/{projectId:guid}/sources/*` |
 | `publications/*` | `projects/{projectId:guid}/publications/*` |
 | `publish-targets/*` | `projects/{projectId:guid}/publish-targets/*` |
-| `ai-operations/*` | `projects/{projectId:guid}/ai-operations/*` |
 
 Implementation: each controller's `[Route("...")]` attribute changes to
 `[Route("projects/{projectId:guid}/articles")]`, etc. The `{projectId}` segment is a
@@ -848,10 +854,11 @@ What is **deferred** (explicit non-goals for this ADR's PR):
     the constructor-injected analyzer prompt.
 
 - **Modified — Api:**
-  - All scoped controllers (`ArticlesController`, `EventsController`,
-    `SourcesController`, `PublishTargetsController`, `PublicationsController`,
-    `AiOperationsController`) — `[Route("...")]` reroute, MVC convention adds the
-    `RequireProjectAttribute`.
+  - Scoped controllers (`ArticlesController`, `EventsController`,
+    `SourcesController`, `PublishTargetsController`, `PublicationsController`) —
+    `[Route("...")]` reroute, MVC convention adds the `RequireProjectAttribute`.
+  - `AiOperationsController` — route stays `ai-operations` (global); not touched
+    by `RequireProjectConvention`; no `IProjectContext` injection.
   - The OpenAPI / Swagger doc regeneration is automatic — no per-controller change
     required.
   - `Program.cs` — register the MVC convention that attaches `RequireProjectAttribute`

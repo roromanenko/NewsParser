@@ -1,6 +1,5 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import type { UseQueryResult } from '@tanstack/react-query'
-import { useProjectStore } from '@/store/projectStore'
 import { apiClient } from '@/lib/axios'
 import type { AiOpsFilters, AiOpsRequestPage } from './types'
 import { mapRequestRow } from './mappers'
@@ -13,15 +12,12 @@ export function useAiRequestList(
   pageSize: number,
   filters: AiOpsFilters,
 ): UseQueryResult<AiOpsRequestPage> {
-  const { selectedProjectId } = useProjectStore()
-
   return useQuery({
-    queryKey: ['project', selectedProjectId, 'ai-ops', 'requests', page, pageSize, filters],
-    enabled: !!selectedProjectId,
+    queryKey: ['ai-ops', 'requests', page, pageSize, filters],
     staleTime: LIST_STALE_MS,
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const res = await apiClient.get(`/projects/${selectedProjectId}/ai-operations/requests`, {
+      const res = await apiClient.get(`/ai-operations/requests`, {
         params: {
           from: filters.from || undefined,
           to: filters.to || undefined,

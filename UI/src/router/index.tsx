@@ -167,13 +167,11 @@ export function AppRouter() {
               }
             />
             <Route
-              path="projects/:projectId/ai-operations"
+              path="ai-operations"
               element={
-                <ProjectRoute>
-                  <AdminRoute>
-                    <AiOperationsPage />
-                  </AdminRoute>
-                </ProjectRoute>
+                <AdminRoute>
+                  <AiOperationsPage />
+                </AdminRoute>
               }
             />
             <Route
